@@ -83,13 +83,9 @@
     display:flex; flex-direction:column;
   }
 
-  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin:14px 2px 8px; flex-shrink:0; }
+  .section-head{ display:flex; align-items:baseline; justify-content:flex-end; margin:14px 2px 8px; flex-shrink:0; }
   .section-head:first-child{ margin-top:6px; }
-  .section-label{
-    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--ink-mute);
-  }
-  .section-head-actions{ display:flex; align-items:center; gap:14px; }
+  .section-head-actions{ display:flex; align-items:center; gap:14px; width:100%; justify-content:space-between; }
   .markers-link{
     border:none; background:none; cursor:pointer; padding:2px 0;
     font-size:10.5px; font-weight:800; letter-spacing:.3px; color:var(--ink-mute);
@@ -425,7 +421,6 @@
     </div>
 
     <div class="section-head">
-      <div class="section-label">Tap each word as it's recited</div>
       <div class="section-head-actions">
         <button class="markers-link" id="markersToggleBtn" disabled>
           <span id="markersToggleLabel">Markers</span>
@@ -804,11 +799,11 @@
       <div class="mp-nav-row">
         <button class="mp-navbtn" id="mpPrevBtn" aria-label="Go to previous marker">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-          Prev marker
+          Prev
         </button>
-        <span class="mp-nav-count">${hasSelection ? `Marker ${selectedPos + 1} of ${markerList.length}` : `${markerList.length} marker${markerList.length === 1 ? '' : 's'}`}</span>
+        <span class="mp-nav-count">${hasSelection ? `${selectedPos + 1} of ${markerList.length}` : `${markerList.length} marker${markerList.length === 1 ? '' : 's'}`}</span>
         <button class="mp-navbtn" id="mpNextBtn" aria-label="Go to next marker">
-          Next marker
+          Next
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </div>
