@@ -33,9 +33,11 @@ HERE = Path(__file__).parent.resolve()
 STATIC_DIR = HERE / "static"
 OUTPUT_DIR = HERE / "output"          # matches quran_video.py's own default
 JOBS_DIR = HERE / "jobs"              # per-job temp files (e.g. uploaded theme.json)
+THEMES_DIR = HERE / "themes"          # user-saved custom themes, one JSON file per theme
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(exist_ok=True)
+THEMES_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 
@@ -226,6 +228,91 @@ def api_preview_frame():
         theme_path.unlink(missing_ok=True)
 
     return send_file(buf, mimetype="image/png")
+
+
+# --------------------------------------------------------------------------
+# Saved themes library (user-created custom themes, persisted to disk)
+# --------------------------------------------------------------------------
+
+THEME_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def _read_theme_file(path):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return {
+        "id": data.get("id") or path.stem,
+        "name": data.get("name") or "Untitled theme",
+        "theme": data.get("theme") or {},
+        "createdAt": data.get("createdAt"),
+        "updatedAt": data.get("updatedAt"),
+    }
+
+
+@app.route("/api/themes")
+def api_themes():
+    themes = []
+    for theme_path in THEMES_DIR.glob("*.json"):
+        record = _read_theme_file(theme_path)
+        if record:
+            themes.append(record)
+    themes.sort(key=lambda t: t["createdAt"] or 0)
+    return jsonify(themes)
+
+
+@app.route("/api/themes", methods=["POST"])
+def api_create_theme():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()[:80]
+    theme = data.get("theme")
+    if not name:
+        return jsonify({"error": "Theme name is required."}), 400
+    if not isinstance(theme, dict):
+        return jsonify({"error": "theme must be an object."}), 400
+
+    theme_id = uuid.uuid4().hex[:10]
+    now = time.time()
+    record = {"id": theme_id, "name": name, "theme": theme, "createdAt": now, "updatedAt": now}
+    (THEMES_DIR / f"{theme_id}.json").write_text(json.dumps(record), encoding="utf-8")
+    return jsonify(record)
+
+
+@app.route("/api/themes/<theme_id>", methods=["PUT"])
+def api_update_theme(theme_id):
+    if not THEME_ID_RE.match(theme_id):
+        abort(400)
+    theme_path = THEMES_DIR / f"{theme_id}.json"
+    record = _read_theme_file(theme_path)
+    if not record:
+        abort(404)
+
+    data = request.get_json(force=True, silent=True) or {}
+    if "name" in data:
+        name = (data.get("name") or "").strip()[:80]
+        if not name:
+            return jsonify({"error": "Theme name is required."}), 400
+        record["name"] = name
+    if "theme" in data:
+        theme = data.get("theme")
+        if not isinstance(theme, dict):
+            return jsonify({"error": "theme must be an object."}), 400
+        record["theme"] = theme
+    record["updatedAt"] = time.time()
+    theme_path.write_text(json.dumps(record), encoding="utf-8")
+    return jsonify(record)
+
+
+@app.route("/api/themes/<theme_id>", methods=["DELETE"])
+def api_delete_theme(theme_id):
+    if not THEME_ID_RE.match(theme_id):
+        abort(400)
+    theme_path = THEMES_DIR / f"{theme_id}.json"
+    if not theme_path.exists():
+        abort(404)
+    theme_path.unlink()
+    return jsonify({"ok": True})
 
 
 # --------------------------------------------------------------------------

@@ -924,8 +924,26 @@
     };
   }
 
+  // Set by resolveSeedTheme() when editing an already-saved custom theme,
+  // so the Save button knows to overwrite it (PUT) instead of creating a
+  // new library entry (POST).
+  let editingThemeId = null;
+  let editingThemeName = null;
+
   function resolveSeedTheme(){
     const params = new URLSearchParams(location.search);
+    const themeId = params.get('themeId');
+    if (themeId){
+      try {
+        const raw = localStorage.getItem('afs_edit_seed');
+        const seed = raw ? JSON.parse(raw) : null;
+        if (seed && seed.id === themeId){
+          editingThemeId = seed.id;
+          editingThemeName = seed.name;
+          return seed.theme;
+        }
+      } catch (e) { /* ignore corrupt storage */ }
+    }
     const name = params.get('theme');
     if (name && window.THEME_PRESETS && window.THEME_PRESETS[name]) return window.THEME_PRESETS[name];
     try {
@@ -1367,11 +1385,36 @@
   });
 
   // ---------- save ----------
-  el('saveBtn').addEventListener('click', () => {
+  el('saveBtn').addEventListener('click', async () => {
     const theme = stateToTheme(state);
     localStorage.setItem('afs_custom_theme', JSON.stringify(theme));
-    sessionStorage.setItem('afs_custom_theme_just_saved', '1');
-    history.back();
+
+    let name = editingThemeName;
+    if (!editingThemeId){
+      name = prompt('Name this theme:', name || 'My theme');
+      if (!name) return; // cancelled
+      name = name.trim();
+      if (!name) return;
+    }
+
+    try {
+      const res = editingThemeId
+        ? await fetch(`/api/themes/${editingThemeId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, theme }),
+          })
+        : await fetch('/api/themes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, theme }),
+          });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || 'Save failed.');
+      localStorage.setItem('afs_last_saved_theme_id', saved.id);
+      sessionStorage.setItem('afs_custom_theme_just_saved', '1');
+      history.back();
+    } catch (e) {
+      alert(`Couldn't save this theme: ${e.message}`);
+    }
   });
 
   // ---------- init UI to match seeded state ----------
@@ -1435,7 +1478,7 @@
     el('fadeDuration').value = state.fadeDuration; el('fadeDurationVal').textContent = state.fadeDuration.toFixed(2) + 's';
     el('kenBurns').checked = state.kenBurns;
 
-    el('previewMetaTitle').textContent = new URLSearchParams(location.search).get('theme') || 'Custom theme';
+    el('previewMetaTitle').textContent = editingThemeName || new URLSearchParams(location.search).get('theme') || 'Custom theme';
   }
 
   renderBadgeStyleGrid();

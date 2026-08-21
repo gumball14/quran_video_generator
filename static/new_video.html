@@ -173,14 +173,13 @@
   .theme-name{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
   .theme-card.selected .theme-name{ color:var(--ink); }
 
-  .swatch-amber{ background:linear-gradient(160deg,#FCEBC7,#E8B85F); }
-  .swatch-amber .glyph{ color:#7A4E12; }
-  .swatch-teal{ background:linear-gradient(160deg,#1E3A3A,#0D2323); }
-  .swatch-teal .glyph{ color:#D9C68A; }
-  .swatch-ivory{ background:linear-gradient(160deg,#FFFDF6,#ECE3CC); }
-  .swatch-ivory .glyph{ color:#14183A; }
-  .swatch-rose{ background:linear-gradient(160deg,#3A1E28,#160B10); }
-  .swatch-rose .glyph{ color:#E2A9A0; }
+  .theme-delete{
+    position:absolute; top:6px; left:6px; width:17px; height:17px; border-radius:50%;
+    background:rgba(20,24,58,.55); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .theme-delete svg{ width:8px; height:8px; }
+  .theme-delete:active{ transform:scale(.9); }
 
   .theme-add{
     flex-shrink:0; width:70px; display:flex; flex-direction:column; align-items:center; gap:7px;
@@ -384,35 +383,7 @@
     <div class="section">
       <div class="section-label">Style</div>
       <div class="opt-row" id="themeRow">
-        <div class="theme-card" data-name="Sunset Amber">
-          <div class="theme-swatch swatch-amber">
-            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="glyph">ﷲ</div>
-          </div>
-          <div class="theme-name">Sunset<br>Amber</div>
-        </div>
-        <div class="theme-card" data-name="Midnight Teal">
-          <div class="theme-swatch swatch-teal">
-            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="glyph">ﷲ</div>
-          </div>
-          <div class="theme-name">Midnight<br>Teal</div>
-        </div>
-        <div class="theme-card" data-name="Ivory Minimal">
-          <div class="theme-swatch swatch-ivory">
-            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="glyph">ﷲ</div>
-          </div>
-          <div class="theme-name">Ivory<br>Minimal</div>
-        </div>
-        <div class="theme-card" data-name="Rose Dusk">
-          <div class="theme-swatch swatch-rose">
-            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="glyph">ﷲ</div>
-          </div>
-          <div class="theme-name">Rose<br>Dusk</div>
-        </div>
-
+        <div id="themeCards" style="display:contents"></div>
         <button class="theme-add" id="themeAddBtn">
           <div class="theme-add-swatch" id="themeAddSwatch">
             <svg id="themeAddIcon" viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -479,7 +450,8 @@
     to: 7,
     previewAyah: 1,   // which ayah the Preview card is currently showing; starts at "From" but can be browsed independently
     reciter: null,
-    themeLabel: null,   // preset name string, "Custom", or null (= default look)
+    themeKey: null,     // 'preset:<name>' or 'saved:<id>', or null (= default look)
+    themeLabel: null,   // display name string, or null
     themeObject: null,  // resolved theme.py-shaped object, or null
   };
 
@@ -639,25 +611,87 @@
     document.getElementById(`${key}SheetClose`).addEventListener('click', () => closeSheet(key));
   });
 
-  // ============ THEME: select / deselect + add-vs-edit toggle ============
+  // ============ THEME: built-in presets + saved custom themes ============
+  const themeCardsEl = document.getElementById('themeCards');
   const themeRow = document.getElementById('themeRow');
   const themeAddBtn = document.getElementById('themeAddBtn');
   const themeAddLabel = document.getElementById('themeAddLabel');
   const themeAddIcon = document.getElementById('themeAddIcon');
 
-  function selectPresetTheme(name){
-    state.themeLabel = name;
-    state.themeObject = name ? window.THEME_PRESETS[name] : null;
-    themeRow.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.name === name));
-    themeAddBtn.classList.remove('is-custom');
-    updateThemeAddTile();
+  let savedThemes = []; // [{id, name, theme}], fetched from /api/themes
+
+  function themeEntries(){
+    const presets = Object.keys(window.THEME_PRESETS).map(name => ({
+      key: 'preset:' + name, name, theme: window.THEME_PRESETS[name], deletable: false,
+    }));
+    const saved = savedThemes.map(t => ({
+      key: 'saved:' + t.id, name: t.name, theme: t.theme, deletable: true, id: t.id,
+    }));
+    return presets.concat(saved);
   }
 
-  function selectCustomTheme(themeObj){
-    state.themeLabel = 'Custom';
-    state.themeObject = themeObj;
-    themeRow.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
-    themeAddBtn.classList.add('is-custom');
+  function swatchStyle(theme){
+    const top = (theme.background_style === 'solid' ? theme.bg_solid : theme.bg_top) || [10, 20, 35];
+    const bottom = theme.background_style === 'solid' ? theme.bg_solid : (theme.bg_bottom || top);
+    return `background:linear-gradient(160deg, rgb(${top.join(',')}), rgb(${bottom.join(',')}))`;
+  }
+
+  function glyphColor(theme){
+    const c = theme.arabic_color || [240, 240, 235];
+    return `color:rgb(${c.join(',')})`;
+  }
+
+  function renderThemeCards(){
+    themeCardsEl.innerHTML = themeEntries().map(entry => `
+      <div class="theme-card" data-key="${entry.key}">
+        <div class="theme-swatch" style="${swatchStyle(entry.theme)}">
+          ${entry.deletable ? `<button class="theme-delete" data-key="${entry.key}" aria-label="Delete theme"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}
+          <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div class="glyph" style="${glyphColor(entry.theme)}">ﷲ</div>
+        </div>
+        <div class="theme-name">${entry.name}</div>
+      </div>
+    `).join('');
+    themeCardsEl.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.key === state.themeKey);
+      card.addEventListener('click', () => {
+        const isSame = state.themeKey === card.dataset.key;
+        selectTheme(isSame ? null : card.dataset.key);
+      });
+    });
+    themeCardsEl.querySelectorAll('.theme-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.key;
+        const id = key.slice('saved:'.length);
+        const entry = savedThemes.find(t => t.id === id);
+        if (!confirm(`Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`)) return;
+        try {
+          await fetch(`/api/themes/${id}`, { method: 'DELETE' });
+        } catch (err) { /* best-effort */ }
+        savedThemes = savedThemes.filter(t => t.id !== id);
+        if (state.themeKey === key) selectTheme(null);
+        renderThemeCards();
+      });
+    });
+  }
+
+  async function loadSavedThemes(){
+    try {
+      savedThemes = await fetch('/api/themes').then(r => r.json());
+    } catch (e) {
+      savedThemes = [];
+    }
+    renderThemeCards();
+  }
+
+  function selectTheme(key){
+    const entry = key ? themeEntries().find(t => t.key === key) : null;
+    state.themeKey = entry ? entry.key : null;
+    state.themeLabel = entry ? entry.name : null;
+    state.themeObject = entry ? entry.theme : null;
+    themeCardsEl.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.key === state.themeKey));
+    themeAddBtn.classList.toggle('is-custom', !!(entry && entry.deletable));
     updateThemeAddTile();
   }
 
@@ -673,26 +707,24 @@
     }
   }
 
-  themeRow.querySelectorAll('.theme-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const isSame = state.themeLabel === card.dataset.name;
-      selectPresetTheme(isSame ? null : card.dataset.name);
-    });
-  });
-
   themeAddBtn.addEventListener('click', () => {
-    const seed = state.themeLabel || '';
-    location.href = `/frame_editor.html?theme=${encodeURIComponent(seed)}`;
+    const entry = state.themeKey ? themeEntries().find(t => t.key === state.themeKey) : null;
+    if (entry && entry.deletable){
+      localStorage.setItem('afs_edit_seed', JSON.stringify({ id: entry.id, name: entry.name, theme: entry.theme }));
+      location.href = `/frame_editor.html?themeId=${encodeURIComponent(entry.id)}`;
+    } else {
+      const seed = entry ? entry.name : '';
+      location.href = `/frame_editor.html?theme=${encodeURIComponent(seed)}`;
+    }
   });
 
   // Consume a just-saved custom theme when returning from frame_editor.html.
-  function consumeCustomThemeIfJustSaved(){
+  async function consumeCustomThemeIfJustSaved(){
     if (sessionStorage.getItem('afs_custom_theme_just_saved') !== '1') return;
     sessionStorage.removeItem('afs_custom_theme_just_saved');
-    try {
-      const raw = localStorage.getItem('afs_custom_theme');
-      if (raw) selectCustomTheme(JSON.parse(raw));
-    } catch (e) { /* ignore corrupt storage */ }
+    const savedId = localStorage.getItem('afs_last_saved_theme_id');
+    await loadSavedThemes();
+    if (savedId) selectTheme('saved:' + savedId);
   }
   window.addEventListener('pageshow', consumeCustomThemeIfJustSaved);
 
@@ -716,6 +748,7 @@
     updateSurahDisplay();
     updateRangeDisplay();
     updateThemeAddTile();
+    await loadSavedThemes();
 
     try {
       const data = await fetch('/api/reciters').then(r => r.json());
@@ -726,7 +759,7 @@
     state.reciter = reciters[0];
     updateReciterDisplay();
 
-    consumeCustomThemeIfJustSaved();
+    await consumeCustomThemeIfJustSaved();
   }
   init();
 </script>
