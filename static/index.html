@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+    --success:#2F8F6A;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 55% at 50% -8%, rgba(173,130,38,.10), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+  }
+  button, a{ font-family:inherit; -webkit-user-select:none; user-select:none; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding:
+      calc(env(safe-area-inset-top,0px) + 18px)
+      20px
+      calc(env(safe-area-inset-bottom,0px) + 22px);
+    max-width:480px;
+    margin:0 auto;
+  }
+
+  /* ---------- header ---------- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand{ display:flex; align-items:center; gap:11px; }
+  .mark{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .mark svg{ width:20px; height:20px; }
+  .wordmark-title{ font-family:'Fraunces', serif; font-weight:600; font-size:18.5px; letter-spacing:-.2px; line-height:1.1; color:var(--ink); }
+  .wordmark-sub{ font-size:10px; font-weight:700; letter-spacing:1.4px; color:var(--ink-mute); text-transform:uppercase; margin-top:2px; }
+
+  /* ---------- CTA ---------- */
+  .cta{
+    height:54px; border-radius:16px; border:none; cursor:pointer;
+    background:var(--ink);
+    color:#F6F1E4; font-weight:800; font-size:14.5px; letter-spacing:.1px;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    width:100%; margin-top:20px;
+    box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
+    transition:transform .12s ease;
+  }
+  .cta:active{ transform:scale(.97); }
+  .cta svg{ width:15px; height:15px; }
+
+  /* ---------- quick actions ---------- */
+  .quick{ display:grid; grid-template-columns:repeat(1,1fr); gap:10px; margin-top:18px; }
+  .quick-item{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border:1px solid var(--line-soft); border-radius:14px;
+    padding:10px 12px; cursor:pointer;
+    min-height:44px;
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    transition:border-color .15s ease, transform .12s ease;
+  }
+  .quick-item:active{ transform:scale(.98); border-color:var(--line); }
+  .quick-icon{
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .quick-icon svg{ width:18px; height:18px; }
+  .quick-label{ font-size:12.5px; font-weight:800; color:var(--ink); }
+
+  /* ---------- recent videos ---------- */
+  .recent{ margin-top:28px; flex:1; }
+  .recent-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+  .recent-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16.5px; letter-spacing:-.1px; }
+  .recent-count{ font-size:11.5px; font-weight:700; color:var(--ink-mute); }
+
+  .vid-list{ display:flex; flex-direction:column; gap:4px; }
+  .vid-row{
+    display:flex; align-items:center; gap:12px;
+    background:transparent; border:none; text-align:left; cursor:pointer;
+    padding:8px 4px; border-radius:14px; width:100%;
+    transition:background .12s ease;
+  }
+  .vid-row:active{ background:var(--surface-2); }
+
+  .vid-thumb{
+    position:relative; flex-shrink:0;
+    width:52px; height:92px; border-radius:10px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(173,130,38,.10), transparent 55%),
+      linear-gradient(180deg, var(--surface), var(--surface-2));
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .vid-thumb-ayah{
+    font-family:'Amiri', serif; font-weight:700; direction:rtl;
+    font-size:12.5px; color:var(--ink); text-align:center; line-height:1.35;
+    padding:0 5px;
+  }
+  .vid-play{
+    position:absolute; bottom:5px; right:5px;
+    width:17px; height:17px; border-radius:50%;
+    background:rgba(255,253,246,.88); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .vid-play svg{ width:6px; height:6px; margin-left:1px; }
+
+  .vid-info{ flex:1; min-width:0; }
+  .vid-title{ font-size:13.5px; font-weight:800; color:var(--ink); line-height:1.3; }
+  .vid-meta{
+    display:flex; align-items:center; gap:6px; margin-top:4px;
+    font-size:11px; color:var(--ink-mute); font-weight:600;
+  }
+  .vid-dot{ width:5px; height:5px; border-radius:50%; background:var(--gold-soft); flex-shrink:0; }
+  .vid-time{ font-size:10.5px; color:var(--ink-mute); opacity:.75; margin-top:3px; }
+
+  .vid-delete{
+    flex-shrink:0; width:36px; height:36px; border-radius:11px;
+    border:none; background:transparent; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .12s ease;
+  }
+  .vid-delete svg{ width:16px; height:16px; }
+  .vid-delete:active{ background:rgba(178,59,59,.12); }
+
+  .vid-row.removing{
+    opacity:0; transform:translateX(14px) scale(.98);
+    transition:opacity .18s ease, transform .18s ease;
+  }
+
+  .empty{
+    display:none; flex-direction:column; align-items:center; text-align:center;
+    padding:34px 10px; color:var(--ink-mute);
+  }
+  .empty svg{ width:30px; height:30px; margin-bottom:10px; }
+  .empty p{ font-size:12.5px; margin:0; line-height:1.5; max-width:26ch; }
+
+  /* ---------- video playback modal ---------- */
+  .player-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.7);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .player-backdrop.open{ display:flex; }
+  .player-backdrop video{ max-width:100%; max-height:80vh; border-radius:14px; background:#000; }
+  .player-close{
+    position:absolute; top:18px; right:18px; width:38px; height:38px; border-radius:50%;
+    background:var(--surface); border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .player-close svg{ width:14px; height:14px; }
+
+  /* ---------- footer ---------- */
+  .foot{
+    margin-top:20px; padding-top:14px; border-top:1px solid var(--line-soft);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    text-align:center;
+  }
+  .foot span{ font-size:10px; color:var(--ink-mute); }
+  .foot .addr{ font-family:ui-monospace, monospace; color:#8B8570; font-size:9.5px; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="1.3">
+          <rect x="5" y="5" width="14" height="14" transform="rotate(0 12 12)"/>
+          <rect x="5" y="5" width="14" height="14" transform="rotate(45 12 12)"/>
+        </svg>
+      </div>
+      <div>
+        <div class="wordmark-title">Ayah Frame Studio</div>
+        <div class="wordmark-sub">Local video studio</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="cta" onclick="location.href='/new_video.html'">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+    Start a new video
+  </button>
+
+  <div class="quick">
+    <button class="quick-item" onclick="location.href='/frame_editor.html'">
+      <div class="quick-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10.5" r="1.1" fill="#AD8226"/><circle cx="12" cy="8" r="1.1" fill="#AD8226"/><circle cx="15.5" cy="10.5" r="1.1" fill="#AD8226"/><circle cx="10" cy="15" r="1.1" fill="#AD8226"/>
+        </svg>
+      </div>
+      <div class="quick-label">Browse &amp; create themes</div>
+    </button>
+  </div>
+
+  <div class="recent">
+    <div class="recent-head">
+      <div class="recent-title">Your videos</div>
+      <span class="recent-count" id="vidCount"></span>
+    </div>
+
+    <div class="vid-list" id="vidList"></div>
+
+    <div class="empty" id="emptyState">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
+      <p>No videos yet. Tap "Start a new video" to frame your first ayah.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Runs locally · nothing is uploaded</span>
+    <span class="addr">127.0.0.1:5050</span>
+  </div>
+
+</div>
+
+<div class="player-backdrop" id="playerBackdrop">
+  <button class="player-close" id="playerClose" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <video id="playerVideo" controls></video>
+</div>
+
+<script src="/quran-data.js"></script>
+<script>
+  const RECITER_LABELS = {}; // filled from /api/reciters
+  let videos = [];
+
+  const listEl = document.getElementById('vidList');
+  const emptyEl = document.getElementById('emptyState');
+  const countEl = document.getElementById('vidCount');
+
+  function surahOf(n){ return window.SURAHS.find(s => s.n === n); }
+
+  function fmtDuration(sec){
+    if (sec == null) return '';
+    const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function fmtTimeAgo(ts){
+    if (!ts) return '';
+    const diffMs = Date.now() - ts * 1000;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+  }
+
+  function titleOf(v){
+    const s = surahOf(v.surah);
+    if (!s) return `Surah ${v.surah}`;
+    if (v.ayahStart == null || v.ayahEnd == null) return s.en;
+    if (v.ayahStart === v.ayahEnd) return `${s.en} ${v.ayahStart}`;
+    return `${s.en} ${v.ayahStart}–${v.ayahEnd}`;
+  }
+
+  function renderVideos(){
+    countEl.textContent = videos.length ? `${videos.length} video${videos.length === 1 ? '' : 's'}` : '';
+
+    if (!videos.length){
+      listEl.style.display = 'none';
+      emptyEl.style.display = 'flex';
+      return;
+    }
+    listEl.style.display = 'flex';
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = videos.map(v => {
+      const s = surahOf(v.surah);
+      const reciterLabel = RECITER_LABELS[v.reciter] || v.reciter || '';
+      return `
+      <div class="vid-row" data-id="${v.id}">
+        <div class="vid-thumb">
+          <div class="vid-thumb-ayah">${s ? s.ar : ''}</div>
+          <div class="vid-play">
+            <svg viewBox="0 0 24 24" fill="#AD8226"><path d="M6 4l14 8-14 8V4z"/></svg>
+          </div>
+        </div>
+        <div class="vid-info">
+          <div class="vid-title">${titleOf(v)}</div>
+          <div class="vid-meta"><span class="vid-dot"></span>${v.themeName || 'Default'} · ${fmtDuration(v.duration)} · ${reciterLabel}</div>
+          <div class="vid-time">${fmtTimeAgo(v.createdAt)}</div>
+        </div>
+        <button class="vid-delete" aria-label="Delete video" data-id="${v.id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/>
+            <path d="M10 11v6M14 11v6"/>
+          </svg>
+        </button>
+      </div>
+    `;
+    }).join('');
+  }
+
+  listEl.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('.vid-delete');
+    if (delBtn){
+      const id = delBtn.dataset.id;
+      const row = delBtn.closest('.vid-row');
+      try {
+        const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+      } catch (err) {
+        alert("Couldn't delete that video.");
+        return;
+      }
+      row.classList.add('removing');
+      row.addEventListener('transitionend', () => {
+        videos = videos.filter(v => v.id !== id);
+        renderVideos();
+      }, { once: true });
+      return;
+    }
+    const row = e.target.closest('.vid-row');
+    if (!row) return;
+    const v = videos.find(x => x.id === row.dataset.id);
+    if (!v) return;
+    document.getElementById('playerVideo').src = `/output/${v.file}`;
+    document.getElementById('playerBackdrop').classList.add('open');
+  });
+
+  document.getElementById('playerClose').addEventListener('click', () => {
+    const backdrop = document.getElementById('playerBackdrop');
+    const vid = document.getElementById('playerVideo');
+    vid.pause();
+    vid.removeAttribute('src');
+    backdrop.classList.remove('open');
+  });
+  document.getElementById('playerBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'playerBackdrop') document.getElementById('playerClose').click();
+  });
+
+  async function init(){
+    try {
+      const reciters = await fetch('/api/reciters').then(r => r.json());
+      Object.assign(RECITER_LABELS, reciters);
+    } catch (e) { /* non-fatal, just used for the meta line */ }
+
+    try {
+      videos = await fetch('/api/videos').then(r => r.json());
+    } catch (e) {
+      videos = [];
+    }
+    renderVideos();
+  }
+
+  init();
+</script>
+
+</body>
+</html>

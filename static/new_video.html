@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>New video — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a, input{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding-top:env(safe-area-inset-top,0px);
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px;
+  }
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    cursor:pointer;
+  }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:active{ transform:scale(.94); }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; }
+  .topbar-spacer{ width:38px; }
+
+  /* ---------- scroll body ---------- */
+  .body{ flex:1; overflow-y:auto; padding:6px 20px 26px; }
+
+  .section{ margin-top:26px; }
+  .section:first-child{ margin-top:6px; }
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--ink-mute); margin-bottom:10px; padding:0 2px;
+  }
+
+  /* ---------- selector button (surah / reciter) ---------- */
+  .select-btn{
+    width:100%; display:flex; align-items:center; gap:12px;
+    height:58px; padding:0 14px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    cursor:pointer; text-align:left;
+  }
+  .select-btn:active{ transform:scale(.99); }
+  .select-glyph{
+    width:36px; height:36px; border-radius:11px; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Amiri', serif; font-weight:700; font-size:15px; color:#FFFDF6;
+  }
+  .select-text{ flex:1; min-width:0; }
+  .select-title{ font-size:13.5px; font-weight:800; color:var(--ink); line-height:1.3; }
+  .select-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:2px; }
+  .select-btn svg.chev{ width:14px; height:14px; flex-shrink:0; }
+
+  /* ---------- ayah range steppers ---------- */
+  .range-card{
+    margin-top:10px; padding:14px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    display:flex; align-items:center; gap:10px;
+  }
+  .stepper{ flex:1; }
+  .stepper-label{ font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--ink-mute); margin-bottom:8px; text-align:center; }
+  .stepper-controls{ display:flex; align-items:center; justify-content:center; gap:2px; }
+  .stepper-btn{
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .12s ease, transform .1s ease;
+  }
+  .stepper-btn svg{ width:13px; height:13px; }
+  .stepper-btn:active{ transform:scale(.92); background:var(--line); }
+  .stepper-btn:disabled{ opacity:.35; }
+  .stepper-value{
+    width:44px; text-align:center; font-size:16px; font-weight:800; font-variant-numeric:tabular-nums;
+  }
+  .range-divider{ width:14px; height:1px; background:var(--line); flex-shrink:0; margin-top:18px; }
+
+  .verse-count-hint{
+    text-align:center; font-size:11px; color:var(--ink-mute); margin-top:9px; font-weight:600;
+  }
+
+  /* ---------- selected verse preview ---------- */
+  .verse-card{
+    margin-top:14px; padding:16px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+  .verse-card-label{ font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--ink-mute); }
+  .verse-ar{
+    font-family:'Amiri', serif; font-weight:700; direction:rtl;
+    font-size:19px; line-height:1.8; color:var(--ink); margin-top:10px;
+  }
+  .verse-en{
+    font-size:11.5px; font-style:italic; color:var(--ink-mute); margin-top:6px; line-height:1.5;
+  }
+
+  /* ---------- theme row ---------- */
+  .opt-row{
+    display:flex; gap:10px; overflow-x:auto; padding:2px 2px 6px; scrollbar-width:none;
+  }
+  .opt-row::-webkit-scrollbar{ display:none; }
+
+  .theme-card{
+    flex-shrink:0; width:70px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+  }
+  .theme-swatch{
+    width:70px; height:104px; border-radius:13px;
+    border:1.5px solid var(--line); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .theme-card.selected .theme-swatch{ border-color:var(--ink); transform:scale(.97); }
+  .theme-swatch::after{
+    content:""; position:absolute; inset:5px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
+  }
+  .theme-swatch .glyph{ font-family:'Amiri', serif; font-weight:700; font-size:13px; }
+  .theme-check{
+    position:absolute; top:6px; right:6px; width:17px; height:17px; border-radius:50%;
+    background:var(--ink); display:none; align-items:center; justify-content:center;
+  }
+  .theme-card.selected .theme-check{ display:flex; }
+  .theme-check svg{ width:8px; height:8px; }
+  .theme-name{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
+  .theme-card.selected .theme-name{ color:var(--ink); }
+
+  .swatch-amber{ background:linear-gradient(160deg,#FCEBC7,#E8B85F); }
+  .swatch-amber .glyph{ color:#7A4E12; }
+  .swatch-teal{ background:linear-gradient(160deg,#1E3A3A,#0D2323); }
+  .swatch-teal .glyph{ color:#D9C68A; }
+  .swatch-ivory{ background:linear-gradient(160deg,#FFFDF6,#ECE3CC); }
+  .swatch-ivory .glyph{ color:#14183A; }
+  .swatch-rose{ background:linear-gradient(160deg,#3A1E28,#160B10); }
+  .swatch-rose .glyph{ color:#E2A9A0; }
+
+  .theme-add{
+    flex-shrink:0; width:70px; display:flex; flex-direction:column; align-items:center; gap:7px;
+    cursor:pointer; border:none; background:none; padding:0;
+  }
+  .theme-add-swatch{
+    width:70px; height:104px; border-radius:13px;
+    border:1.5px dashed var(--line); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .theme-add.is-edit .theme-add-swatch{
+    border-style:solid; background:var(--surface-2); border-color:var(--line);
+  }
+  .theme-add.is-custom .theme-add-swatch{ border-color:var(--ink); }
+  .theme-add:active .theme-add-swatch{ transform:scale(.96); }
+  .theme-add-swatch svg{ width:18px; height:18px; }
+  .theme-add-label{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
+  .theme-add.is-custom .theme-add-label{ color:var(--ink); }
+
+  /* ---------- sticky footer CTA ---------- */
+  .footbar{
+    padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+    background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
+    border-top:1px solid var(--line-soft);
+  }
+  .continue-btn{
+    width:100%; height:54px; border-radius:16px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:14.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .continue-btn:active{ transform:scale(.97); }
+  .continue-btn svg{ width:14px; height:14px; }
+  .continue-hint{ text-align:center; font-size:10.5px; color:var(--ink-mute); margin-top:9px; }
+
+  /* ---------- bottom sheet ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.42);
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+    z-index:40;
+  }
+  .sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    max-width:480px; margin:0 auto;
+    background:var(--bg);
+    border-radius:22px 22px 0 0;
+    border:1px solid var(--line);
+    border-bottom:none;
+    box-shadow:0 -18px 40px -20px rgba(20,24,58,.35);
+    max-height:78vh;
+    display:flex; flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+  }
+  .sheet.open{ transform:translateY(0); }
+
+  .sheet-handle{ display:flex; justify-content:center; padding:10px 0 4px; flex-shrink:0; }
+  .sheet-handle span{ width:34px; height:4px; border-radius:100px; background:var(--line); }
+
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px 12px; flex-shrink:0;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .sheet-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; }
+  .sheet-close{
+    width:30px; height:30px; border-radius:50%; border:none; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .sheet-close svg{ width:12px; height:12px; }
+
+  .sheet-list{ flex:1; overflow-y:auto; padding:6px 10px; -webkit-overflow-scrolling:touch; }
+
+  .sheet-row{
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:11px 10px; border-radius:14px; border:none; background:none; cursor:pointer;
+    text-align:left;
+  }
+  .sheet-row:active{ background:var(--surface-2); }
+  .sheet-row.picked{ background:#FBF4E2; }
+  .sheet-row-num{
+    width:28px; height:28px; border-radius:9px; flex-shrink:0;
+    background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:800; color:var(--ink-mute);
+  }
+  .sheet-row.picked .sheet-row-num{ background:var(--gold); color:#FFFDF6; }
+  .sheet-row-text{ flex:1; min-width:0; }
+  .sheet-row-title{ font-size:13px; font-weight:800; }
+  .sheet-row-sub{ font-size:10.5px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+  .sheet-row-ar{ font-family:'Amiri', serif; font-size:15px; color:var(--ink); flex-shrink:0; }
+  .sheet-row-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; font-size:13px; color:#FFFDF6;
+  }
+  .sheet-row-check{ width:18px; height:18px; border-radius:50%; background:var(--gold); flex-shrink:0; display:none; align-items:center; justify-content:center; }
+  .sheet-row.picked .sheet-row-check{ display:flex; }
+  .sheet-row-check svg{ width:9px; height:9px; }
+
+  .sheet-foot{
+    padding:12px 18px calc(env(safe-area-inset-bottom,0px) + 14px);
+    border-top:1px solid var(--line-soft); flex-shrink:0;
+    background:var(--bg);
+  }
+  .sheet-select-btn{
+    width:100%; height:50px; border-radius:15px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:13.5px;
+  }
+  .sheet-select-btn:active{ transform:scale(.98); }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <button class="icon-btn" aria-label="Back" onclick="location.href='/'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">New video</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="body">
+
+    <div class="section">
+      <div class="section-label">Surah</div>
+      <button class="select-btn" id="surahBtn">
+        <div class="select-glyph" id="surahGlyph">ﷲ</div>
+        <div class="select-text">
+          <div class="select-title" id="surahTitle">Al-Fatihah</div>
+          <div class="select-sub" id="surahSub">Surah 1 · 7 ayahs</div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+
+      <div class="range-card">
+        <div class="stepper">
+          <div class="stepper-label">From ayah</div>
+          <div class="stepper-controls">
+            <button class="stepper-btn" id="fromMinus" aria-label="Decrease from ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            </button>
+            <div class="stepper-value" id="fromValue">1</div>
+            <button class="stepper-btn" id="fromPlus" aria-label="Increase from ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="range-divider"></div>
+        <div class="stepper">
+          <div class="stepper-label">To ayah</div>
+          <div class="stepper-controls">
+            <button class="stepper-btn" id="toMinus" aria-label="Decrease to ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            </button>
+            <div class="stepper-value" id="toValue">7</div>
+            <button class="stepper-btn" id="toPlus" aria-label="Increase to ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="verse-count-hint" id="rangeHint">7 ayahs selected</div>
+
+      <div class="verse-card">
+        <div class="verse-card-label">Preview</div>
+        <div class="verse-ar" id="verseAr">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+        <div class="verse-en" id="verseEn">Loading…</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Reciter</div>
+      <button class="select-btn" id="reciterBtn">
+        <div class="select-glyph" id="reciterGlyph">M</div>
+        <div class="select-text">
+          <div class="select-title" id="reciterTitle">Loading…</div>
+          <div class="select-sub" id="reciterSub"></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Style</div>
+      <div class="opt-row" id="themeRow">
+        <div class="theme-card" data-name="Sunset Amber">
+          <div class="theme-swatch swatch-amber">
+            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="glyph">ﷲ</div>
+          </div>
+          <div class="theme-name">Sunset<br>Amber</div>
+        </div>
+        <div class="theme-card" data-name="Midnight Teal">
+          <div class="theme-swatch swatch-teal">
+            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="glyph">ﷲ</div>
+          </div>
+          <div class="theme-name">Midnight<br>Teal</div>
+        </div>
+        <div class="theme-card" data-name="Ivory Minimal">
+          <div class="theme-swatch swatch-ivory">
+            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="glyph">ﷲ</div>
+          </div>
+          <div class="theme-name">Ivory<br>Minimal</div>
+        </div>
+        <div class="theme-card" data-name="Rose Dusk">
+          <div class="theme-swatch swatch-rose">
+            <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="glyph">ﷲ</div>
+          </div>
+          <div class="theme-name">Rose<br>Dusk</div>
+        </div>
+
+        <button class="theme-add" id="themeAddBtn">
+          <div class="theme-add-swatch" id="themeAddSwatch">
+            <svg id="themeAddIcon" viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="theme-add-label" id="themeAddLabel">Add<br>theme</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footbar">
+    <button class="continue-btn" id="continueBtn">
+      Continue to timing
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <div class="continue-hint">You'll sync recitation timing on the next step</div>
+  </div>
+
+</div>
+
+<!-- Surah bottom sheet -->
+<div class="sheet-backdrop" id="surahBackdrop"></div>
+<div class="sheet" id="surahSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Select surah</div>
+    <button class="sheet-close" id="surahSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-list" id="surahSheetList"></div>
+  <div class="sheet-foot">
+    <button class="sheet-select-btn" id="surahSheetSelect">Select</button>
+  </div>
+</div>
+
+<!-- Reciter bottom sheet -->
+<div class="sheet-backdrop" id="reciterBackdrop"></div>
+<div class="sheet" id="reciterSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Select reciter</div>
+    <button class="sheet-close" id="reciterSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-list" id="reciterSheetList"></div>
+  <div class="sheet-foot">
+    <button class="sheet-select-btn" id="reciterSheetSelect">Select</button>
+  </div>
+</div>
+
+<script src="/quran-data.js"></script>
+<script>
+  // ============ DATA ============
+  const surahs = window.SURAHS;
+  let reciters = []; // [{key, name}], filled from /api/reciters
+
+  // ============ STATE ============
+  let state = {
+    surah: surahs[0],
+    from: 1,
+    to: 7,
+    reciter: null,
+    themeLabel: null,   // preset name string, "Custom", or null (= default look)
+    themeObject: null,  // resolved theme.py-shaped object, or null
+  };
+
+  // ============ SURAH SELECT ============
+  const surahBtn = document.getElementById('surahBtn');
+  const surahTitle = document.getElementById('surahTitle');
+  const surahSub = document.getElementById('surahSub');
+  const surahGlyph = document.getElementById('surahGlyph');
+
+  async function loadPreview(){
+    const verseEn = document.getElementById('verseEn');
+    const verseAr = document.getElementById('verseAr');
+    verseEn.textContent = 'Loading…';
+    try {
+      const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.from}&translation=en.sahih`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'fetch failed');
+      verseAr.textContent = (data.basmalaArabic ? data.basmalaArabic + ' ۝ ' : '') + data.arabic;
+      verseEn.textContent = data.translation;
+    } catch (e) {
+      verseAr.textContent = state.surah.ar;
+      verseEn.textContent = `Ayah ${state.from} of ${state.surah.en}`;
+    }
+  }
+
+  function updateSurahDisplay(){
+    surahTitle.textContent = state.surah.en;
+    surahSub.textContent = `Surah ${state.surah.n} · ${state.surah.ayahs} ayahs`;
+    surahGlyph.textContent = state.surah.ar[0];
+    loadPreview();
+  }
+
+  function renderSurahSheetList(pickedNum){
+    const listEl = document.getElementById('surahSheetList');
+    listEl.innerHTML = surahs.map(s => `
+      <button class="sheet-row ${s.n === pickedNum ? 'picked' : ''}" data-n="${s.n}">
+        <div class="sheet-row-num">${s.n}</div>
+        <div class="sheet-row-text">
+          <div class="sheet-row-title">${s.en}</div>
+          <div class="sheet-row-sub">${s.ayahs} ayahs</div>
+        </div>
+        <div class="sheet-row-ar">${s.ar}</div>
+        <div class="sheet-row-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      </button>
+    `).join('');
+  }
+
+  let surahPick = state.surah.n;
+  surahBtn.addEventListener('click', () => {
+    surahPick = state.surah.n;
+    renderSurahSheetList(surahPick);
+    openSheet('surah');
+  });
+  document.getElementById('surahSheetList').addEventListener('click', (e) => {
+    const row = e.target.closest('.sheet-row');
+    if (!row) return;
+    surahPick = Number(row.dataset.n);
+    renderSurahSheetList(surahPick);
+  });
+  document.getElementById('surahSheetSelect').addEventListener('click', () => {
+    state.surah = surahs.find(s => s.n === surahPick);
+    state.from = 1;
+    state.to = Math.min(state.surah.ayahs, 7);
+    updateSurahDisplay();
+    updateRangeDisplay();
+    closeSheet('surah');
+  });
+
+  // ============ AYAH RANGE STEPPERS (no text input) ============
+  const fromValue = document.getElementById('fromValue');
+  const toValue = document.getElementById('toValue');
+  const rangeHint = document.getElementById('rangeHint');
+
+  function updateRangeDisplay(){
+    fromValue.textContent = state.from;
+    toValue.textContent = state.to;
+    document.getElementById('fromMinus').disabled = state.from <= 1;
+    document.getElementById('fromPlus').disabled = state.from >= state.to;
+    document.getElementById('toMinus').disabled = state.to <= state.from;
+    document.getElementById('toPlus').disabled = state.to >= state.surah.ayahs;
+    const count = state.to - state.from + 1;
+    rangeHint.textContent = `${count} ayah${count === 1 ? '' : 's'} selected`;
+  }
+
+  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; updateRangeDisplay(); loadPreview(); } });
+  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; updateRangeDisplay(); loadPreview(); } });
+  document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); } });
+  document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); } });
+
+  // ============ RECITER SELECT ============
+  const reciterBtn = document.getElementById('reciterBtn');
+
+  function updateReciterDisplay(){
+    if (!state.reciter) return;
+    document.getElementById('reciterTitle').textContent = state.reciter.name;
+    document.getElementById('reciterSub').textContent = 'Recitation';
+    document.getElementById('reciterGlyph').textContent = state.reciter.name[0];
+  }
+
+  function renderReciterSheetList(pickedKey){
+    const listEl = document.getElementById('reciterSheetList');
+    listEl.innerHTML = reciters.map(r => `
+      <button class="sheet-row ${r.key === pickedKey ? 'picked' : ''}" data-key="${r.key}">
+        <div class="sheet-row-avatar">${r.name[0]}</div>
+        <div class="sheet-row-text">
+          <div class="sheet-row-title">${r.name}</div>
+        </div>
+        <div class="sheet-row-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      </button>
+    `).join('');
+  }
+
+  let reciterPick = null;
+  reciterBtn.addEventListener('click', () => {
+    reciterPick = state.reciter ? state.reciter.key : null;
+    renderReciterSheetList(reciterPick);
+    openSheet('reciter');
+  });
+  document.getElementById('reciterSheetList').addEventListener('click', (e) => {
+    const row = e.target.closest('.sheet-row');
+    if (!row) return;
+    reciterPick = row.dataset.key;
+    renderReciterSheetList(reciterPick);
+  });
+  document.getElementById('reciterSheetSelect').addEventListener('click', () => {
+    state.reciter = reciters.find(r => r.key === reciterPick);
+    updateReciterDisplay();
+    closeSheet('reciter');
+  });
+
+  // ============ BOTTOM SHEET HELPERS ============
+  function openSheet(key){
+    document.getElementById(`${key}Backdrop`).classList.add('open');
+    document.getElementById(`${key}Sheet`).classList.add('open');
+  }
+  function closeSheet(key){
+    document.getElementById(`${key}Backdrop`).classList.remove('open');
+    document.getElementById(`${key}Sheet`).classList.remove('open');
+  }
+  ['surah', 'reciter'].forEach(key => {
+    document.getElementById(`${key}Backdrop`).addEventListener('click', () => closeSheet(key));
+    document.getElementById(`${key}SheetClose`).addEventListener('click', () => closeSheet(key));
+  });
+
+  // ============ THEME: select / deselect + add-vs-edit toggle ============
+  const themeRow = document.getElementById('themeRow');
+  const themeAddBtn = document.getElementById('themeAddBtn');
+  const themeAddLabel = document.getElementById('themeAddLabel');
+  const themeAddIcon = document.getElementById('themeAddIcon');
+
+  function selectPresetTheme(name){
+    state.themeLabel = name;
+    state.themeObject = name ? window.THEME_PRESETS[name] : null;
+    themeRow.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.name === name));
+    themeAddBtn.classList.remove('is-custom');
+    updateThemeAddTile();
+  }
+
+  function selectCustomTheme(themeObj){
+    state.themeLabel = 'Custom';
+    state.themeObject = themeObj;
+    themeRow.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+    themeAddBtn.classList.add('is-custom');
+    updateThemeAddTile();
+  }
+
+  function updateThemeAddTile(){
+    if (state.themeLabel){
+      themeAddBtn.classList.add('is-edit');
+      themeAddLabel.innerHTML = 'Edit<br>theme';
+      themeAddIcon.innerHTML = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>';
+    } else {
+      themeAddBtn.classList.remove('is-edit');
+      themeAddLabel.innerHTML = 'Add<br>theme';
+      themeAddIcon.innerHTML = '<path d="M12 5v14M5 12h14"/>';
+    }
+  }
+
+  themeRow.querySelectorAll('.theme-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const isSame = state.themeLabel === card.dataset.name;
+      selectPresetTheme(isSame ? null : card.dataset.name);
+    });
+  });
+
+  themeAddBtn.addEventListener('click', () => {
+    const seed = state.themeLabel || '';
+    location.href = `/frame_editor.html?theme=${encodeURIComponent(seed)}`;
+  });
+
+  // Consume a just-saved custom theme when returning from frame_editor.html.
+  function consumeCustomThemeIfJustSaved(){
+    if (sessionStorage.getItem('afs_custom_theme_just_saved') !== '1') return;
+    sessionStorage.removeItem('afs_custom_theme_just_saved');
+    try {
+      const raw = localStorage.getItem('afs_custom_theme');
+      if (raw) selectCustomTheme(JSON.parse(raw));
+    } catch (e) { /* ignore corrupt storage */ }
+  }
+  window.addEventListener('pageshow', consumeCustomThemeIfJustSaved);
+
+  // ============ CONTINUE ============
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    const draft = {
+      surah: state.surah.n,
+      from: state.from,
+      to: state.to,
+      reciterKey: state.reciter ? state.reciter.key : reciters[0].key,
+      translation: 'en.sahih',
+      themeLabel: state.themeLabel,
+      theme: state.themeObject,
+    };
+    localStorage.setItem('afs_draft', JSON.stringify(draft));
+    location.href = '/timing.html';
+  });
+
+  // ============ INIT ============
+  async function init(){
+    updateSurahDisplay();
+    updateRangeDisplay();
+    updateThemeAddTile();
+
+    try {
+      const data = await fetch('/api/reciters').then(r => r.json());
+      reciters = Object.entries(data).map(([key, name]) => ({ key, name }));
+    } catch (e) {
+      reciters = [{ key: 'yasser_al_dossary', name: 'Yasser Al-Dossary' }];
+    }
+    state.reciter = reciters[0];
+    updateReciterDisplay();
+
+    consumeCustomThemeIfJustSaved();
+  }
+  init();
+</script>
+
+</body>
+</html>

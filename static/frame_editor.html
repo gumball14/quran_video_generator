@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Frame editor — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Scheherazade+New:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400;500;600;700&family=Lateef:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+    --success:#2F8F6A;
+    --danger:#B23B3B;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    height:100dvh;
+    -webkit-font-smoothing:antialiased;
+  }
+  button, input{ font-family:inherit; }
+
+  .screen{
+    height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding-top:env(safe-area-inset-top,0px);
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 6px; gap:8px; z-index:5;
+  }
+  .topbar-left{ display:flex; align-items:center; gap:11px; min-width:0; }
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+  }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:active{ transform:scale(.94); }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; white-space:nowrap; }
+  .save-btn{
+    display:flex; align-items:center; gap:6px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:12.5px;
+    padding:10px 15px; border-radius:100px; flex-shrink:0;
+    box-shadow:0 8px 16px -10px rgba(20,24,58,.5);
+  }
+  .save-btn svg{ width:11px; height:11px; }
+  .save-btn:active{ transform:scale(.95); }
+
+  /* ================= PREVIEW (fills the screen) ================= */
+  .preview-area{
+    flex:1; min-height:0; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    padding:6px 20px;
+  }
+
+  .frame-shell{
+    position:relative; border-radius:20px;
+    background:var(--ink); padding:6px;
+    box-shadow:0 20px 40px -18px rgba(20,24,58,.4);
+    transition:width .22s ease, height .22s ease;
+  }
+  .frame-canvas{
+    position:relative; width:100%; height:100%; border-radius:15px; overflow:hidden;
+    display:flex; flex-direction:column;
+    transition:background .25s ease;
+    background-size:cover; background-position:center;
+    container-type:inline-size; container-name:frame;
+  }
+  .fc-overlay{ position:absolute; inset:0; background:#000; opacity:0; transition:opacity .2s ease; }
+  .fc-real-preview{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    opacity:0; transition:opacity .25s ease; pointer-events:none; z-index:2;
+  }
+  .fc-real-preview.visible{ opacity:1; }
+
+  .fc-content{ position:relative; flex:1; display:flex; flex-direction:column; z-index:1; padding:0 7%; }
+  .fc-header{
+    text-align:center; font-size:2.1cqw; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;
+    color:#fff; padding-top:9%; transition:opacity .15s ease, padding-top .15s ease;
+  }
+  .fc-badge-row{ display:flex; justify-content:center; margin-top:3%; transition:opacity .15s ease; }
+  .fc-badge{
+    position:relative; box-sizing:border-box;
+    width:8%; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    background:var(--badge-fill, rgba(255,255,255,.14));
+    border-style:solid;
+    border-width:var(--badge-border-w, .12cqw);
+    border-color:var(--badge-border-c, rgba(255,255,255,.45));
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .fc-badge-num{ position:relative; z-index:1; line-height:1; font-family:'Amiri', serif; font-size:2.3cqw; font-weight:700; color:#fff; }
+
+  /* ---- popular badge border styles (shared by live preview + style picker swatches) ---- */
+  .fc-badge.style-ornament, .badge-style-swatch.style-ornament{ border-radius:22% / 40%; }
+  .fc-badge.style-circle, .badge-style-swatch.style-circle{ border-radius:50%; }
+  .fc-badge.style-hexagon, .badge-style-swatch.style-hexagon{ clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+  .fc-badge.style-diamond, .badge-style-swatch.style-diamond{ border-radius:12%; transform:rotate(45deg); }
+  .fc-badge.style-diamond .fc-badge-num{ display:inline-block; transform:rotate(-45deg); }
+  .fc-badge.style-square, .badge-style-swatch.style-square{ border-radius:18%; }
+  .fc-badge.style-ring, .badge-style-swatch.style-ring{
+    border-radius:50%;
+    outline:var(--badge-border-w, .12cqw) solid var(--badge-border-c, rgba(255,255,255,.45));
+    outline-offset:calc(var(--badge-border-w, .12cqw) * 2.5);
+  }
+  .badge-style-swatch.style-ring{ outline-width:1.3px; outline-color:var(--gold-soft); outline-offset:3px; }
+  .fc-badge.style-flower, .badge-style-swatch.style-flower{
+    clip-path:polygon(50% 0%, 61% 18%, 82% 10%, 79% 33%, 100% 50%, 79% 67%, 82% 90%, 61% 82%, 50% 100%, 39% 82%, 18% 90%, 21% 67%, 0% 50%, 21% 33%, 18% 10%, 39% 18%);
+  }
+  .fc-badge.style-none{ background:transparent!important; border-color:transparent!important; outline:none!important; }
+  .badge-style-swatch.style-none{ border:1.5px dashed var(--line); background:transparent; }
+
+  /* ---- badge style picker (editor sheet, not the live frame) ---- */
+  .badge-style-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .badge-style-btn{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    border:1px solid var(--line); background:var(--surface-2); border-radius:13px;
+    padding:9px 4px 8px; cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .badge-style-btn:active{ transform:scale(.96); }
+  .badge-style-btn.active{ border-color:var(--gold); background:var(--surface); box-shadow:0 3px 10px -4px rgba(173,130,38,.4); }
+  .badge-style-swatch{
+    width:28px; height:28px; flex-shrink:0;
+    background:linear-gradient(160deg,#3c3660,#14183A);
+    border:1.3px solid rgba(255,255,255,.55);
+    box-sizing:border-box;
+  }
+  .badge-style-label{ font-size:9px; font-weight:800; color:var(--ink-mute); letter-spacing:.1px; }
+  .badge-style-btn.active .badge-style-label{ color:var(--ink); }
+
+  /* ---- font picker (Arabic font / text font — applied universally to the preview) ---- */
+  .font-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .font-btn{
+    display:flex; flex-direction:column; align-items:flex-start; gap:8px; text-align:left;
+    border:1px solid var(--line); background:var(--surface-2); border-radius:13px;
+    padding:12px 12px 10px; cursor:pointer; min-width:0;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .font-btn:active{ transform:scale(.97); }
+  .font-btn.active{ border-color:var(--gold); background:var(--surface); box-shadow:0 3px 10px -4px rgba(173,130,38,.4); }
+  .font-preview{ color:var(--ink); line-height:1.15; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .font-preview.is-arabic{ direction:rtl; font-size:19px; font-weight:700; }
+  .font-preview.is-text{ font-size:16px; font-weight:700; }
+  .font-name{ font-size:9.5px; font-weight:800; color:var(--ink-mute); letter-spacing:.1px; }
+  .font-btn.active .font-name{ color:var(--ink); }
+  .font-hint{ font-size:10.5px; color:var(--ink-mute); line-height:1.5; margin:-2px 0 2px; }
+
+  .fc-textblock{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:3.5%; transition:transform .15s ease; }
+  .fc-textblock.pos-side{ flex-direction:row; align-items:center; gap:3%; }
+  .fc-textblock.align-left{ align-items:flex-start; text-align:left; }
+  .fc-textblock.align-center{ align-items:center; text-align:center; }
+  .fc-textblock.align-right{ align-items:flex-end; text-align:right; }
+
+  .fc-arabic{
+    font-family:'Amiri', serif; font-weight:700; direction:rtl; line-height:1.55;
+    font-size:5.2cqw; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  .fc-translation{
+    font-size:2.3cqw; font-style:italic; color:rgba(255,255,255,.8); line-height:1.45; max-width:92%;
+  }
+  .fc-word.hl-pill{ background:var(--hl-color,#AD8226); border-radius:6px; padding:0 .15em; color:#1a1300; }
+  .fc-word.hl-underline{ text-decoration:underline; text-decoration-color:var(--hl-color,#AD8226); text-decoration-thickness:3px; }
+  .fc-word.hl-color{ color:var(--hl-color,#AD8226); }
+
+  /* floating controls over the preview */
+  .float-btn{
+    position:absolute; width:34px; height:34px; border-radius:11px;
+    background:rgba(255,253,246,.9); border:1px solid var(--line);
+    backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 6px 14px -8px rgba(20,24,58,.35);
+    z-index:3;
+  }
+  .float-btn svg{ width:14px; height:14px; }
+  .float-btn:active{ transform:scale(.92); }
+  .float-sample{ top:14px; right:14px; width:auto; padding:0 11px; gap:6px; font-size:10.5px; font-weight:800; color:var(--ink); }
+  .float-loading{ top:14px; left:14px; width:auto; padding:0 11px; gap:6px; font-size:10.5px; font-weight:800; color:var(--ink); opacity:0; transition:opacity .15s ease; pointer-events:none; }
+  .float-loading.visible{ opacity:1; }
+  .float-loading svg{ animation:real-preview-spin 1s linear infinite; }
+  @keyframes real-preview-spin{ to{ transform:rotate(360deg); } }
+
+  .preview-meta{
+    flex-shrink:0; text-align:center; padding:0 20px 10px;
+  }
+  .preview-meta-title{ font-size:12.5px; font-weight:800; color:var(--ink); }
+  .preview-meta-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:2px; }
+
+  /* ================= BOTTOM TOOLBAR ================= */
+  .toolbar{
+    flex-shrink:0; display:flex; padding:8px 10px calc(env(safe-area-inset-bottom,0px) + 10px);
+    background:var(--surface); border-top:1px solid var(--line);
+    box-shadow:0 -8px 20px -16px rgba(20,24,58,.25);
+    gap:2px;
+    overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .toolbar::-webkit-scrollbar{ display:none; }
+  .tool-btn{
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:5px;
+    border:none; background:none; cursor:pointer; padding:8px 10px 6px; border-radius:14px;
+    transition:background .15s ease; min-width:60px;
+  }
+  .tool-btn:active{ background:var(--surface-2); }
+  .tool-btn.active{ background:var(--surface-2); }
+  .tool-icon{
+    width:29px; height:29px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-mute); transition:color .15s ease, background .15s ease;
+  }
+  .tool-btn.active .tool-icon{ color:var(--ink); background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); }
+  .tool-icon svg{ width:16px; height:16px; }
+  .tool-label{ font-size:8.8px; font-weight:800; color:var(--ink-mute); letter-spacing:.1px; white-space:nowrap; }
+  .tool-btn.active .tool-label{ color:var(--ink); }
+
+  /* ================= BOTTOM SHEET ================= */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.4);
+    opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:40;
+  }
+  .sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    max-width:480px; margin:0 auto;
+    background:var(--bg);
+    border-radius:22px 22px 0 0;
+    border:1px solid var(--line); border-bottom:none;
+    box-shadow:0 -18px 40px -20px rgba(20,24,58,.35);
+    max-height:70vh;
+    display:flex; flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+  }
+  .sheet.open{ transform:translateY(0); }
+
+  .sheet-handle{ display:flex; justify-content:center; padding:10px 0 2px; flex-shrink:0; }
+  .sheet-handle span{ width:34px; height:4px; border-radius:100px; background:var(--line); }
+
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 18px 12px; flex-shrink:0; border-bottom:1px solid var(--line-soft);
+  }
+  .sheet-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; display:flex; align-items:center; gap:9px; }
+  .sheet-title-icon{
+    width:28px; height:28px; border-radius:9px; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; color:var(--gold);
+  }
+  .sheet-title-icon svg{ width:14px; height:14px; }
+  .sheet-close{
+    width:30px; height:30px; border-radius:50%; border:none; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .sheet-close svg{ width:12px; height:12px; }
+
+  .sheet-body{ flex:1; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:14px 18px calc(env(safe-area-inset-bottom,0px) + 18px); }
+
+  .panel{ display:none; flex-direction:column; gap:12px; }
+  .panel.active{ display:flex; }
+
+  .card{ padding:14px; border-radius:16px; background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 6px rgba(20,24,58,.05); }
+  .card-title{ font-size:11.5px; font-weight:800; color:var(--ink); margin-bottom:11px; display:flex; align-items:center; gap:8px; }
+  .card-swatch{ width:15px; height:15px; border-radius:5px; border:1px solid var(--line); flex-shrink:0; }
+
+  .field{ margin-top:12px; }
+  .field:first-of-type{ margin-top:0; }
+  .field-label{ font-size:10.5px; font-weight:700; color:var(--ink-mute); margin-bottom:8px; }
+
+  .segmented{ display:flex; background:var(--surface-2); border-radius:12px; padding:3px; gap:2px; }
+  .segmented button{
+    flex:1; border:none; background:none; cursor:pointer; padding:9px 4px; border-radius:9px;
+    font-size:11.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
+    transition:background .15s ease, color .15s ease;
+  }
+  .segmented button.active{ background:var(--surface); color:var(--ink); box-shadow:0 2px 5px rgba(20,24,58,.08); }
+  .segmented button:active{ transform:scale(.97); }
+
+  .swatch-row{ display:flex; align-items:center; gap:10px; }
+  .colorpick{ width:38px; height:38px; border-radius:11px; overflow:hidden; flex-shrink:0; border:1px solid var(--line); position:relative; }
+  .colorpick input[type="color"]{ position:absolute; inset:-4px; width:calc(100% + 8px); height:calc(100% + 8px); border:none; padding:0; cursor:pointer; background:none; }
+  .hex-input{
+    flex:1; height:38px; border-radius:11px; border:1px solid var(--line); background:var(--surface-2);
+    padding:0 12px; font-size:12.5px; font-weight:700; color:var(--ink); letter-spacing:.3px;
+  }
+  .hex-input:focus{ outline:none; border-color:var(--gold-soft); }
+
+  .text-input{
+    width:100%; border-radius:11px; border:1px solid var(--line); background:var(--surface-2);
+    padding:10px 12px; font-size:12.5px; font-weight:600; color:var(--ink);
+  }
+  .text-input:focus{ outline:none; border-color:var(--gold-soft); }
+  textarea.text-input{ min-height:66px; resize:vertical; font-family:'Amiri', serif; font-size:14px; line-height:1.5; }
+
+  .subhead{ font-size:10px; font-weight:800; color:var(--gold-soft); text-transform:uppercase; letter-spacing:.6px; margin:2px 0 10px; }
+
+  .slider-row{ margin-top:14px; }
+  .slider-row:first-of-type{ margin-top:0; }
+  .slider-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .row-label{ font-size:11.5px; font-weight:700; color:var(--ink); }
+  .slider-val{ font-size:10.5px; font-weight:800; color:var(--ink-mute); font-variant-numeric:tabular-nums; background:var(--surface-2); padding:3px 8px; border-radius:100px; flex-shrink:0; }
+  input[type="range"]{ -webkit-appearance:none; appearance:none; width:100%; height:20px; background:none; margin:0; cursor:pointer; }
+  input[type="range"]::-webkit-slider-runnable-track{ height:6px; border-radius:100px; background:var(--surface-2); }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:19px; height:19px; border-radius:50%;
+    background:var(--gold); border:3px solid var(--surface); margin-top:-6.5px; box-shadow:0 2px 6px rgba(20,24,58,.3);
+  }
+  input[type="range"]::-moz-range-track{ height:6px; border-radius:100px; background:var(--surface-2); }
+  input[type="range"]::-moz-range-thumb{ width:13px; height:13px; border-radius:50%; background:var(--gold); border:3px solid var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.3); }
+
+  .row{ display:flex; align-items:center; justify-content:space-between; padding:11px 0; gap:10px; }
+  .row + .row{ border-top:1px solid var(--line-soft); }
+  .switch{ position:relative; width:42px; height:25px; flex-shrink:0; }
+  .switch input{ opacity:0; width:100%; height:100%; margin:0; position:absolute; cursor:pointer; z-index:1; }
+  .switch-track{ position:absolute; inset:0; background:var(--surface-2); border-radius:100px; transition:background .18s ease; border:1px solid var(--line); }
+  .switch-track::before{ content:""; position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%; background:var(--surface); box-shadow:0 1px 3px rgba(20,24,58,.3); transition:transform .18s ease; }
+  .switch input:checked + .switch-track{ background:var(--gold); border-color:var(--gold); }
+  .switch input:checked + .switch-track::before{ transform:translateX(17px); }
+
+  .divider-line{ height:1px; background:var(--line-soft); margin:2px 0 10px; }
+
+  .file-row{ display:flex; align-items:center; gap:10px; }
+  .file-btn{
+    display:flex; align-items:center; gap:7px; flex-shrink:0;
+    border:1px solid var(--line); background:var(--surface-2); cursor:pointer;
+    padding:10px 13px; border-radius:12px; font-size:11.5px; font-weight:800; color:var(--ink);
+  }
+  .file-btn svg{ width:13px; height:13px; }
+  .file-btn:active{ transform:scale(.97); }
+  .file-name{ font-size:11px; color:var(--ink-mute); font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .lock-note{ display:flex; gap:9px; padding:11px; border-radius:12px; background:var(--surface-2); font-size:10.5px; color:var(--ink-mute); line-height:1.5; }
+  .lock-note svg{ width:14px; height:14px; flex-shrink:0; margin-top:1px; color:var(--gold-soft); }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" aria-label="Back" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="topbar-title">Frame editor</div>
+    </div>
+    <button class="save-btn" id="saveBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      Save
+    </button>
+  </div>
+
+  <!-- PREVIEW — fills nearly the whole screen -->
+  <div class="preview-area" id="previewArea">
+    <div class="frame-shell" id="frameShell">
+      <div class="frame-canvas" id="frameCanvas">
+        <div class="fc-overlay" id="fcOverlay"></div>
+        <img class="fc-real-preview" id="fcRealPreview" alt="">
+        <div class="fc-content">
+          <div class="fc-header" id="fcHeader">Al-Fātiḥah</div>
+          <div class="fc-badge-row" id="fcBadgeRow"><div class="fc-badge style-ornament" id="fcBadge"><span class="fc-badge-num" id="fcBadgeNum">1</span></div></div>
+          <div class="fc-textblock align-center" id="fcTextblock">
+            <div class="fc-arabic" id="fcArabic">بِسْمِ اللَّهِ <span class="fc-word" id="fcWord">الرَّحْمَٰنِ</span> الرَّحِيمِ</div>
+            <div class="fc-translation" id="fcTranslation">In the name of Allah, the Most Gracious</div>
+          </div>
+        </div>
+      </div>
+      <button class="float-btn float-sample" id="sampleBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>
+        Sample
+      </button>
+      <div class="float-btn float-loading" id="realPreviewLoading" title="Rendering the exact server frame…">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+        Rendering
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-meta">
+    <div class="preview-meta-title" id="previewMetaTitle">Custom theme</div>
+    <div class="preview-meta-sub" id="previewMetaSub">Al-Fātiḥah · vertical</div>
+  </div>
+
+  <!-- BOTTOM TOOLBAR -->
+  <div class="toolbar" id="toolbar">
+    <button class="tool-btn" data-tab="background">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+      <div class="tool-label">Background</div>
+    </button>
+    <button class="tool-btn" data-tab="name">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M19 4v16M5 12h14"/></svg></div>
+      <div class="tool-label">Name</div>
+    </button>
+    <button class="tool-btn" data-tab="number">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></svg></div>
+      <div class="tool-label">Number</div>
+    </button>
+    <button class="tool-btn" data-tab="arabic">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6H8M20 12H4M20 18H11"/></svg></div>
+      <div class="tool-label">Arabic</div>
+    </button>
+    <button class="tool-btn" data-tab="translation">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"/></svg></div>
+      <div class="tool-label">Translation</div>
+    </button>
+    <button class="tool-btn" data-tab="fonts">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-13h1l4 13M5.5 14.5h6.5"/><path d="M15.5 20l3-9.5M18.5 10.5l3 9.5M16 16.5h5"/></svg></div>
+      <div class="tool-label">Fonts</div>
+    </button>
+    <button class="tool-btn" data-tab="layout">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+      <div class="tool-label">Layout</div>
+    </button>
+    <button class="tool-btn" data-tab="elements">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h16M4 18h7"/><circle cx="19" cy="6" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>
+      <div class="tool-label">Elements</div>
+    </button>
+    <button class="tool-btn" data-tab="highlight">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L18 6l3 3-8.5 8.5-3.5.5.5-3.5z"/><path d="M4 20l3.5-1.5L4 15z"/></svg></div>
+      <div class="tool-label">Highlight</div>
+    </button>
+    <button class="tool-btn" data-tab="motion">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div>
+      <div class="tool-label">Motion</div>
+    </button>
+  </div>
+
+</div>
+
+<!-- SHARED BOTTOM SHEET -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title"><div class="sheet-title-icon" id="sheetTitleIcon"></div><span id="sheetTitle">Background</span></div>
+    <button class="sheet-close" id="sheetClose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet-body" id="sheetBody">
+
+    <!-- BACKGROUND -->
+    <div class="panel" data-panel="background">
+      <div class="card">
+        <div class="card-title"><div class="card-swatch" id="bgSwatch"></div>Background style</div>
+        <div class="segmented" id="bgStyleSeg">
+          <button class="active" data-value="gradient">Gradient</button>
+          <button data-value="solid">Solid</button>
+          <button data-value="image">Image</button>
+          <button data-value="video">Video</button>
+        </div>
+
+        <div id="bgGradientFields" class="field">
+          <div class="field-label">Top color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="bgTop" value="#FCEBC7"></div>
+            <input class="hex-input mono" id="bgTopHex" value="#FCEBC7" spellcheck="false">
+          </div>
+          <div class="field-label" style="margin-top:12px;">Bottom color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="bgBottom" value="#C9973A"></div>
+            <input class="hex-input mono" id="bgBottomHex" value="#C9973A" spellcheck="false">
+          </div>
+        </div>
+
+        <div id="bgSolidFields" class="field" style="display:none;">
+          <div class="field-label">Background color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="bgSolid" value="#1E3A3A"></div>
+            <input class="hex-input mono" id="bgSolidHex" value="#1E3A3A" spellcheck="false">
+          </div>
+        </div>
+
+        <div id="bgImageFields" class="field" style="display:none;">
+          <div class="field-label">Image</div>
+          <div class="file-row">
+            <button class="file-btn" id="bgImageBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Upload
+            </button>
+            <div class="file-name" id="bgImageName">No image chosen</div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Dark overlay opacity</div><div class="slider-val" id="overlayOpacityVal">0.45</div></div>
+            <input type="range" id="overlayOpacity" min="0" max="1" step="0.05" value="0.45">
+          </div>
+        </div>
+
+        <div id="bgVideoFields" style="display:none;">
+          <div class="lock-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+            <div>Video backgrounds aren't rendered by this generator yet — picking this saves the choice but the export will fall back to the gradient background.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SURAH NAME -->
+    <div class="panel" data-panel="name">
+      <div class="card">
+        <div class="card-title">Surah name</div>
+        <div class="field" style="margin-top:0;">
+          <div class="field-label">Color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="headerColor" value="#FFFFFF"></div>
+            <input class="hex-input mono" id="headerColorHex" value="#FFFFFF" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Size</div><div class="slider-val" id="headerSizeVal">2.1</div></div>
+          <input type="range" id="headerSize" min="1" max="4" step="0.1" value="2.1">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Position — distance from top</div><div class="slider-val" id="headerYVal">0.060</div></div>
+          <input type="range" id="headerY" min="0" max="0.25" step="0.005" value="0.06">
+        </div>
+      </div>
+    </div>
+
+    <!-- AYAH NUMBER -->
+    <div class="panel" data-panel="number">
+      <div class="card">
+        <div class="card-title">Ayah number</div>
+        <div class="field" style="margin-top:0;">
+          <div class="field-label">Number color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="badgeColor" value="#FFFFFF"></div>
+            <input class="hex-input mono" id="badgeColorHex" value="#FFFFFF" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Size</div><div class="slider-val" id="badgeSizeVal">2.3</div></div>
+          <input type="range" id="badgeSize" min="1.2" max="4.5" step="0.1" value="2.3">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Position — distance below name</div><div class="slider-val" id="badgeGapVal">0.030</div></div>
+          <input type="range" id="badgeGap" min="0" max="0.12" step="0.005" value="0.03">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Border style</div>
+        <div class="badge-style-grid" id="badgeStyleGrid"></div>
+        <div class="font-hint" style="margin:10px 0 0;">Border shapes are saved with the theme but aren't rendered by the video generator yet — the exported frame currently always draws a plain number.</div>
+      </div>
+
+      <div class="card">
+        <div class="subhead" style="margin-top:0;">Border</div>
+        <div class="field" style="margin-top:0;">
+          <div class="field-label">Border color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="badgeBorderColor" value="#FFFFFF"></div>
+            <input class="hex-input mono" id="badgeBorderColorHex" value="#FFFFFF" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Border width</div><div class="slider-val" id="badgeBorderWidthVal">0.15</div></div>
+          <input type="range" id="badgeBorderWidth" min="0" max="1" step="0.05" value="0.15">
+        </div>
+
+        <div class="divider-line"></div>
+        <div class="subhead">Fill</div>
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Fill background</div>
+          <label class="switch"><input type="checkbox" id="badgeFillEnabled" checked><span class="switch-track"></span></label>
+        </div>
+        <div id="badgeFillFields">
+          <div class="field">
+            <div class="field-label">Fill color</div>
+            <div class="swatch-row">
+              <div class="colorpick"><input type="color" id="badgeFillColor" value="#FFFFFF"></div>
+              <input class="hex-input mono" id="badgeFillColorHex" value="#FFFFFF" spellcheck="false">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Fill opacity</div><div class="slider-val" id="badgeFillOpacityVal">0.14</div></div>
+            <input type="range" id="badgeFillOpacity" min="0" max="1" step="0.02" value="0.14">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARABIC VERSE -->
+    <div class="panel" data-panel="arabic">
+      <div class="card">
+        <div class="card-title">Arabic verse</div>
+        <div class="field" style="margin-top:0;">
+          <div class="field-label">Color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="arabicColor" value="#FFFFFF"></div>
+            <input class="hex-input mono" id="arabicColorHex" value="#FFFFFF" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Size</div><div class="slider-val" id="arabicSizeVal">5.2</div></div>
+          <input type="range" id="arabicSize" min="3" max="9" step="0.1" value="5.2">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Position — vertical center on screen</div><div class="slider-val" id="arabicYVal">0.36</div></div>
+          <input type="range" id="arabicY" min="0.15" max="0.7" step="0.005" value="0.36">
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSLATION -->
+    <div class="panel" data-panel="translation">
+      <div class="card">
+        <div class="card-title">Translation</div>
+        <div class="field" style="margin-top:0;">
+          <div class="field-label">Color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="translationColor" value="#FFFFFF"></div>
+            <input class="hex-input mono" id="translationColorHex" value="#FFFFFF" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Opacity</div><div class="slider-val" id="translationOpacityVal">0.80</div></div>
+          <input type="range" id="translationOpacity" min="0.3" max="1" step="0.05" value="0.8">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Size</div><div class="slider-val" id="translationSizeVal">2.3</div></div>
+          <input type="range" id="translationSize" min="1.2" max="4.5" step="0.1" value="2.3">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Position — closer to / farther from Arabic</div><div class="slider-val" id="translationGapVal">0.050</div></div>
+          <input type="range" id="translationGap" min="0" max="0.15" step="0.005" value="0.05">
+        </div>
+      </div>
+    </div>
+
+    <!-- FONTS -->
+    <div class="panel" data-panel="fonts">
+      <div class="card">
+        <div class="card-title">Arabic font</div>
+        <div class="font-hint" style="margin-top:0;">Previews live here, but only Amiri/Noto Naskh Arabic is bundled with the generator right now — other picks preview in the editor but render with the default Arabic font in the exported video.</div>
+        <div class="font-grid" id="arabicFontGrid"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Text font</div>
+        <div class="font-hint" style="margin-top:0;">Used for every non-Arabic label in the preview — the surah name and translation. Same bundling note as above applies.</div>
+        <div class="font-grid" id="textFontGrid"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT -->
+    <div class="panel" data-panel="layout">
+      <div class="card">
+        <div class="card-title">Orientation</div>
+        <div class="segmented" id="orientationSeg">
+          <button class="active" data-value="vertical">Vertical</button>
+          <button data-value="horizontal">Horizontal</button>
+        </div>
+        <div class="font-hint" style="margin:10px 0 0;">Preview only — pick the actual output orientation on the "New video" screen.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Text alignment</div>
+        <div class="segmented" id="alignSeg">
+          <button data-value="left">Left</button>
+          <button class="active" data-value="center">Center</button>
+          <button data-value="right">Right</button>
+        </div>
+        <div class="field">
+          <div class="field-label">Translation position</div>
+          <div class="segmented" id="transPosSeg">
+            <button data-value="above">Above</button>
+            <button class="active" data-value="below">Below</button>
+            <button data-value="side">Side-by-side</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Spacing</div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Side margin</div><div class="slider-val" id="marginVal">0.09</div></div>
+          <input type="range" id="marginFrac" min="0.02" max="0.2" step="0.005" value="0.09">
+        </div>
+      </div>
+    </div>
+
+    <!-- ELEMENTS -->
+    <div class="panel" data-panel="elements">
+      <div class="card">
+        <div class="card-title">Elements</div>
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Show header (surah name)</div>
+          <label class="switch"><input type="checkbox" id="showHeader" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Show ayah badge</div>
+          <label class="switch"><input type="checkbox" id="showBadge" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Show translation</div>
+          <label class="switch"><input type="checkbox" id="showTranslation" checked><span class="switch-track"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIGHLIGHT -->
+    <div class="panel" data-panel="highlight">
+      <div class="card">
+        <div class="card-title">Word-by-word highlighting</div>
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Enable word highlighting</div>
+          <label class="switch"><input type="checkbox" id="highlightEnabled"><span class="switch-track"></span></label>
+        </div>
+        <div class="divider-line" style="margin-top:0;"></div>
+        <div class="field">
+          <div class="field-label">Highlight style</div>
+          <div class="segmented" id="highlightStyleSeg">
+            <button class="active" data-value="pill">Pill</button>
+            <button data-value="underline">Underline</button>
+            <button data-value="color">Color only</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Highlight color</div>
+          <div class="swatch-row">
+            <div class="colorpick"><input type="color" id="highlightColor" value="#AD8226"></div>
+            <input class="hex-input mono" id="highlightColorHex" value="#AD8226" spellcheck="false">
+          </div>
+        </div>
+        <div class="slider-row" id="highlightOpacityRow">
+          <div class="slider-top"><div class="row-label">Pill opacity</div><div class="slider-val" id="highlightOpacityVal">0.85</div></div>
+          <input type="range" id="highlightOpacity" min="0.1" max="1" step="0.05" value="0.85">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Simulated pace (words/sec)</div><div class="slider-val" id="highlightPaceVal">2.2</div></div>
+          <input type="range" id="highlightPace" min="0.6" max="5" step="0.1" value="2.2">
+        </div>
+        <div class="font-hint" style="margin:10px 0 0;">Pace only applies to ayahs with no manual word timing — timed ayahs use their real marks instead.</div>
+      </div>
+      <div class="card">
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Show pointer</div>
+          <label class="switch"><input type="checkbox" id="highlightPointerEnabled"><span class="switch-track"></span></label>
+        </div>
+        <div class="field" id="highlightPointerStyleField" style="display:none;">
+          <div class="field-label">Pointer style</div>
+          <div class="segmented" id="highlightPointerStyleSeg">
+            <button class="active" data-value="hand">Hand</button>
+            <button data-value="arrow">Arrow</button>
+            <button data-value="dot">Dot</button>
+          </div>
+        </div>
+        <div class="slider-row" id="highlightPointerGapRow" style="display:none;">
+          <div class="slider-top"><div class="row-label">Pointer gap</div><div class="slider-val" id="highlightPointerGapVal">1.00</div></div>
+          <input type="range" id="highlightPointerGap" min="0.3" max="2.5" step="0.05" value="1.00">
+        </div>
+      </div>
+    </div>
+
+    <!-- MOTION -->
+    <div class="panel" data-panel="motion">
+      <div class="card">
+        <div class="card-title">Motion (applies to the exported video)</div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Crossfade duration</div><div class="slider-val" id="fadeDurationVal">0.60s</div></div>
+          <input type="range" id="fadeDuration" min="0" max="2" step="0.05" value="0.6">
+        </div>
+        <div class="row">
+          <div class="row-label">Ken Burns zoom on background</div>
+          <label class="switch"><input type="checkbox" id="kenBurns"><span class="switch-track"></span></label>
+        </div>
+        <div class="font-hint" style="margin:10px 0 0;">Ken Burns is saved with the theme but not yet implemented by the video generator — it has no visible effect on the export yet.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<input type="file" id="bgImageInput" accept="image/*" style="display:none;">
+
+<script src="/quran-data.js"></script>
+<script>
+
+  const samples = {
+    // `header` is the Latin transliteration this CSS mock displays (for
+    // readability at editor size); `headerArabic` is the real Arabic surah
+    // name the actual renderer draws instead (text_render.py always uses
+    // the Arabic font for the header) -- the real-preview toggle below
+    // needs this so it doesn't feed Latin text through an Arabic-only font.
+    long:{ header:'Al-Fātiḥah', headerArabic:'سُورَةُ ٱلْفَاتِحَةِ', badge:'1', arabic:'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', highlightWord:'الرَّحْمَٰنِ', translation:'In the name of Allah, the Most Gracious' },
+    short:{ header:'Al-Ikhlāṣ', headerArabic:'سُورَةُ ٱلْإِخْلَاصِ', badge:'1', arabic:'قُلْ هُوَ اللَّهُ أَحَدٌ', highlightWord:'اللَّهُ', translation:'Say, He is Allah, the One' }
+  };
+  let sampleKey = 'long';
+
+  // ---------- theme.py <-> editor `state` conversion ----------
+  function rgbToHex(rgb){
+    return '#' + (rgb || [255,255,255]).map(v => Math.max(0, Math.min(255, v|0)).toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+  function hexToRgb(hex){
+    const h = (hex || '#FFFFFF').replace('#', '');
+    return [parseInt(h.substring(0,2),16) || 0, parseInt(h.substring(2,4),16) || 0, parseInt(h.substring(4,6),16) || 0];
+  }
+
+  function defaultState(){
+    return {
+      orientation:'vertical',
+      bgStyle:'gradient',
+      bgTop:'#FCEBC7', bgBottom:'#C9973A', bgSolid:'#1E3A3A',
+      overlayOpacity:0.45, bgImageDataUrl:null, bgImageName:null,
+      align:'center', transPos:'below',
+      margin:0.09,
+      showHeader:true, showBadge:true, showTranslation:true, badgeStyle:'ornament',
+      fonts:{ arabic:'Amiri', text:'Manrope' },
+      text: JSON.parse(JSON.stringify(samples.long)),
+      textStyle:{
+        header:{ size:2.1, color:'#FFFFFF', y:0.06 },
+        badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14 },
+        arabic:{ size:5.2, color:'#FFFFFF', y:0.36 },
+        translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
+      },
+      highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerGap:1.0 },
+      fadeDuration:0.6, kenBurns:false
+    };
+  }
+
+  // theme.py's on-disk shape -> this editor's in-memory `state`. Fields with
+  // no schema counterpart (badge gap/border/fill, translation opacity,
+  // pointer/highlight-pace UI beyond highlight_fallback_wps, per-element font
+  // choice beyond the two bundled fonts) keep the editor's own defaults --
+  // they're saved back out (see stateToTheme) but the generator doesn't read
+  // them yet.
+  function themeToState(theme){
+    const s = defaultState();
+    s.bgStyle = theme.background_style || s.bgStyle;
+    s.bgTop = rgbToHex(theme.bg_top);
+    s.bgBottom = rgbToHex(theme.bg_bottom);
+    s.bgSolid = rgbToHex(theme.bg_solid);
+    s.overlayOpacity = theme.background_overlay_opacity ?? s.overlayOpacity;
+    s.bgImageDataUrl = (theme.background_image && theme.background_image.startsWith('data:')) ? theme.background_image : null;
+    s.align = theme.text_align || s.align;
+    s.transPos = theme.translation_position || s.transPos;
+    s.margin = theme.margin_frac ?? s.margin;
+    s.showHeader = theme.show_header ?? s.showHeader;
+    s.showBadge = theme.show_badge ?? s.showBadge;
+    s.showTranslation = theme.show_translation ?? s.showTranslation;
+    s.badgeStyle = theme.badge_style || s.badgeStyle;
+
+    s.textStyle.header.color = rgbToHex(theme.header_color);
+    if (theme.header_size_frac != null) s.textStyle.header.size = +(theme.header_size_frac * 100).toFixed(2);
+    if (theme.header_y_frac != null) s.textStyle.header.y = theme.header_y_frac;
+
+    s.textStyle.badge.color = rgbToHex(theme.badge_color);
+    if (theme.badge_size_frac != null) s.textStyle.badge.size = +(theme.badge_size_frac * 100).toFixed(2);
+
+    s.textStyle.arabic.color = rgbToHex(theme.arabic_color);
+    if (theme.arabic_size_max_frac != null) s.textStyle.arabic.size = +(theme.arabic_size_max_frac * 100).toFixed(2);
+    if (theme.arabic_center_y_frac != null) s.textStyle.arabic.y = theme.arabic_center_y_frac;
+
+    s.textStyle.translation.color = rgbToHex(theme.translation_color);
+    if (theme.translation_size_frac != null) s.textStyle.translation.size = +(theme.translation_size_frac * 100).toFixed(2);
+    if (theme.translation_gap_frac != null) s.textStyle.translation.gap = theme.translation_gap_frac;
+
+    s.highlight.enabled = theme.highlight_enabled ?? s.highlight.enabled;
+    s.highlight.style = theme.highlight_style || s.highlight.style;
+    s.highlight.color = rgbToHex(theme.highlight_color);
+    s.highlight.opacity = theme.highlight_bg_opacity ?? s.highlight.opacity;
+    s.highlight.pace = theme.highlight_fallback_wps ?? s.highlight.pace;
+    s.highlight.pointer = theme.highlight_pointer_enabled ?? s.highlight.pointer;
+    s.highlight.pointerStyle = theme.highlight_pointer_style || s.highlight.pointerStyle;
+    s.highlight.pointerGap = theme.highlight_pointer_gap_mult ?? s.highlight.pointerGap;
+
+    s.fadeDuration = theme.fade_duration ?? s.fadeDuration;
+    s.kenBurns = theme.ken_burns ?? s.kenBurns;
+    return s;
+  }
+
+  // editor `state` -> theme.py's on-disk shape (only DEFAULT_THEME's real
+  // keys, plus the harmless-if-ignored `badge_style` for round-tripping).
+  function stateToTheme(s){
+    const ts = s.textStyle;
+    const arabicMax = ts.arabic.size / 100;
+    return {
+      background_style: s.bgStyle,
+      bg_top: hexToRgb(s.bgTop), bg_bottom: hexToRgb(s.bgBottom), bg_solid: hexToRgb(s.bgSolid),
+      arabic_color: hexToRgb(ts.arabic.color), translation_color: hexToRgb(ts.translation.color),
+      header_color: hexToRgb(ts.header.color), badge_color: hexToRgb(ts.badge.color),
+      arabic_font_regular: "fonts/NotoNaskhArabic-Regular.ttf",
+      arabic_font_bold: "fonts/NotoNaskhArabic-Bold.ttf",
+      latin_font: "fonts/NotoSans-Regular.ttf",
+      margin_frac: s.margin, header_y_frac: ts.header.y, header_size_frac: ts.header.size / 100,
+      arabic_center_y_frac: ts.arabic.y, arabic_size_max_frac: arabicMax, arabic_size_min_frac: +(arabicMax * 0.577).toFixed(4),
+      arabic_line_height_mult: 1.55,
+      translation_gap_frac: ts.translation.gap, translation_size_frac: ts.translation.size / 100,
+      translation_position: s.transPos, text_align: s.align,
+      show_header: s.showHeader, show_badge: s.showBadge, show_translation: s.showTranslation,
+      badge_size_frac: ts.badge.size / 100,
+      background_image: s.bgStyle === 'image' ? (s.bgImageDataUrl || null) : null,
+      background_video: null,
+      background_overlay_opacity: s.overlayOpacity,
+      fade_duration: s.fadeDuration, ken_burns: s.kenBurns,
+      highlight_enabled: s.highlight.enabled, highlight_style: s.highlight.style,
+      highlight_color: hexToRgb(s.highlight.color), highlight_bg_opacity: s.highlight.opacity,
+      highlight_fallback_wps: s.highlight.pace,
+      highlight_pointer_enabled: s.highlight.pointer, highlight_pointer_style: s.highlight.pointerStyle,
+      highlight_pointer_gap_mult: s.highlight.pointerGap,
+      badge_style: s.badgeStyle,
+    };
+  }
+
+  function resolveSeedTheme(){
+    const params = new URLSearchParams(location.search);
+    const name = params.get('theme');
+    if (name && window.THEME_PRESETS && window.THEME_PRESETS[name]) return window.THEME_PRESETS[name];
+    try {
+      const raw = localStorage.getItem('afs_custom_theme');
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore corrupt storage */ }
+    return window.DEFAULT_THEME ? window.DEFAULT_THEME() : null;
+  }
+
+  const seedTheme = resolveSeedTheme();
+  const state = seedTheme ? themeToState(seedTheme) : defaultState();
+
+  const el = id => document.getElementById(id);
+  const previewArea = el('previewArea');
+  const frameShell = el('frameShell');
+  const frameCanvas = el('frameCanvas');
+  const fcOverlay = el('fcOverlay');
+  const fcHeader = el('fcHeader');
+  const fcBadgeRow = el('fcBadgeRow');
+  const fcBadge = el('fcBadge');
+  const fcBadgeNum = el('fcBadgeNum');
+  const badgeStyles = [
+    { value:'ornament', label:'Ornament' },
+    { value:'circle', label:'Circle' },
+    { value:'hexagon', label:'Rosette' },
+    { value:'diamond', label:'Diamond' },
+    { value:'square', label:'Square' },
+    { value:'ring', label:'Ring' },
+    { value:'flower', label:'Flower' },
+    { value:'none', label:'None' }
+  ];
+  function hexToRgba(hex, alpha){
+    const h = (hex || '#FFFFFF').replace('#','');
+    const r = parseInt(h.substring(0,2),16) || 0;
+    const g = parseInt(h.substring(2,4),16) || 0;
+    const b = parseInt(h.substring(4,6),16) || 0;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  function renderBadgeStyleGrid(){
+    el('badgeStyleGrid').innerHTML = badgeStyles.map(s => `
+      <button class="badge-style-btn${s.value === state.badgeStyle ? ' active' : ''}" data-value="${s.value}">
+        <span class="badge-style-swatch style-${s.value}"></span>
+        <span class="badge-style-label">${s.label}</span>
+      </button>
+    `).join('');
+  }
+  el('badgeStyleGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.badge-style-btn');
+    if (!btn) return;
+    state.badgeStyle = btn.dataset.value;
+    el('badgeStyleGrid').querySelectorAll('.badge-style-btn').forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  // ---------- fonts (universal: one Arabic font, one text font) ----------
+  const arabicFonts = [
+    { value:'Amiri', label:'Amiri' },
+    { value:'Noto Naskh Arabic', label:'Noto Naskh' },
+    { value:'Scheherazade New', label:'Scheherazade' },
+    { value:'Aref Ruqaa', label:'Aref Ruqaa' },
+    { value:'Reem Kufi', label:'Reem Kufi' },
+    { value:'Lateef', label:'Lateef' }
+  ];
+  const textFonts = [
+    { value:'Manrope', label:'Manrope' },
+    { value:'Fraunces', label:'Fraunces' },
+    { value:'Playfair Display', label:'Playfair' },
+    { value:'Poppins', label:'Poppins' },
+    { value:'Inter', label:'Inter' },
+    { value:'Cormorant Garamond', label:'Cormorant' }
+  ];
+  function renderFontGrid(gridId, fonts, sampleText, sampleClass, current){
+    el(gridId).innerHTML = fonts.map(f => `
+      <button class="font-btn${f.value === current ? ' active' : ''}" data-value="${f.value}">
+        <span class="font-preview ${sampleClass}" style="font-family:'${f.value}', ${sampleClass === 'is-arabic' ? 'serif' : 'sans-serif'};">${sampleText}</span>
+        <span class="font-name">${f.label}</span>
+      </button>
+    `).join('');
+  }
+  function renderFontGrids(){
+    renderFontGrid('arabicFontGrid', arabicFonts, 'بِسْمِ اللَّه', 'is-arabic', state.fonts.arabic);
+    renderFontGrid('textFontGrid', textFonts, 'Aa Surah', 'is-text', state.fonts.text);
+  }
+  el('arabicFontGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.font-btn');
+    if (!btn) return;
+    state.fonts.arabic = btn.dataset.value;
+    el('arabicFontGrid').querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+  el('textFontGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.font-btn');
+    if (!btn) return;
+    state.fonts.text = btn.dataset.value;
+    el('textFontGrid').querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+  const fcTextblock = el('fcTextblock');
+  const fcArabic = el('fcArabic');
+  const fcWord = el('fcWord');
+  const fcTranslation = el('fcTranslation');
+  const bgSwatch = el('bgSwatch');
+
+  // ---------- size the preview to fill the available area ----------
+  function sizePreview(){
+    const rect = previewArea.getBoundingClientRect();
+    const availW = rect.width - 8;
+    const availH = rect.height - 8;
+    const ratio = state.orientation === 'vertical' ? 9 / 16 : 16 / 9;
+    let h = availH, w = h * ratio;
+    if (w > availW){ w = availW; h = w / ratio; }
+    frameShell.style.width = w + 'px';
+    frameShell.style.height = h + 'px';
+  }
+  window.addEventListener('resize', sizePreview);
+
+  function render(){
+    let bg;
+    if (state.bgStyle === 'gradient') bg = `linear-gradient(165deg, ${state.bgTop}, ${state.bgBottom})`;
+    else if (state.bgStyle === 'solid') bg = state.bgSolid;
+    else if (state.bgStyle === 'video') bg = `linear-gradient(165deg, #3a3a3a, #111)`;
+    if (state.bgStyle === 'image'){
+      if (state.bgImageDataUrl){
+        frameCanvas.style.backgroundImage = `url(${state.bgImageDataUrl})`;
+        frameCanvas.style.background = '';
+      } else {
+        frameCanvas.style.backgroundImage = 'none';
+        frameCanvas.style.background = `linear-gradient(165deg, #cfcfcf, #9c9c9c)`;
+      }
+    } else {
+      frameCanvas.style.backgroundImage = 'none';
+      frameCanvas.style.background = bg;
+    }
+    bgSwatch.style.background = state.bgStyle === 'solid' ? state.bgSolid : `linear-gradient(135deg, ${state.bgTop}, ${state.bgBottom})`;
+
+    fcOverlay.style.opacity = (state.bgStyle === 'image') ? state.overlayOpacity : 0;
+
+    sizePreview();
+
+    const ts = state.textStyle;
+
+    // ---- fonts (universal across the preview) ----
+    const arabicFontStack = `'${state.fonts.arabic}', serif`;
+    const textFontStack = `'${state.fonts.text}', sans-serif`;
+    fcArabic.style.fontFamily = arabicFontStack;
+    fcBadgeNum.style.fontFamily = arabicFontStack;
+    fcHeader.style.fontFamily = textFontStack;
+    fcTranslation.style.fontFamily = textFontStack;
+
+    // ---- surah name ----
+    fcHeader.style.display = state.showHeader ? 'block' : 'none';
+    fcHeader.style.paddingTop = (ts.header.y * 100 + 5) + '%';
+    fcHeader.style.fontSize = ts.header.size + 'cqw';
+    fcHeader.style.color = ts.header.color;
+    fcHeader.textContent = state.text.header;
+
+    // ---- ayah number badge (positioned relative to the name above it) ----
+    fcBadgeRow.style.display = state.showBadge ? 'flex' : 'none';
+    fcBadgeRow.style.marginTop = (ts.badge.gap * 100) + '%';
+    fcBadge.className = 'fc-badge style-' + state.badgeStyle;
+    fcBadgeNum.style.fontSize = ts.badge.size + 'cqw';
+    fcBadgeNum.style.color = ts.badge.color;
+    fcBadgeNum.textContent = state.text.badge;
+    fcBadge.style.setProperty('--badge-border-c', ts.badge.borderColor);
+    fcBadge.style.setProperty('--badge-border-w', ts.badge.borderWidth + 'cqw');
+    fcBadge.style.setProperty('--badge-fill', ts.badge.fillEnabled ? hexToRgba(ts.badge.fillColor, ts.badge.fillOpacity) : 'transparent');
+
+    // ---- arabic block (positioned relative to the screen) ----
+    fcTextblock.className = 'fc-textblock align-' + state.align + (state.transPos === 'side' ? ' pos-side' : '');
+    fcTextblock.style.transform = `translateY(${(ts.arabic.y - 0.36) * 60}%)`;
+    fcTextblock.style.gap = (ts.translation.gap * 100) + '%';
+
+    fcTranslation.style.display = state.showTranslation ? 'block' : 'none';
+    if (state.transPos === 'above') fcTextblock.style.flexDirection = 'column-reverse';
+    else fcTextblock.style.flexDirection = state.transPos === 'side' ? 'row' : 'column';
+
+    document.querySelector('.fc-content').style.padding = `0 ${state.margin * 100 + 3}%`;
+
+    fcArabic.style.fontSize = ts.arabic.size + 'cqw';
+    fcArabic.style.color = ts.arabic.color;
+
+    const arabicFull = state.text.arabic || '';
+    const word = state.text.highlightWord || '';
+    const idx = word ? arabicFull.indexOf(word) : -1;
+    if (idx >= 0){
+      fcArabic.childNodes[0].textContent = arabicFull.slice(0, idx);
+      fcWord.textContent = word;
+      fcArabic.childNodes[2].textContent = arabicFull.slice(idx + word.length);
+    } else {
+      fcArabic.childNodes[0].textContent = arabicFull;
+      fcWord.textContent = '';
+      fcArabic.childNodes[2].textContent = '';
+    }
+
+    // ---- translation (positioned relative to the arabic block, closer/farther via gap above) ----
+    fcTranslation.textContent = state.text.translation;
+    fcTranslation.style.fontSize = ts.translation.size + 'cqw';
+    fcTranslation.style.color = ts.translation.color;
+    fcTranslation.style.opacity = ts.translation.opacity;
+
+    fcWord.className = 'fc-word';
+    fcWord.style.removeProperty('--hl-color');
+    if (state.highlight.enabled && idx >= 0){
+      fcWord.classList.add('hl-' + state.highlight.style);
+      fcWord.style.setProperty('--hl-color', state.highlight.color);
+      fcWord.style.opacity = state.highlight.style === 'pill' ? state.highlight.opacity : 1;
+    } else {
+      fcWord.style.opacity = 1;
+    }
+
+    el('previewMetaSub').textContent = `${state.text.header || 'Untitled'} · ${state.orientation}`;
+
+    scheduleRealPreview();
+  }
+
+  // ---------- real server-rendered preview ----------
+  // The CSS layout above is only ever a scaffold for the actual pixels:
+  // it drives layout instantly while a control is being dragged, but the
+  // frame shown is always replaced by the real render_verse_frame() output
+  // (same code path as the video export) via POST /api/preview-frame, so
+  // the editor never shows anything the export wouldn't actually produce.
+  let realPreviewTimer = null;
+  let realPreviewObjectUrl = null;
+  let realPreviewReqId = 0;
+  const fcRealPreview = el('fcRealPreview');
+  const realPreviewLoading = el('realPreviewLoading');
+
+  function verseAndHighlightFromState(){
+    const arabicFull = state.text.arabic || '';
+    const words = arabicFull.split(' ').filter(Boolean);
+    const word = state.text.highlightWord || '';
+    const highlightIndex = state.highlight.enabled ? words.indexOf(word) : -1;
+    return {
+      verse: {
+        number: parseInt(state.text.badge, 10) || 1,
+        arabic: arabicFull,
+        translation: state.text.translation || '',
+        surah_name_arabic: state.text.headerArabic || '',
+      },
+      highlightIndex,
+    };
+  }
+
+  function scheduleRealPreview(){
+    clearTimeout(realPreviewTimer);
+    realPreviewTimer = setTimeout(updateRealPreview, 350);
+  }
+
+  function updateRealPreview(){
+    const { verse, highlightIndex } = verseAndHighlightFromState();
+    if (!verse.arabic || !verse.translation) return;
+    const size = state.orientation === 'vertical' ? [1080, 1920] : [1920, 1080];
+    const reqId = ++realPreviewReqId;
+    realPreviewLoading.classList.add('visible');
+    fetch('/api/preview-frame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        theme: stateToTheme(state),
+        verse,
+        size,
+        show_translation: state.showTranslation,
+        highlight_index: highlightIndex,
+      }),
+    })
+      .then(res => { if (!res.ok) throw new Error('render failed'); return res.blob(); })
+      .then(blob => {
+        if (reqId !== realPreviewReqId) return; // a newer request has since superseded this one
+        const url = URL.createObjectURL(blob);
+        const prevUrl = realPreviewObjectUrl;
+        realPreviewObjectUrl = url;
+        fcRealPreview.src = url;
+        fcRealPreview.classList.add('visible');
+        if (prevUrl) URL.revokeObjectURL(prevUrl);
+      })
+      .catch(() => { /* leave the last real frame showing -- a stale frame beats a blank one */ })
+      .finally(() => { if (reqId === realPreviewReqId) realPreviewLoading.classList.remove('visible'); });
+  }
+
+  // ---------- toolbar + sheet ----------
+  const sheet = el('sheet');
+  const sheetBackdrop = el('sheetBackdrop');
+  const sheetTitle = el('sheetTitle');
+  const sheetTitleIcon = el('sheetTitleIcon');
+  const sheetBody = el('sheetBody');
+
+  const tabMeta = {
+    background:{ title:'Background', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
+    name:{ title:'Surah name', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M19 4v16M5 12h14"/></svg>' },
+    number:{ title:'Ayah number', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></svg>' },
+    arabic:{ title:'Arabic verse', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6H8M20 12H4M20 18H11"/></svg>' },
+    translation:{ title:'Translation', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"/></svg>' },
+    fonts:{ title:'Fonts', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-13h1l4 13M5.5 14.5h6.5"/><path d="M15.5 20l3-9.5M18.5 10.5l3 9.5M16 16.5h5"/></svg>' },
+    layout:{ title:'Layout', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
+    elements:{ title:'Elements', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h16M4 18h7"/><circle cx="19" cy="6" r="2"/><circle cx="7" cy="18" r="2"/></svg>' },
+    highlight:{ title:'Highlight', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L18 6l3 3-8.5 8.5-3.5.5.5-3.5z"/><path d="M4 20l3.5-1.5L4 15z"/></svg>' },
+    motion:{ title:'Motion', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>' }
+  };
+
+  function openTab(key){
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === key));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === key));
+    sheetTitle.textContent = tabMeta[key].title;
+    sheetTitleIcon.innerHTML = tabMeta[key].icon;
+    sheetBody.scrollTop = 0;
+    sheetBackdrop.classList.add('open');
+    sheet.classList.add('open');
+  }
+  function closeSheet(){
+    sheetBackdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  }
+  el('toolbar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tool-btn');
+    if (!btn) return;
+    if (btn.classList.contains('active')) { closeSheet(); return; }
+    openTab(btn.dataset.tab);
+  });
+  sheetBackdrop.addEventListener('click', closeSheet);
+  el('sheetClose').addEventListener('click', closeSheet);
+
+  // ---------- segmented controls ----------
+  function wireSegmented(id, onChange){
+    const seg = el(id);
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onChange(btn.dataset.value);
+      render();
+    });
+  }
+  wireSegmented('orientationSeg', v => state.orientation = v);
+  wireSegmented('alignSeg', v => state.align = v);
+  wireSegmented('transPosSeg', v => state.transPos = v);
+  wireSegmented('highlightStyleSeg', v => {
+    state.highlight.style = v;
+    el('highlightOpacityRow').style.display = v === 'pill' ? 'block' : 'none';
+  });
+  wireSegmented('highlightPointerStyleSeg', v => state.highlight.pointerStyle = v);
+  wireSegmented('bgStyleSeg', v => {
+    state.bgStyle = v;
+    el('bgGradientFields').style.display = v === 'gradient' ? 'block' : 'none';
+    el('bgSolidFields').style.display = v === 'solid' ? 'block' : 'none';
+    el('bgImageFields').style.display = v === 'image' ? 'block' : 'none';
+    el('bgVideoFields').style.display = v === 'video' ? 'block' : 'none';
+  });
+
+  // ---------- colors ----------
+  function wireColor(pickId, hexId, apply){
+    const pick = el(pickId), hex = el(hexId);
+    pick.addEventListener('input', () => { hex.value = pick.value.toUpperCase(); apply(pick.value); render(); });
+    hex.addEventListener('input', () => {
+      let v = hex.value.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      if (/^#[0-9A-Fa-f]{6}$/.test(v)){ pick.value = v; apply(v); render(); }
+    });
+  }
+  wireColor('bgTop', 'bgTopHex', v => state.bgTop = v);
+  wireColor('bgBottom', 'bgBottomHex', v => state.bgBottom = v);
+  wireColor('bgSolid', 'bgSolidHex', v => state.bgSolid = v);
+  wireColor('highlightColor', 'highlightColorHex', v => state.highlight.color = v);
+  wireColor('headerColor', 'headerColorHex', v => state.textStyle.header.color = v);
+  wireColor('badgeColor', 'badgeColorHex', v => state.textStyle.badge.color = v);
+  wireColor('badgeBorderColor', 'badgeBorderColorHex', v => state.textStyle.badge.borderColor = v);
+  wireColor('badgeFillColor', 'badgeFillColorHex', v => state.textStyle.badge.fillColor = v);
+  wireColor('arabicColor', 'arabicColorHex', v => state.textStyle.arabic.color = v);
+  wireColor('translationColor', 'translationColorHex', v => state.textStyle.translation.color = v);
+
+  // ---------- sliders ----------
+  function wireSlider(id, valId, apply, fmt){
+    const input = el(id), out = el(valId);
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      out.textContent = fmt ? fmt(v) : v.toFixed(2);
+      apply(v);
+      render();
+    });
+  }
+  wireSlider('overlayOpacity', 'overlayOpacityVal', v => state.overlayOpacity = v);
+  wireSlider('marginFrac', 'marginVal', v => state.margin = v, v => v.toFixed(3));
+
+  wireSlider('headerSize', 'headerSizeVal', v => state.textStyle.header.size = v, v => v.toFixed(1));
+  wireSlider('headerY', 'headerYVal', v => state.textStyle.header.y = v, v => v.toFixed(3));
+  wireSlider('badgeSize', 'badgeSizeVal', v => state.textStyle.badge.size = v, v => v.toFixed(1));
+  wireSlider('badgeGap', 'badgeGapVal', v => state.textStyle.badge.gap = v, v => v.toFixed(3));
+  wireSlider('badgeBorderWidth', 'badgeBorderWidthVal', v => state.textStyle.badge.borderWidth = v, v => v.toFixed(2));
+  wireSlider('badgeFillOpacity', 'badgeFillOpacityVal', v => state.textStyle.badge.fillOpacity = v, v => v.toFixed(2));
+  wireSlider('arabicSize', 'arabicSizeVal', v => state.textStyle.arabic.size = v, v => v.toFixed(1));
+  wireSlider('arabicY', 'arabicYVal', v => state.textStyle.arabic.y = v, v => v.toFixed(2));
+  wireSlider('translationSize', 'translationSizeVal', v => state.textStyle.translation.size = v, v => v.toFixed(1));
+  wireSlider('translationGap', 'translationGapVal', v => state.textStyle.translation.gap = v, v => v.toFixed(3));
+  wireSlider('translationOpacity', 'translationOpacityVal', v => state.textStyle.translation.opacity = v, v => v.toFixed(2));
+
+  wireSlider('highlightOpacity', 'highlightOpacityVal', v => state.highlight.opacity = v);
+  wireSlider('highlightPace', 'highlightPaceVal', v => state.highlight.pace = v, v => v.toFixed(1));
+  wireSlider('highlightPointerGap', 'highlightPointerGapVal', v => state.highlight.pointerGap = v);
+  wireSlider('fadeDuration', 'fadeDurationVal', v => state.fadeDuration = v, v => v.toFixed(2) + 's');
+
+  // ---------- switches ----------
+  el('showHeader').addEventListener('change', e => { state.showHeader = e.target.checked; render(); });
+  el('showBadge').addEventListener('change', e => { state.showBadge = e.target.checked; render(); });
+  el('showTranslation').addEventListener('change', e => { state.showTranslation = e.target.checked; render(); });
+  el('badgeFillEnabled').addEventListener('change', e => {
+    state.textStyle.badge.fillEnabled = e.target.checked;
+    el('badgeFillFields').style.display = e.target.checked ? 'block' : 'none';
+    render();
+  });
+  el('kenBurns').addEventListener('change', e => { state.kenBurns = e.target.checked; });
+  el('highlightEnabled').addEventListener('change', e => { state.highlight.enabled = e.target.checked; render(); });
+  el('highlightPointerEnabled').addEventListener('change', e => {
+    state.highlight.pointer = e.target.checked;
+    el('highlightPointerStyleField').style.display = e.target.checked ? 'block' : 'none';
+    el('highlightPointerGapRow').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  // ---------- image upload ----------
+  el('bgImageBtn').addEventListener('click', () => el('bgImageInput').click());
+  el('bgImageInput').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    el('bgImageName').textContent = f.name;
+    state.bgImageName = f.name;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      state.bgImageDataUrl = ev.target.result;
+      render();
+    };
+    reader.readAsDataURL(f);
+  });
+
+  // ---------- sample toggle ----------
+  el('sampleBtn').addEventListener('click', () => {
+    sampleKey = sampleKey === 'long' ? 'short' : 'long';
+    Object.assign(state.text, samples[sampleKey]);
+    render();
+  });
+
+  // ---------- save ----------
+  el('saveBtn').addEventListener('click', () => {
+    const theme = stateToTheme(state);
+    localStorage.setItem('afs_custom_theme', JSON.stringify(theme));
+    sessionStorage.setItem('afs_custom_theme_just_saved', '1');
+    history.back();
+  });
+
+  // ---------- init UI to match seeded state ----------
+  function syncControlsToState(){
+    el('bgStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.bgStyle));
+    el('bgGradientFields').style.display = state.bgStyle === 'gradient' ? 'block' : 'none';
+    el('bgSolidFields').style.display = state.bgStyle === 'solid' ? 'block' : 'none';
+    el('bgImageFields').style.display = state.bgStyle === 'image' ? 'block' : 'none';
+    el('bgVideoFields').style.display = state.bgStyle === 'video' ? 'block' : 'none';
+    el('bgTop').value = state.bgTop; el('bgTopHex').value = state.bgTop;
+    el('bgBottom').value = state.bgBottom; el('bgBottomHex').value = state.bgBottom;
+    el('bgSolid').value = state.bgSolid; el('bgSolidHex').value = state.bgSolid;
+    el('overlayOpacity').value = state.overlayOpacity; el('overlayOpacityVal').textContent = state.overlayOpacity.toFixed(2);
+    if (state.bgImageName) el('bgImageName').textContent = state.bgImageName;
+
+    el('orientationSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.orientation));
+    el('alignSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.align));
+    el('transPosSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.transPos));
+    el('marginFrac').value = state.margin; el('marginVal').textContent = state.margin.toFixed(3);
+
+    el('showHeader').checked = state.showHeader;
+    el('showBadge').checked = state.showBadge;
+    el('showTranslation').checked = state.showTranslation;
+
+    const ts = state.textStyle;
+    el('headerColor').value = ts.header.color; el('headerColorHex').value = ts.header.color;
+    el('headerSize').value = ts.header.size; el('headerSizeVal').textContent = ts.header.size.toFixed(1);
+    el('headerY').value = ts.header.y; el('headerYVal').textContent = ts.header.y.toFixed(3);
+
+    el('badgeColor').value = ts.badge.color; el('badgeColorHex').value = ts.badge.color;
+    el('badgeSize').value = ts.badge.size; el('badgeSizeVal').textContent = ts.badge.size.toFixed(1);
+    el('badgeGap').value = ts.badge.gap; el('badgeGapVal').textContent = ts.badge.gap.toFixed(3);
+    el('badgeBorderColor').value = ts.badge.borderColor; el('badgeBorderColorHex').value = ts.badge.borderColor;
+    el('badgeBorderWidth').value = ts.badge.borderWidth; el('badgeBorderWidthVal').textContent = ts.badge.borderWidth.toFixed(2);
+    el('badgeFillEnabled').checked = ts.badge.fillEnabled;
+    el('badgeFillFields').style.display = ts.badge.fillEnabled ? 'block' : 'none';
+    el('badgeFillColor').value = ts.badge.fillColor; el('badgeFillColorHex').value = ts.badge.fillColor;
+    el('badgeFillOpacity').value = ts.badge.fillOpacity; el('badgeFillOpacityVal').textContent = ts.badge.fillOpacity.toFixed(2);
+
+    el('arabicColor').value = ts.arabic.color; el('arabicColorHex').value = ts.arabic.color;
+    el('arabicSize').value = ts.arabic.size; el('arabicSizeVal').textContent = ts.arabic.size.toFixed(1);
+    el('arabicY').value = ts.arabic.y; el('arabicYVal').textContent = ts.arabic.y.toFixed(2);
+
+    el('translationColor').value = ts.translation.color; el('translationColorHex').value = ts.translation.color;
+    el('translationOpacity').value = ts.translation.opacity; el('translationOpacityVal').textContent = ts.translation.opacity.toFixed(2);
+    el('translationSize').value = ts.translation.size; el('translationSizeVal').textContent = ts.translation.size.toFixed(1);
+    el('translationGap').value = ts.translation.gap; el('translationGapVal').textContent = ts.translation.gap.toFixed(3);
+
+    el('highlightEnabled').checked = state.highlight.enabled;
+    el('highlightStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.style));
+    el('highlightOpacityRow').style.display = state.highlight.style === 'pill' ? 'block' : 'none';
+    el('highlightColor').value = state.highlight.color; el('highlightColorHex').value = state.highlight.color;
+    el('highlightOpacity').value = state.highlight.opacity; el('highlightOpacityVal').textContent = state.highlight.opacity.toFixed(2);
+    el('highlightPace').value = state.highlight.pace; el('highlightPaceVal').textContent = state.highlight.pace.toFixed(1);
+    el('highlightPointerEnabled').checked = state.highlight.pointer;
+    el('highlightPointerStyleField').style.display = state.highlight.pointer ? 'block' : 'none';
+    el('highlightPointerGapRow').style.display = state.highlight.pointer ? 'block' : 'none';
+    el('highlightPointerStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.pointerStyle));
+    el('highlightPointerGap').value = state.highlight.pointerGap; el('highlightPointerGapVal').textContent = state.highlight.pointerGap.toFixed(2);
+
+    el('fadeDuration').value = state.fadeDuration; el('fadeDurationVal').textContent = state.fadeDuration.toFixed(2) + 's';
+    el('kenBurns').checked = state.kenBurns;
+
+    el('previewMetaTitle').textContent = new URLSearchParams(location.search).get('theme') || 'Custom theme';
+  }
+
+  renderBadgeStyleGrid();
+  renderFontGrids();
+  syncControlsToState();
+  render();
+</script>
+
+</body>
+</html>

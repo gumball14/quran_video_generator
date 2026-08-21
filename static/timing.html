@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Timing — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+    --success:#2F8F6A;
+    --danger:#B23B3B;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button{ font-family:inherit; }
+
+  .screen{
+    height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding-top:env(safe-area-inset-top,0px);
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:14px 14px 4px; gap:8px; }
+  .topbar-left{ display:flex; align-items:center; gap:11px; min-width:0; }
+  .topbar-right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .topbar{ flex-shrink:0; }
+  .ayah-dots{ flex-shrink:0; }
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+  }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:active{ transform:scale(.94); }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; white-space:nowrap; }
+  .progress-pill{
+    display:flex; align-items:center; gap:5px;
+    background:var(--surface); border:1px solid var(--line); border-radius:100px;
+    padding:6px 11px; font-size:11px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
+  }
+
+  .ayah-dots{ display:flex; justify-content:center; gap:0; padding:10px 20px 2px; }
+  .ayah-dot-hit{
+    border:none; background:none; padding:7px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ayah-dot-hit:active{ transform:scale(.85); }
+  .ayah-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); transition:background .2s ease, transform .2s ease; }
+  .ayah-dot.done{ background:var(--success); }
+  .ayah-dot.current{ background:var(--gold); transform:scale(1.35); }
+
+  /* ---------- body ---------- */
+  .body{
+    flex:1; min-height:0; overflow:hidden; padding:10px 20px 14px;
+    display:flex; flex-direction:column;
+  }
+
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin:14px 2px 8px; flex-shrink:0; }
+  .section-head:first-child{ margin-top:6px; }
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--ink-mute);
+  }
+  .section-head-actions{ display:flex; align-items:center; gap:14px; }
+  .markers-link{
+    border:none; background:none; cursor:pointer; padding:2px 0;
+    font-size:10.5px; font-weight:800; letter-spacing:.3px; color:var(--ink-mute);
+    display:flex; align-items:center; gap:4px; transition:opacity .12s ease, color .12s ease;
+  }
+  .markers-link svg{ width:11px; height:11px; transition:transform .15s ease; }
+  .markers-link.open{ color:var(--gold); }
+  .markers-link.open svg{ transform:rotate(180deg); }
+  .markers-link:disabled{ opacity:.35; pointer-events:none; }
+  .markers-link:active{ transform:scale(.96); }
+  .clear-link{
+    border:none; background:none; cursor:pointer; padding:2px 0;
+    font-size:10.5px; font-weight:800; letter-spacing:.3px; color:var(--danger);
+    display:flex; align-items:center; gap:4px; opacity:1; transition:opacity .12s ease;
+  }
+  .clear-link svg{ width:11px; height:11px; }
+  .clear-link:disabled{ opacity:.35; pointer-events:none; }
+  .clear-link:active{ transform:scale(.96); }
+
+  /* ---------- waveform ---------- */
+  .wave-card{
+    margin-top:4px; padding:12px 12px 10px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    flex-shrink:0;
+  }
+  .wave-track{
+    position:relative; height:44px; border-radius:9px; overflow:hidden;
+    background:var(--surface-2); cursor:pointer;
+  }
+  .wave-bars{
+    position:absolute; inset:0; display:flex; align-items:center; gap:2px; padding:0 4px;
+  }
+  .wave-bar{ flex:1; border-radius:2px; background:rgba(20,24,58,.18); transition:background .15s ease; }
+  .wave-bar.played{ background:var(--gold-soft); }
+  .wave-playhead{
+    position:absolute; top:0; bottom:0; width:2px; background:var(--ink);
+    left:0; pointer-events:none;
+  }
+  .wave-playhead::before{
+    content:""; position:absolute; top:-3px; left:50%; transform:translateX(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--ink);
+  }
+  .wave-marker{
+    position:absolute; top:0; bottom:0; width:2px; background:var(--success);
+    opacity:.75; pointer-events:none;
+  }
+  .wave-marker.sel{ background:var(--gold); opacity:1; width:2.5px; }
+  .wave-time{
+    display:flex; justify-content:space-between; margin-top:5px;
+    font-size:10px; color:var(--ink-mute); font-weight:700; font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- transport ---------- */
+  .transport{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
+  .t-btn{
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .1s ease, background .12s ease;
+  }
+  .t-btn svg{ width:13px; height:13px; }
+  .t-btn:active{ transform:scale(.92); background:var(--line); }
+  .t-play{
+    width:46px; height:46px; background:var(--ink);
+    box-shadow:0 12px 22px -12px rgba(20,24,58,.5);
+  }
+  .t-play svg{ width:17px; height:17px; }
+  .t-play:active{ background:#0c0f28; }
+  .t-btn:disabled{ opacity:.4; pointer-events:none; }
+
+  /* ---------- speed control ---------- */
+  .speed-card{
+    margin-top:8px; padding-top:9px; border-top:1px solid var(--line-soft);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .speed-label{ font-size:11px; font-weight:800; color:var(--ink-mute); display:flex; align-items:center; gap:6px; }
+  .speed-label svg{ width:12px; height:12px; }
+  .speed-stepper{ display:flex; align-items:center; gap:2px; }
+  .speed-step{
+    width:26px; height:26px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .1s ease, background .12s ease;
+  }
+  .speed-step svg{ width:11px; height:11px; }
+  .speed-step:active{ transform:scale(.9); background:var(--line); }
+  .speed-step:disabled{ opacity:.35; pointer-events:none; }
+  .speed-value{
+    font-size:12px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
+    min-width:40px; text-align:center;
+  }
+
+  /* ---------- ayah word chips ---------- */
+  .word-card{
+    padding:18px 16px; border-radius:18px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    flex:1; min-height:0;
+    display:flex; flex-direction:column;
+  }
+  .word-card-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px; gap:10px; flex-shrink:0;
+  }
+  .word-card-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--ink-mute);
+  }
+  .preview-btn{
+    display:flex; align-items:center; gap:6px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:11.5px;
+    padding:8px 14px; border-radius:100px; flex-shrink:0;
+    box-shadow:0 8px 16px -10px rgba(20,24,58,.5);
+    transition:transform .12s ease, background .15s ease, opacity .12s ease;
+  }
+  .preview-btn svg{ width:11px; height:11px; }
+  .preview-btn:active{ transform:scale(.95); }
+  .preview-btn:disabled{ opacity:.4; pointer-events:none; box-shadow:none; }
+  .preview-btn.on{ background:var(--gold); color:#2B2004; }
+  .word-chips{
+    display:flex; flex-wrap:wrap; gap:8px; direction:rtl; justify-content:center;
+    align-content:center;
+    flex:1; min-height:0; overflow-y:auto;
+    padding:4px;
+  }
+  .word-chip{
+    font-family:'Amiri', serif; font-weight:700; font-size:19px;
+    padding:8px 14px; border-radius:12px;
+    background:var(--surface-2); border:1.5px solid transparent; color:var(--ink);
+    cursor:pointer; position:relative; transition:background .15s ease, border-color .15s ease, transform .1s ease, box-shadow .15s ease;
+  }
+  .word-chip.marked{ background:rgba(47,143,106,.14); color:#1E5E45; }
+  .word-chip.marked.selected{ box-shadow:0 0 0 3px rgba(173,130,38,.22); border-color:var(--gold-soft); }
+  .word-chip.marked::after{
+    content: attr(data-order);
+    position:absolute; top:-7px; right:-7px;
+    min-width:17px; height:17px; padding:0 4px; border-radius:100px; background:var(--success);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Manrope', sans-serif; font-size:9px; font-weight:800; color:#FFFDF6;
+    letter-spacing:-.2px; white-space:nowrap;
+    box-shadow:0 0 0 2px var(--surface);
+  }
+  .word-chip:active{ transform:scale(.95); }
+
+  .word-chips.previewing .word-chip{ cursor:default; opacity:.55; transition:none; }
+  .word-chip.preview-current{
+    background:var(--ink); color:#F6F1E4; opacity:1;
+    transform:scale(1.06);
+    box-shadow:0 10px 20px -10px rgba(20,24,58,.5);
+  }
+  .word-card-loading{ margin:auto; text-align:center; color:var(--ink-mute); font-size:12.5px; font-weight:700; }
+
+  /* ---------- mark panel ---------- */
+  .mark-panel{
+    margin-top:12px; padding:14px 16px; border-radius:18px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    flex-shrink:0;
+  }
+  .mark-panel:empty{ display:none; margin-top:0; padding:0; border:none; box-shadow:none; }
+
+  .mp-nav-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mp-navbtn{
+    display:flex; align-items:center; gap:5px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); font-weight:800; font-size:11.5px;
+    padding:8px 12px; border-radius:10px; transition:transform .1s ease, background .12s ease;
+  }
+  .mp-navbtn svg{ width:11px; height:11px; }
+  .mp-navbtn:active{ transform:scale(.95); background:var(--line); }
+  .mp-navbtn:disabled{ opacity:.4; pointer-events:none; }
+  .mp-nav-count{ font-size:10.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap; }
+
+  .mp-adjust-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); margin-bottom:12px;
+  }
+  .mp-word{ display:flex; align-items:center; gap:9px; }
+  .mp-word-ar{ font-family:'Amiri', serif; font-weight:700; font-size:20px; }
+  .mp-word-time{ font-size:11px; font-weight:700; color:var(--ink-mute); font-variant-numeric:tabular-nums; }
+  .mp-order-badge{
+    flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--success); color:#FFFDF6;
+    font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+  .mp-unmark{
+    border:none; background:none; cursor:pointer; padding:6px; border-radius:9px;
+    color:var(--danger); display:flex; align-items:center; justify-content:center;
+  }
+  .mp-unmark svg{ width:15px; height:15px; }
+  .mp-unmark:active{ background:rgba(178,59,59,.1); }
+
+  .mp-nudge-row{ display:flex; align-items:center; gap:8px; }
+  .mp-nudge{
+    flex:1; height:46px; border-radius:13px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); font-weight:800; font-size:13px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:transform .1s ease, background .12s ease;
+  }
+  .mp-nudge svg{ width:13px; height:13px; }
+  .mp-nudge:active{ transform:scale(.96); background:var(--line); }
+  .mp-playfrom{
+    width:46px; height:46px; flex-shrink:0; border-radius:13px; border:none; cursor:pointer;
+    background:var(--ink); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 18px -10px rgba(20,24,58,.5);
+  }
+  .mp-playfrom svg{ width:15px; height:15px; }
+  .mp-playfrom:active{ transform:scale(.94); }
+
+  /* ---------- sticky footer ---------- */
+  .footbar{
+    flex-shrink:0;
+    padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+    background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
+    border-top:1px solid var(--line-soft);
+    display:flex; gap:10px;
+  }
+  .skip-btn{
+    flex-shrink:0; height:54px; padding:0 18px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line); color:var(--ink-mute);
+    font-weight:800; font-size:13px; cursor:pointer;
+  }
+  .skip-btn:active{ transform:scale(.97); }
+  .prev-btn{
+    flex-shrink:0; width:54px; height:54px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .prev-btn svg{ width:16px; height:16px; }
+  .prev-btn:active{ transform:scale(.94); }
+  .prev-btn:disabled{ opacity:.35; pointer-events:none; }
+  .next-btn{
+    flex:1; height:54px; border-radius:16px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:14px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .next-btn:active{ transform:scale(.97); }
+  .next-btn:disabled{ opacity:.4; box-shadow:none; }
+  .next-btn svg{ width:14px; height:14px; }
+
+  /* ---------- generating overlay ---------- */
+  .gen-overlay{
+    position:fixed; inset:0; background:var(--bg); z-index:60;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px; text-align:center; max-width:480px; margin:0 auto;
+  }
+  .gen-overlay.open{ display:flex; }
+  .gen-title{ font-family:'Fraunces', serif; font-weight:600; font-size:18px; margin-bottom:16px; }
+  .gen-track{ width:100%; max-width:280px; height:8px; border-radius:100px; background:var(--surface-2); overflow:hidden; }
+  .gen-fill{ height:100%; width:1%; background:var(--gold); transition:width .3s ease; }
+  .gen-label{ margin-top:12px; font-size:12px; color:var(--ink-mute); font-weight:700; }
+  .gen-log{
+    margin-top:16px; width:100%; max-width:340px; max-height:140px; overflow-y:auto;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    font-family:ui-monospace, monospace; font-size:10px; color:var(--ink-mute); text-align:left; white-space:pre-wrap;
+  }
+  .gen-error{ color:var(--danger); font-weight:700; font-size:13px; margin-top:14px; max-width:340px; }
+  .gen-btn{
+    margin-top:20px; height:48px; padding:0 22px; border-radius:14px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:13px; display:none;
+  }
+  .gen-btn.show{ display:inline-flex; align-items:center; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" aria-label="Back" onclick="location.href='/new_video.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="topbar-title">Timing</div>
+    </div>
+    <div class="topbar-right">
+      <div class="progress-pill" id="progressPill">Ayah 1/1</div>
+    </div>
+  </div>
+
+  <div class="ayah-dots" id="ayahDots"></div>
+
+  <div class="body">
+
+    <div class="wave-card">
+      <div class="wave-track" id="waveTrack">
+        <div class="wave-bars" id="waveBars"></div>
+        <div id="waveMarkers"></div>
+        <div class="wave-playhead" id="wavePlayhead"></div>
+      </div>
+      <div class="wave-time">
+        <span id="curTime">0.0s</span>
+        <span id="totalTime">0.0s</span>
+      </div>
+
+      <div class="transport">
+        <button class="t-btn" id="restartBtn" aria-label="Restart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2-11.5L1 10"/></svg>
+        </button>
+        <button class="t-btn" id="backBtn" aria-label="Back quarter second">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="t-btn t-play" id="playBtn" aria-label="Play or pause">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="#F6F1E4"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="t-btn" id="fwdBtn" aria-label="Forward quarter second">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <div class="speed-card">
+        <div class="speed-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+          Speed
+        </div>
+        <div class="speed-stepper">
+          <button class="speed-step" id="speedDownBtn" aria-label="Decrease playback speed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          </button>
+          <div class="speed-value" id="speedValue">1.0×</div>
+          <button class="speed-step" id="speedUpBtn" aria-label="Increase playback speed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-label">Tap each word as it's recited</div>
+      <div class="section-head-actions">
+        <button class="markers-link" id="markersToggleBtn" disabled>
+          <span id="markersToggleLabel">Markers</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <button class="clear-link" id="clearAllBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+          Clear all
+        </button>
+      </div>
+    </div>
+
+    <div class="word-card">
+      <div class="word-card-head">
+        <div class="word-card-label" id="wordCardLabel">Word by word</div>
+        <button class="preview-btn" id="previewBtn" disabled>
+          <svg id="previewBtnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span id="previewBtnLabel">Preview</span>
+        </button>
+      </div>
+      <div class="word-chips" id="wordChips"></div>
+    </div>
+
+    <div class="mark-panel" id="markPanel"></div>
+
+  </div>
+
+  <div class="footbar">
+    <button class="prev-btn" id="prevBtn" aria-label="Previous ayah" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="skip-btn" id="skipBtn">Skip</button>
+    <button class="next-btn" id="nextBtn" disabled>
+      Next ayah
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+
+</div>
+
+<div class="gen-overlay" id="genOverlay">
+  <div class="gen-title" id="genTitle">Generating your video…</div>
+  <div class="gen-track"><div class="gen-fill" id="genFill"></div></div>
+  <div class="gen-label" id="genLabel">Starting…</div>
+  <pre class="gen-log" id="genLog"></pre>
+  <div class="gen-error" id="genError" style="display:none;"></div>
+  <button class="gen-btn" id="genBackBtn">Back to timing</button>
+</div>
+
+<audio id="ayahAudio" preload="auto"></audio>
+
+<script>
+  // ============ DRAFT ============
+  const draft = JSON.parse(localStorage.getItem('afs_draft') || 'null');
+  if (!draft){ location.href = '/new_video.html'; throw new Error('no draft'); }
+
+  const audioEl = document.getElementById('ayahAudio');
+  let audioCtx = null;
+
+  let ayahs = [];          // skeleton built in buildAyahSkeleton(), filled in lazily by ensureLoaded()
+  let ayahIndex = 0;
+  let markerList = [];
+  let markIdCounter = 0;
+  let selectedMarkerId = null;
+  let panelOpen = false;
+  let speed = 1;
+  let playing = false;
+  let elapsed = 0;
+  let rafId = null;
+  let previewMode = false;
+  let lastPreviewIdx = undefined;
+  let ayahStates = [];      // per-ayah snapshot: null (untouched), or { markerList, markIdCounter, complete }
+
+  const wordChipsEl = document.getElementById('wordChips');
+  const waveBarsEl = document.getElementById('waveBars');
+  const waveMarkersEl = document.getElementById('waveMarkers');
+  const wavePlayheadEl = document.getElementById('wavePlayhead');
+  const waveTrackEl = document.getElementById('waveTrack');
+  const markPanelEl = document.getElementById('markPanel');
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const progressPill = document.getElementById('progressPill');
+  const ayahDotsEl = document.getElementById('ayahDots');
+  const curTimeEl = document.getElementById('curTime');
+  const totalTimeEl = document.getElementById('totalTime');
+  const playIcon = document.getElementById('playIcon');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+  const markersToggleBtn = document.getElementById('markersToggleBtn');
+  const markersToggleLabel = document.getElementById('markersToggleLabel');
+  const speedDownBtn = document.getElementById('speedDownBtn');
+  const speedUpBtn = document.getElementById('speedUpBtn');
+  const speedValue = document.getElementById('speedValue');
+  const previewBtn = document.getElementById('previewBtn');
+  const previewBtnIcon = document.getElementById('previewBtnIcon');
+  const previewBtnLabel = document.getElementById('previewBtnLabel');
+  const wordCardLabel = document.getElementById('wordCardLabel');
+
+  function currentAyah(){ return ayahs[ayahIndex]; }
+
+  // ============ BUILD AYAH LIST (real surah/range from the draft) ============
+  async function fetchText(surah, ayah){
+    const res = await fetch(`/api/timing/text?surah=${surah}&ayah=${ayah}&translation=${encodeURIComponent(draft.translation || 'en.sahih')}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Couldn't fetch ayah ${ayah}.`);
+    return data;
+  }
+
+  function audioUrl(realAyah, part){
+    return `/api/timing/audio?surah=${draft.surah}&ayah=${realAyah}&reciter=${draft.reciterKey}&part=${part}`;
+  }
+
+  async function buildAyahSkeleton(){
+    const entries = [];
+    if (draft.from === 1){
+      const textData = await fetchText(draft.surah, 1);
+      if (textData.basmalaArabic){
+        const probe = await fetch(audioUrl(1, 'basmala'));
+        if (probe.ok){
+          const basmalaBlob = await probe.blob();
+          entries.push({ ayahNumber: 0, realAyah: 1, part: 'basmala', textData, audioBlob: basmalaBlob, label: 'Bismillah', loaded: false });
+          entries.push({ ayahNumber: 1, realAyah: 1, part: 'ayah', textData, label: 'Ayah 1', loaded: false });
+        } else {
+          entries.push({ ayahNumber: 1, realAyah: 1, part: 'full', textData, label: 'Ayah 1', loaded: false });
+        }
+      } else {
+        entries.push({ ayahNumber: 1, realAyah: 1, part: 'full', textData, label: 'Ayah 1', loaded: false });
+      }
+      for (let n = 2; n <= draft.to; n++){
+        entries.push({ ayahNumber: n, realAyah: n, part: 'full', label: `Ayah ${n}`, loaded: false });
+      }
+    } else {
+      for (let n = draft.from; n <= draft.to; n++){
+        entries.push({ ayahNumber: n, realAyah: n, part: 'full', label: `Ayah ${n}`, loaded: false });
+      }
+    }
+    return entries;
+  }
+
+  async function ensureLoaded(entry){
+    if (entry.loaded) return;
+    let textData = entry.textData;
+    if (!textData) textData = await fetchText(draft.surah, entry.realAyah);
+    const words = (entry.part === 'basmala' ? textData.basmalaArabic : textData.arabic).split(' ').filter(Boolean);
+
+    let blob = entry.audioBlob;
+    if (!blob){
+      const res = await fetch(audioUrl(entry.realAyah, entry.part));
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Couldn't fetch audio for ${entry.label}.`);
+      }
+      blob = await res.blob();
+    }
+
+    entry.textData = textData;
+    entry.words = words;
+    entry.audioBlob = blob;
+    entry.loaded = true;
+  }
+
+  // ============ WAVEFORM (real, decoded from the ayah's actual audio) ============
+  function buildBarsFromBuffer(audioBuffer, n){
+    const data = audioBuffer.getChannelData(0);
+    const step = Math.floor(data.length / n) || 1;
+    let bars = '';
+    for (let i = 0; i < n; i++){
+      let min = 1.0, max = -1.0;
+      for (let j = 0; j < step; j++){
+        const v = data[i * step + j] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const h = Math.max(6, Math.round((max - min) * 100));
+      bars += `<div class="wave-bar" style="height:${h}%"></div>`;
+    }
+    waveBarsEl.innerHTML = bars;
+  }
+
+  // ============ LOADING AN AYAH ============
+  function setControlsEnabled(enabled){
+    document.querySelectorAll('.transport .t-btn, .speed-step, #previewBtn').forEach(b => b.disabled = !enabled || b.disabled === 'force');
+  }
+
+  async function loadAyah(){
+    cancelAnimationFrame(rafId);
+    playing = false;
+    audioEl.pause();
+
+    const entry = currentAyah();
+    const saved = ayahStates[ayahIndex];
+    if (saved){
+      markerList = saved.markerList.map(m => ({ ...m }));
+      markIdCounter = saved.markIdCounter;
+    } else {
+      markerList = [];
+      markIdCounter = 0;
+    }
+    selectedMarkerId = null;
+    panelOpen = false;
+    elapsed = 0;
+    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    previewMode = false;
+    lastPreviewIdx = undefined;
+    previewBtn.classList.remove('on');
+    previewBtnLabel.textContent = 'Preview';
+    previewBtnIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+
+    progressPill.textContent = `Ayah ${ayahIndex + 1}/${ayahs.length}`;
+    prevBtn.disabled = ayahIndex === 0;
+    renderDots();
+
+    wordCardLabel.textContent = entry.ayahNumber === 0 ? 'Bismillah' : `Word by word — ayah ${entry.ayahNumber}`;
+    wordChipsEl.innerHTML = '<div class="word-card-loading">Loading recitation…</div>';
+    setControlsEnabled(false);
+    nextBtn.disabled = true;
+    curTimeEl.textContent = '0.0s';
+    totalTimeEl.textContent = '…';
+    wavePlayheadEl.style.left = '0%';
+    waveBarsEl.innerHTML = '';
+    waveMarkersEl.innerHTML = '';
+
+    try {
+      await ensureLoaded(entry);
+
+      if (audioEl.src) URL.revokeObjectURL(audioEl.src);
+      audioEl.src = URL.createObjectURL(entry.audioBlob);
+      audioEl.playbackRate = speed;
+      await new Promise((resolve, reject) => {
+        audioEl.addEventListener('loadedmetadata', resolve, { once: true });
+        audioEl.addEventListener('error', () => reject(new Error('Audio failed to load.')), { once: true });
+      });
+      entry.duration = audioEl.duration;
+
+      if (!entry.audioBuffer){
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        entry.audioBuffer = await audioCtx.decodeAudioData(await entry.audioBlob.arrayBuffer());
+      }
+    } catch (e) {
+      wordChipsEl.innerHTML = `<div class="word-card-loading">${e.message}</div>`;
+      return;
+    }
+
+    setControlsEnabled(true);
+    totalTimeEl.textContent = `${entry.duration.toFixed(1)}s`;
+    buildBarsFromBuffer(entry.audioBuffer, entry.words.length > 12 ? 72 : 46);
+    updatePreviewAvailability();
+
+    renderChips();
+    renderWaveMarkers();
+    updateNextButtonState();
+    nextBtn.innerHTML = (ayahIndex === ayahs.length - 1)
+      ? 'Generate video <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+      : 'Next ayah <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+    renderMarkPanel();
+  }
+
+  function renderDots(){
+    ayahDotsEl.innerHTML = ayahs.map((_, i) => {
+      let cls = 'ayah-dot';
+      if (i < ayahIndex) cls += ' done';
+      else if (i === ayahIndex) cls += ' current';
+      return `<button class="ayah-dot-hit" data-i="${i}" aria-label="Go to ayah ${i + 1}"><span class="${cls}"></span></button>`;
+    }).join('');
+  }
+
+  function updateNextButtonState(){
+    const entry = currentAyah();
+    const covered = new Set(markerList.map(m => m.wordIndex));
+    nextBtn.disabled = covered.size !== entry.words.length;
+  }
+
+  function saveCurrentAyahState(){
+    const entry = currentAyah();
+    const covered = new Set(markerList.map(m => m.wordIndex));
+    ayahStates[ayahIndex] = {
+      markerList: markerList.map(m => ({ ...m })),
+      markIdCounter,
+      complete: entry.words && covered.size === entry.words.length,
+    };
+  }
+
+  function renderChips(){
+    const entry = currentAyah();
+    wordChipsEl.classList.toggle('previewing', previewMode);
+
+    if (previewMode){
+      const curIdx = getPreviewCurrentWordIndex(elapsed);
+      lastPreviewIdx = curIdx;
+      wordChipsEl.innerHTML = entry.words.map((w, i) => {
+        const cls = 'word-chip' + (i === curIdx ? ' preview-current' : '');
+        return `<div class="${cls}" data-i="${i}">${w}</div>`;
+      }).join('');
+      return;
+    }
+
+    const selectedMarker = markerList.find(m => m.id === selectedMarkerId);
+
+    wordChipsEl.innerHTML = entry.words.map((w, i) => {
+      const wordMarkers = markerList.filter(m => m.wordIndex === i);
+      let cls = 'word-chip';
+      if (wordMarkers.length) cls += ' marked';
+      if (selectedMarker && selectedMarker.wordIndex === i) cls += ' selected';
+      const orderLabel = wordMarkers.map(m => markerList.indexOf(m) + 1).join(',');
+      const orderAttr = wordMarkers.length ? ` data-order="${orderLabel}"` : '';
+      return `<div class="${cls}" data-i="${i}"${orderAttr}>${w}</div>`;
+    }).join('');
+  }
+
+  function getPreviewCurrentWordIndex(t){
+    let currentWordIndex = null;
+    let bestTime = -Infinity;
+    for (const m of markerList){
+      if (m.time <= t && m.time > bestTime){
+        bestTime = m.time;
+        currentWordIndex = m.wordIndex;
+      }
+    }
+    return currentWordIndex;
+  }
+
+  function updatePreviewHighlight(){
+    if (!previewMode) return;
+    const idx = getPreviewCurrentWordIndex(elapsed);
+    if (idx === lastPreviewIdx) return;
+    lastPreviewIdx = idx;
+    const chips = wordChipsEl.querySelectorAll('.word-chip');
+    chips.forEach((chip, i) => chip.classList.toggle('preview-current', i === idx));
+  }
+
+  function renderWaveMarkers(){
+    const entry = currentAyah();
+    waveMarkersEl.innerHTML = markerList.map(m => {
+      const pct = (m.time / entry.duration) * 100;
+      const sel = m.id === selectedMarkerId ? ' sel' : '';
+      return `<div class="wave-marker${sel}" style="left:${pct}%"></div>`;
+    }).join('');
+  }
+
+  function selectRelativeMarker(dir){
+    if (!markerList.length) return;
+    const pos = markerList.findIndex(m => m.id === selectedMarkerId);
+    if (pos === -1){
+      selectedMarkerId = dir > 0 ? markerList[0].id : markerList[markerList.length - 1].id;
+    } else {
+      const next = (pos + dir + markerList.length) % markerList.length;
+      selectedMarkerId = markerList[next].id;
+    }
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  function renderMarkPanel(){
+    const entry = currentAyah();
+    clearAllBtn.disabled = markerList.length === 0;
+    markersToggleBtn.disabled = markerList.length === 0;
+    markersToggleBtn.classList.toggle('open', panelOpen);
+    markersToggleLabel.textContent = markerList.length ? `Markers · ${markerList.length}` : 'Markers';
+
+    if (!panelOpen || !markerList.length){
+      markPanelEl.innerHTML = '';
+      return;
+    }
+
+    const selectedPos = markerList.findIndex(m => m.id === selectedMarkerId);
+    const hasSelection = selectedPos !== -1;
+
+    let html = `
+      <div class="mp-nav-row">
+        <button class="mp-navbtn" id="mpPrevBtn" aria-label="Go to previous marker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          Prev marker
+        </button>
+        <span class="mp-nav-count">${hasSelection ? `Marker ${selectedPos + 1} of ${markerList.length}` : `${markerList.length} marker${markerList.length === 1 ? '' : 's'}`}</span>
+        <button class="mp-navbtn" id="mpNextBtn" aria-label="Go to next marker">
+          Next marker
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    `;
+
+    if (hasSelection){
+      const m = markerList[selectedPos];
+      const word = entry.words[m.wordIndex];
+      html += `
+        <div class="mp-adjust-head">
+          <div class="mp-word">
+            <div class="mp-order-badge">${selectedPos + 1}</div>
+            <div>
+              <div class="mp-word-ar">${word}</div>
+              <div class="mp-word-time">marked at ${m.time.toFixed(2)}s</div>
+            </div>
+          </div>
+          <button class="mp-unmark" id="mpUnmarkBtn" aria-label="Clear this mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+          </button>
+        </div>
+        <div class="mp-nudge-row">
+          <button class="mp-nudge" id="mpNudgeBack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+            0.1s
+          </button>
+          <button class="mp-playfrom" id="mpPlayFrom" aria-label="Play from this mark">
+            <svg viewBox="0 0 24 24" fill="#F6F1E4"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="mp-nudge" id="mpNudgeFwd">
+            0.1s
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      `;
+    }
+
+    markPanelEl.innerHTML = html;
+
+    document.getElementById('mpPrevBtn').addEventListener('click', () => selectRelativeMarker(-1));
+    document.getElementById('mpNextBtn').addEventListener('click', () => selectRelativeMarker(1));
+
+    if (hasSelection){
+      const m = markerList[selectedPos];
+      document.getElementById('mpUnmarkBtn').addEventListener('click', () => unmarkMarker(m.id));
+      document.getElementById('mpNudgeBack').addEventListener('click', () => nudgeMarker(m.id, -0.1));
+      document.getElementById('mpNudgeFwd').addEventListener('click', () => nudgeMarker(m.id, 0.1));
+      document.getElementById('mpPlayFrom').addEventListener('click', () => playFrom(m.time));
+    }
+  }
+
+  function addMarker(i, time){
+    const entry = currentAyah();
+    const t = Math.max(0, Math.min(time, entry.duration));
+    const id = ++markIdCounter;
+    markerList.push({ id, wordIndex: i, time: t });
+    selectedMarkerId = id;
+
+    updateNextButtonState();
+    updatePreviewAvailability();
+
+    if (!playing){
+      if (elapsed >= entry.duration) seekTo(0);
+      startPlayback();
+    }
+
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  function unmarkMarker(id){
+    const idx = markerList.findIndex(m => m.id === id);
+    if (idx === -1) return;
+    markerList.splice(idx, 1);
+    selectedMarkerId = null;
+    updateNextButtonState();
+    updatePreviewAvailability();
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  function nudgeMarker(id, delta){
+    const m = markerList.find(mk => mk.id === id);
+    if (!m) return;
+    const entry = currentAyah();
+    m.time = Math.max(0, Math.min(m.time + delta, entry.duration));
+    seekTo(m.time);
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  function playFrom(t){
+    seekTo(t);
+    if (!playing) startPlayback();
+  }
+
+  function updatePreviewAvailability(){
+    previewBtn.disabled = markerList.length === 0;
+  }
+
+  function enterPreview(){
+    if (previewBtn.disabled) return;
+    previewMode = true;
+    selectedMarkerId = null;
+    lastPreviewIdx = undefined;
+
+    previewBtn.classList.add('on');
+    previewBtnLabel.textContent = 'Stop';
+    previewBtnIcon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+
+    panelOpen = false;
+    markPanelEl.innerHTML = '';
+    markersToggleBtn.classList.remove('open');
+    renderChips();
+    renderWaveMarkers();
+
+    seekTo(0);
+    startPlayback();
+  }
+
+  function exitPreview(){
+    previewMode = false;
+    lastPreviewIdx = undefined;
+
+    previewBtn.classList.remove('on');
+    previewBtnLabel.textContent = 'Preview';
+    previewBtnIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+
+    stopPlayback();
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  previewBtn.addEventListener('click', () => previewMode ? exitPreview() : enterPreview());
+
+  function clearAllMarks(){
+    if (previewMode) exitPreview();
+    markerList = [];
+    markIdCounter = 0;
+    selectedMarkerId = null;
+    updateNextButtonState();
+    updatePreviewAvailability();
+    stopPlayback();
+    seekTo(0);
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+  }
+
+  // ============ REAL AUDIO PLAYBACK ============
+  function startPlayback(){
+    playing = true;
+    audioEl.play();
+    playIcon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+  function stopPlayback(){
+    playing = false;
+    audioEl.pause();
+    cancelAnimationFrame(rafId);
+    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  }
+  function seekTo(t){
+    const entry = currentAyah();
+    const clamped = Math.max(0, Math.min(t, entry.duration));
+    audioEl.currentTime = clamped;
+    elapsed = clamped;
+    renderPlayhead();
+  }
+  function renderPlayhead(){
+    const entry = currentAyah();
+    const pct = entry.duration ? (elapsed / entry.duration) * 100 : 0;
+    wavePlayheadEl.style.left = pct + '%';
+    curTimeEl.textContent = elapsed.toFixed(1) + 's';
+    const bars = document.querySelectorAll('.wave-bar');
+    bars.forEach((bar, i) => {
+      const barPct = (i / Math.max(1, bars.length - 1)) * 100;
+      bar.classList.toggle('played', barPct <= pct);
+    });
+    updatePreviewHighlight();
+  }
+  function tick(){
+    if (!playing) return;
+    elapsed = audioEl.currentTime;
+    renderPlayhead();
+    rafId = requestAnimationFrame(tick);
+  }
+  audioEl.addEventListener('ended', () => {
+    stopPlayback();
+    if (previewMode) exitPreview();
+  });
+
+  document.getElementById('playBtn').addEventListener('click', () => {
+    if (playing) stopPlayback();
+    else {
+      const entry = currentAyah();
+      if (elapsed >= entry.duration) seekTo(0);
+      startPlayback();
+    }
+  });
+  document.getElementById('restartBtn').addEventListener('click', () => seekTo(0));
+  document.getElementById('backBtn').addEventListener('click', () => seekTo(elapsed - 0.25));
+  document.getElementById('fwdBtn').addEventListener('click', () => seekTo(elapsed + 0.25));
+
+  waveTrackEl.addEventListener('click', (e) => {
+    const entry = currentAyah();
+    if (!entry.duration) return;
+    const rect = waveTrackEl.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    seekTo(pct * entry.duration);
+  });
+
+  // ---------- speed ----------
+  const SPEED_MIN = 0.5, SPEED_MAX = 1.5, SPEED_STEP = 0.05;
+  function setSpeed(v){
+    speed = Math.round(Math.max(SPEED_MIN, Math.min(SPEED_MAX, v)) * 20) / 20;
+    let label = speed.toFixed(2).replace(/0$/, '');
+    if (speed === 1) label = '1.0';
+    speedValue.textContent = label + '×';
+    speedDownBtn.disabled = speed <= SPEED_MIN;
+    speedUpBtn.disabled = speed >= SPEED_MAX;
+    audioEl.playbackRate = speed;
+  }
+  speedDownBtn.addEventListener('click', () => setSpeed(speed - SPEED_STEP));
+  speedUpBtn.addEventListener('click', () => setSpeed(speed + SPEED_STEP));
+  setSpeed(speed);
+
+  // ---------- word chip interaction ----------
+  wordChipsEl.addEventListener('click', (e) => {
+    if (previewMode) return;
+    const chip = e.target.closest('.word-chip');
+    if (!chip) return;
+    addMarker(Number(chip.dataset.i), elapsed);
+  });
+
+  clearAllBtn.addEventListener('click', clearAllMarks);
+  markersToggleBtn.addEventListener('click', () => { panelOpen = !panelOpen; renderMarkPanel(); });
+
+  document.getElementById('skipBtn').addEventListener('click', goNext);
+  nextBtn.addEventListener('click', goNext);
+  prevBtn.addEventListener('click', goPrev);
+  ayahDotsEl.addEventListener('click', (e) => {
+    const dot = e.target.closest('.ayah-dot-hit');
+    if (!dot) return;
+    goToAyah(Number(dot.dataset.i));
+  });
+
+  function goToAyah(i){
+    if (i < 0 || i >= ayahs.length || i === ayahIndex) return;
+    saveCurrentAyahState();
+    ayahIndex = i;
+    loadAyah();
+  }
+
+  function goNext(){
+    if (ayahIndex < ayahs.length - 1){
+      goToAyah(ayahIndex + 1);
+    } else {
+      saveCurrentAyahState();
+      generateVideo();
+    }
+  }
+  function goPrev(){ goToAyah(ayahIndex - 1); }
+
+  // ============ MANIFEST + GENERATE ============
+  function buildManifest(){
+    const manifest = { ayahs: {} };
+    ayahStates.forEach((state, i) => {
+      if (!state || !state.complete || !state.markerList.length) return;
+      const entry = ayahs[i];
+      const sortedMarks = [...state.markerList].sort((a, b) => a.time - b.time);
+      const highlightWords = sortedMarks.map((m, j) => ({
+        index: m.wordIndex,
+        start: m.time,
+        end: j + 1 < sortedMarks.length ? sortedMarks[j + 1].time : entry.duration,
+      }));
+      manifest.ayahs[String(entry.ayahNumber)] = {
+        frames: [{ start: 0, end: entry.duration, text: entry.words.join(' '), highlight_words: highlightWords }],
+      };
+    });
+    return manifest;
+  }
+
+  const genOverlay = document.getElementById('genOverlay');
+  const genFill = document.getElementById('genFill');
+  const genLabel = document.getElementById('genLabel');
+  const genLog = document.getElementById('genLog');
+  const genError = document.getElementById('genError');
+  const genBackBtn = document.getElementById('genBackBtn');
+
+  async function generateVideo(){
+    stopPlayback();
+    genOverlay.classList.add('open');
+    genError.style.display = 'none';
+    genBackBtn.classList.remove('show');
+    genFill.style.width = '1%';
+    genLabel.textContent = 'Starting…';
+    genLog.textContent = '';
+
+    const manifest = buildManifest();
+    const payload = {
+      surah: draft.surah,
+      ayahStart: draft.from,
+      ayahEnd: draft.to,
+      reciter: draft.reciterKey,
+      translation: draft.translation,
+      orientation: 'vertical',
+      theme: draft.theme || undefined,
+      themeName: draft.themeLabel || undefined,
+      timing: Object.keys(manifest.ayahs).length ? manifest : undefined,
+    };
+
+    let jobId;
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
+      jobId = json.jobId;
+    } catch (e) {
+      showGenError(e.message);
+      return;
+    }
+
+    let since = 0;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/status/${jobId}?since=${since}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Lost track of the job.');
+
+        if (json.log && json.log.length){
+          genLog.textContent += (genLog.textContent ? '\n' : '') + json.log.join('\n');
+          genLog.scrollTop = genLog.scrollHeight;
+          since = json.logLength;
+          genLabel.textContent = json.log[json.log.length - 1].trim().slice(0, 70);
+        }
+        genFill.style.width = json.percent + '%';
+
+        if (json.status === 'done'){
+          clearInterval(poll);
+          localStorage.removeItem('afs_draft');
+          location.href = '/';
+        } else if (json.status === 'error'){
+          clearInterval(poll);
+          showGenError(json.error || 'The generator hit an error.');
+        }
+      } catch (e) {
+        clearInterval(poll);
+        showGenError(e.message);
+      }
+    }, 1200);
+  }
+
+  function showGenError(message){
+    genError.style.display = 'block';
+    genError.textContent = message;
+    genBackBtn.classList.add('show');
+  }
+  genBackBtn.addEventListener('click', () => genOverlay.classList.remove('open'));
+
+  // ============ INIT ============
+  (async function init(){
+    try {
+      ayahs = await buildAyahSkeleton();
+    } catch (e) {
+      wordChipsEl.innerHTML = `<div class="word-card-loading">${e.message}</div>`;
+      return;
+    }
+    ayahStates = ayahs.map(() => null);
+    await loadAyah();
+  })();
+</script>
+
+</body>
+</html>
