@@ -295,6 +295,39 @@
   }
   .sheet-select-btn:active{ transform:scale(.98); }
 
+  /* ---------- confirmation dialog ---------- */
+  .confirm-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.42);
+    opacity:0; pointer-events:none; transition:opacity .18s ease;
+    z-index:60;
+  }
+  .confirm-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .confirm-modal{
+    position:fixed; left:50%; top:50%; z-index:61;
+    width:calc(100% - 64px); max-width:320px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:22px 20px 18px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.92);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .confirm-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+
+  .confirm-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; text-align:center; }
+  .confirm-message{
+    font-size:12.5px; color:var(--ink-mute); text-align:center; line-height:1.5;
+    margin-top:7px;
+  }
+  .confirm-actions{ display:flex; gap:9px; margin-top:18px; }
+  .confirm-btn{
+    flex:1; height:44px; border-radius:13px; border:none; cursor:pointer;
+    font-weight:800; font-size:12.5px;
+  }
+  .confirm-btn:active{ transform:scale(.97); }
+  .confirm-cancel{ background:var(--surface-2); color:var(--ink); }
+  .confirm-danger{ background:#B4453A; color:#FFFDF6; }
+
 </style>
 </head>
 <body>
@@ -434,6 +467,17 @@
   <div class="sheet-list" id="reciterSheetList"></div>
   <div class="sheet-foot">
     <button class="sheet-select-btn" id="reciterSheetSelect">Select</button>
+  </div>
+</div>
+
+<!-- Confirmation dialog (delete style, etc.) -->
+<div class="confirm-backdrop" id="confirmBackdrop"></div>
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-title" id="confirmTitle">Delete style?</div>
+  <div class="confirm-message" id="confirmMessage">This can't be undone.</div>
+  <div class="confirm-actions">
+    <button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancel</button>
+    <button class="confirm-btn confirm-danger" id="confirmDangerBtn">Delete</button>
   </div>
 </div>
 
@@ -611,6 +655,39 @@
     document.getElementById(`${key}SheetClose`).addEventListener('click', () => closeSheet(key));
   });
 
+  // ============ CONFIRM DIALOG ============
+  function showConfirm({ title, message, confirmLabel = 'Delete', cancelLabel = 'Cancel' }){
+    const backdrop = document.getElementById('confirmBackdrop');
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const dangerBtn = document.getElementById('confirmDangerBtn');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    cancelBtn.textContent = cancelLabel;
+    dangerBtn.textContent = confirmLabel;
+
+    return new Promise(resolve => {
+      function close(result){
+        backdrop.classList.remove('open');
+        modal.classList.remove('open');
+        cancelBtn.removeEventListener('click', onCancel);
+        dangerBtn.removeEventListener('click', onConfirm);
+        backdrop.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onCancel(){ close(false); }
+      function onConfirm(){ close(true); }
+      cancelBtn.addEventListener('click', onCancel);
+      dangerBtn.addEventListener('click', onConfirm);
+      backdrop.addEventListener('click', onCancel);
+      backdrop.classList.add('open');
+      modal.classList.add('open');
+    });
+  }
+
   // ============ THEME: built-in presets + saved custom themes ============
   const themeCardsEl = document.getElementById('themeCards');
   const themeRow = document.getElementById('themeRow');
@@ -620,10 +697,27 @@
 
   let savedThemes = []; // [{id, name, theme}], fetched from /api/themes
 
+  // Presets are hard-coded in quran-data.js, so "deleting" one just hides it
+  // for this browser (stored locally) rather than removing it from the file.
+  function getHiddenPresets(){
+    try { return JSON.parse(localStorage.getItem('afs_hidden_presets') || '[]'); }
+    catch (e) { return []; }
+  }
+  function hidePreset(name){
+    const hidden = getHiddenPresets();
+    if (!hidden.includes(name)){
+      hidden.push(name);
+      localStorage.setItem('afs_hidden_presets', JSON.stringify(hidden));
+    }
+  }
+
   function themeEntries(){
-    const presets = Object.keys(window.THEME_PRESETS).map(name => ({
-      key: 'preset:' + name, name, theme: window.THEME_PRESETS[name], deletable: false,
-    }));
+    const hidden = getHiddenPresets();
+    const presets = Object.keys(window.THEME_PRESETS)
+      .filter(name => !hidden.includes(name))
+      .map(name => ({
+        key: 'preset:' + name, name, theme: window.THEME_PRESETS[name], deletable: true,
+      }));
     const saved = savedThemes.map(t => ({
       key: 'saved:' + t.id, name: t.name, theme: t.theme, deletable: true, id: t.id,
     }));
@@ -663,9 +757,29 @@
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const key = btn.dataset.key;
+
+        if (key.startsWith('preset:')){
+          // Built-in style: hide it locally, nothing to delete server-side.
+          const name = key.slice('preset:'.length);
+          const ok = await showConfirm({
+            title: 'Remove style?',
+            message: `Remove "${name}" from your styles list? You can bring it back by clearing your browser data.`,
+          });
+          if (!ok) return;
+          hidePreset(name);
+          if (state.themeKey === key) selectTheme(null);
+          renderThemeCards();
+          return;
+        }
+
+        // Saved (custom) theme: delete from the backend.
         const id = key.slice('saved:'.length);
         const entry = savedThemes.find(t => t.id === id);
-        if (!confirm(`Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`)) return;
+        const ok = await showConfirm({
+          title: 'Delete style?',
+          message: `Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`,
+        });
+        if (!ok) return;
         try {
           await fetch(`/api/themes/${id}`, { method: 'DELETE' });
         } catch (err) { /* best-effort */ }
@@ -691,7 +805,7 @@
     state.themeLabel = entry ? entry.name : null;
     state.themeObject = entry ? entry.theme : null;
     themeCardsEl.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.key === state.themeKey));
-    themeAddBtn.classList.toggle('is-custom', !!(entry && entry.deletable));
+    themeAddBtn.classList.toggle('is-custom', !!(entry && entry.id));
     updateThemeAddTile();
   }
 
@@ -709,7 +823,7 @@
 
   themeAddBtn.addEventListener('click', () => {
     const entry = state.themeKey ? themeEntries().find(t => t.key === state.themeKey) : null;
-    if (entry && entry.deletable){
+    if (entry && entry.id){
       localStorage.setItem('afs_edit_seed', JSON.stringify({ id: entry.id, name: entry.name, theme: entry.theme }));
       location.href = `/frame_editor.html?themeId=${encodeURIComponent(entry.id)}`;
     } else {
