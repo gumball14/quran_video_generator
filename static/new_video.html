@@ -215,6 +215,8 @@
     transition:transform .12s ease, opacity .12s ease;
   }
   .continue-btn:active{ transform:scale(.97); }
+  .continue-btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .continue-btn:disabled:active{ transform:none; }
   .continue-btn svg{ width:14px; height:14px; }
   .continue-hint{ text-align:center; font-size:10.5px; color:var(--ink-mute); margin-top:9px; }
 
@@ -434,7 +436,7 @@
       Continue to timing
       <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </button>
-    <div class="continue-hint">You'll sync recitation timing on the next step</div>
+    <div class="continue-hint" id="continueHint">You'll sync recitation timing on the next step</div>
   </div>
 
 </div>
@@ -808,6 +810,7 @@
     themeCardsEl.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.key === state.themeKey));
     themeAddBtn.classList.toggle('is-custom', !!(entry && entry.id));
     updateThemeAddTile();
+    updateContinueBtn();
   }
 
   function updateThemeAddTile(){
@@ -844,7 +847,19 @@
   window.addEventListener('pageshow', consumeCustomThemeIfJustSaved);
 
   // ============ CONTINUE ============
-  document.getElementById('continueBtn').addEventListener('click', () => {
+  const continueBtn = document.getElementById('continueBtn');
+  const continueHint = document.getElementById('continueHint');
+
+  function updateContinueBtn(){
+    const hasTheme = !!state.themeKey;
+    continueBtn.disabled = !hasTheme;
+    continueHint.textContent = hasTheme
+      ? "You'll sync recitation timing on the next step"
+      : 'Pick a style above to continue';
+  }
+
+  continueBtn.addEventListener('click', () => {
+    if (!state.themeKey) return;
     const draft = {
       surah: state.surah.n,
       from: state.from,
@@ -863,6 +878,7 @@
     updateSurahDisplay();
     updateRangeDisplay();
     updateThemeAddTile();
+    updateContinueBtn();
     await loadSavedThemes();
 
     try {
