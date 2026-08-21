@@ -145,6 +145,10 @@
 
   /* ---------- transport ---------- */
   .transport{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
+  /* when the mark panel is open, hide the transport controls to give word-card more room */
+  body.mark-panel-open .transport{ display:none; }
+  body.mark-panel-open .speed-card{ margin-top:5px; padding-top:6px; }
+  body.mark-panel-open .wave-card{ padding-bottom:8px; }
   .t-btn{
     width:34px; height:34px; border-radius:50%; flex-shrink:0;
     background:var(--surface-2); border:none; cursor:pointer;
@@ -775,12 +779,18 @@
     renderMarkPanel();
   }
 
+  function updateMarkPanelBodyClass(){
+    document.body.classList.toggle('mark-panel-open', panelOpen && markerList.length > 0);
+  }
+
   function renderMarkPanel(){
     const entry = currentAyah();
     clearAllBtn.disabled = markerList.length === 0;
     markersToggleBtn.disabled = markerList.length === 0;
     markersToggleBtn.classList.toggle('open', panelOpen);
     markersToggleLabel.textContent = markerList.length ? `Markers · ${markerList.length}` : 'Markers';
+
+    updateMarkPanelBodyClass();
 
     if (!panelOpen || !markerList.length){
       markPanelEl.innerHTML = '';
@@ -915,6 +925,7 @@
     panelOpen = false;
     markPanelEl.innerHTML = '';
     markersToggleBtn.classList.remove('open');
+    updateMarkPanelBodyClass();
     renderChips();
     renderWaveMarkers();
 
