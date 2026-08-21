@@ -123,7 +123,18 @@
     background:var(--surface); border:1px solid var(--line);
     box-shadow:0 2px 6px rgba(20,24,58,.05);
   }
+  .verse-card-head{ display:flex; align-items:center; justify-content:space-between; }
   .verse-card-label{ font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--ink-mute); }
+  .verse-nav{ display:flex; gap:6px; flex-shrink:0; }
+  .verse-nav-btn{
+    width:24px; height:24px; border-radius:8px; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .12s ease, transform .1s ease;
+  }
+  .verse-nav-btn svg{ width:11px; height:11px; }
+  .verse-nav-btn:active{ transform:scale(.9); background:var(--line); }
+  .verse-nav-btn:disabled{ opacity:.35; cursor:default; }
   .verse-ar{
     font-family:'Amiri', serif; font-weight:700; direction:rtl;
     font-size:19px; line-height:1.8; color:var(--ink); margin-top:10px;
@@ -342,7 +353,17 @@
       <div class="verse-count-hint" id="rangeHint">7 ayahs selected</div>
 
       <div class="verse-card">
-        <div class="verse-card-label">Preview</div>
+        <div class="verse-card-head">
+          <div class="verse-card-label" id="verseCardLabel">Preview</div>
+          <div class="verse-nav">
+            <button class="verse-nav-btn" id="previewPrev" aria-label="Preview previous ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <button class="verse-nav-btn" id="previewNext" aria-label="Preview next ayah">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="verse-ar" id="verseAr">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
         <div class="verse-en" id="verseEn">Loading…</div>
       </div>
@@ -456,6 +477,7 @@
     surah: surahs[0],
     from: 1,
     to: 7,
+    previewAyah: 1,   // which ayah the Preview card is currently showing; starts at "From" but can be browsed independently
     reciter: null,
     themeLabel: null,   // preset name string, "Custom", or null (= default look)
     themeObject: null,  // resolved theme.py-shaped object, or null
@@ -467,26 +489,41 @@
   const surahSub = document.getElementById('surahSub');
   const surahGlyph = document.getElementById('surahGlyph');
 
+  function updatePreviewNav(){
+    document.getElementById('previewPrev').disabled = state.previewAyah <= 1;
+    document.getElementById('previewNext').disabled = state.previewAyah >= state.surah.ayahs;
+    document.getElementById('verseCardLabel').textContent = `Preview · Ayah ${state.previewAyah}`;
+  }
+
   async function loadPreview(){
     const verseEn = document.getElementById('verseEn');
     const verseAr = document.getElementById('verseAr');
+    updatePreviewNav();
     verseEn.textContent = 'Loading…';
     try {
-      const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.from}&translation=en.sahih`);
+      const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.previewAyah}&translation=en.sahih`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'fetch failed');
       verseAr.textContent = (data.basmalaArabic ? data.basmalaArabic + ' ۝ ' : '') + data.arabic;
       verseEn.textContent = data.translation;
     } catch (e) {
       verseAr.textContent = state.surah.ar;
-      verseEn.textContent = `Ayah ${state.from} of ${state.surah.en}`;
+      verseEn.textContent = `Ayah ${state.previewAyah} of ${state.surah.en}`;
     }
   }
+
+  document.getElementById('previewPrev').addEventListener('click', () => {
+    if (state.previewAyah > 1){ state.previewAyah--; loadPreview(); }
+  });
+  document.getElementById('previewNext').addEventListener('click', () => {
+    if (state.previewAyah < state.surah.ayahs){ state.previewAyah++; loadPreview(); }
+  });
 
   function updateSurahDisplay(){
     surahTitle.textContent = state.surah.en;
     surahSub.textContent = `Surah ${state.surah.n} · ${state.surah.ayahs} ayahs`;
     surahGlyph.textContent = state.surah.ar[0];
+    state.previewAyah = state.from;
     loadPreview();
   }
 
@@ -542,8 +579,8 @@
     rangeHint.textContent = `${count} ayah${count === 1 ? '' : 's'} selected`;
   }
 
-  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; updateRangeDisplay(); loadPreview(); } });
-  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; updateRangeDisplay(); loadPreview(); } });
+  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); } });
+  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); } });
   document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); } });
   document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); } });
 
