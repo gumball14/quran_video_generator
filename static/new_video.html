@@ -580,6 +580,7 @@
     updateSurahDisplay();
     updateRangeDisplay();
     closeSheet('surah');
+    saveDraftState();
   });
 
   // ============ AYAH RANGE STEPPERS (no text input) ============
@@ -598,10 +599,10 @@
     rangeHint.textContent = `${count} ayah${count === 1 ? '' : 's'} selected`;
   }
 
-  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); } });
-  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); } });
-  document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); } });
-  document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); } });
+  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveDraftState(); } });
+  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveDraftState(); } });
+  document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); saveDraftState(); } });
+  document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); saveDraftState(); } });
 
   // ============ RECITER SELECT ============
   const reciterBtn = document.getElementById('reciterBtn');
@@ -642,6 +643,7 @@
     state.reciter = reciters.find(r => r.key === reciterPick);
     updateReciterDisplay();
     closeSheet('reciter');
+    saveDraftState();
   });
 
   // ============ BOTTOM SHEET HELPERS ============
@@ -689,6 +691,25 @@
       backdrop.classList.add('open');
       modal.classList.add('open');
     });
+  }
+
+  // ============ DRAFT PERSISTENCE (survives navigating to timing.html and back) ============
+  function saveDraftState(){
+    localStorage.setItem('afs_draft', JSON.stringify({
+      surah: state.surah.n,
+      from: state.from,
+      to: state.to,
+      reciterKey: state.reciter ? state.reciter.key : null,
+      translation: 'en.sahih',
+      themeKey: state.themeKey,
+      themeLabel: state.themeLabel,
+      theme: state.themeObject,
+    }));
+  }
+
+  function loadDraftState(){
+    try { return JSON.parse(localStorage.getItem('afs_draft') || 'null'); }
+    catch (e) { return null; }
   }
 
   // ============ THEME: built-in presets + saved custom themes ============
@@ -811,6 +832,7 @@
     themeAddBtn.classList.toggle('is-custom', !!(entry && entry.id));
     updateThemeAddTile();
     updateContinueBtn();
+    saveDraftState();
   }
 
   function updateThemeAddTile(){
@@ -860,26 +882,31 @@
 
   continueBtn.addEventListener('click', () => {
     if (!state.themeKey) return;
-    const draft = {
-      surah: state.surah.n,
-      from: state.from,
-      to: state.to,
-      reciterKey: state.reciter ? state.reciter.key : reciters[0].key,
-      translation: 'en.sahih',
-      themeLabel: state.themeLabel,
-      theme: state.themeObject,
-    };
-    localStorage.setItem('afs_draft', JSON.stringify(draft));
+    saveDraftState();
     location.href = '/timing.html';
   });
 
   // ============ INIT ============
   async function init(){
+    const draft = loadDraftState();
+    if (draft){
+      const restoredSurah = surahs.find(s => s.n === draft.surah);
+      if (restoredSurah){
+        state.surah = restoredSurah;
+        if (Number.isInteger(draft.from) && Number.isInteger(draft.to) &&
+            draft.from >= 1 && draft.to <= restoredSurah.ayahs && draft.from <= draft.to){
+          state.from = draft.from;
+          state.to = draft.to;
+        }
+      }
+    }
+
     updateSurahDisplay();
     updateRangeDisplay();
     updateThemeAddTile();
     updateContinueBtn();
     await loadSavedThemes();
+    if (draft && draft.themeKey) selectTheme(draft.themeKey);
 
     try {
       const data = await fetch('/api/reciters').then(r => r.json());
@@ -887,7 +914,8 @@
     } catch (e) {
       reciters = [{ key: 'yasser_al_dossary', name: 'Yasser Al-Dossary' }];
     }
-    state.reciter = reciters[0];
+    const restoredReciter = draft && draft.reciterKey ? reciters.find(r => r.key === draft.reciterKey) : null;
+    state.reciter = restoredReciter || reciters[0];
     updateReciterDisplay();
 
     await consumeCustomThemeIfJustSaved();
