@@ -24,8 +24,10 @@ from .constants import OUTPUT_DIR, FPS
 from . import theme as theme_mod
 from .quran_api import Verse
 from .audio import download_ayah_audio, get_audio_duration
-from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer
+from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer, render_outro_frame
 from .timing import get_ayah_frames
+
+OUTRO_DURATION = 2.5  # seconds the closing "thank you" card is held for
 
 
 def _add_word_highlighted_scene(render_verse, surah_name_arabic, surah_name_text, size, show_translation, duration):
@@ -163,7 +165,8 @@ def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, sh
 
 
 def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, output_path,
-                 fade_duration=None, show_translation=True, timing_manifest=None, surah_name_text=None):
+                 fade_duration=None, show_translation=True, timing_manifest=None, surah_name_text=None,
+                 outro_enabled=True):
     THEME = theme_mod.THEME
     if fade_duration is None:
         fade_duration = THEME["fade_duration"]
@@ -248,6 +251,18 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
 
             cursor = scene_origin + scene_duration
             audio_clips.append(a_clip)
+
+    if outro_enabled:
+        print(f"  Outro: rendering closing card ({OUTRO_DURATION:.1f}s)…")
+        outro_frame = render_outro_frame(size)
+        outro_start = cursor
+        outro_clip = (
+            ImageClip(np.array(outro_frame)).with_duration(OUTRO_DURATION + fade_duration)
+            .with_start(outro_start - fade_duration)
+            .with_effects([vfx.CrossFadeIn(fade_duration)])
+        )
+        clips.append(outro_clip)
+        cursor = outro_start + OUTRO_DURATION
 
     video = CompositeVideoClip(clips, size=size).with_duration(cursor)
     audio = CompositeAudioClip(audio_clips).with_duration(cursor)

@@ -174,27 +174,33 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
     """Vector pointer marker under/over the active word. (Not a real emoji --
     Pillow can't reliably render color emoji without a bundled color-emoji
     font, so 'hand' and 'arrow' both render as a small triangular marker;
-    'hand' adds a short stem so it reads more like a pointing finger.)"""
+    'hand' adds a short stem so it reads more like a pointing finger.)
+
+    Sized up from the original marker (which read as a faint speck at
+    typical frame sizes) and outlined in black so it stays visible against
+    highlight-colored or light-colored words too, not just dark backgrounds."""
     THEME = theme_mod.THEME
     style = THEME["highlight_pointer_style"]
     gap = THEME.get("highlight_pointer_gap_mult", 1.0)
     r, g, b = THEME["highlight_color"]
+    outline = (0, 0, 0)
+    outline_width = max(1, round(font_size * 0.035))
 
     if style in ("hand", "arrow"):
-        s = font_size * 0.30
-        tip_y = top_y - font_size * 0.15 * gap
+        s = font_size * 0.46
+        tip_y = top_y - font_size * 0.22 * gap
         pts = [(x, tip_y), (x - s, tip_y - s), (x + s, tip_y - s)]
-        draw.polygon(pts, fill=(r, g, b))
+        draw.polygon(pts, fill=(r, g, b), outline=outline, width=outline_width)
         if style == "hand":
-            stem_w = s * 0.55
+            stem_w = s * 0.6
             draw.rectangle(
-                [x - stem_w / 2, tip_y - s - font_size * 0.32 * gap, x + stem_w / 2, tip_y - s],
-                fill=(r, g, b),
+                [x - stem_w / 2, tip_y - s - font_size * 0.42 * gap, x + stem_w / 2, tip_y - s],
+                fill=(r, g, b), outline=outline, width=outline_width,
             )
     elif style == "dot":
-        rad = font_size * 0.09
+        rad = font_size * 0.15
         cy = top_y + font_size * 1.25 * gap
-        draw.ellipse([x - rad, cy - rad, x + rad, cy + rad], fill=(r, g, b))
+        draw.ellipse([x - rad, cy - rad, x + rad, cy + rad], fill=(r, g, b), outline=outline, width=outline_width)
 
 
 def _badge_shape(style, cx, cy, half):
@@ -678,3 +684,45 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
                                           surah_name_text=surah_name_text)
     img = draw_dynamic_layer(base_img, layout, highlight_index, pointer_pos)
     return img, layout["word_boxes"]
+
+
+def render_outro_frame(size, text="Thank you for watching") -> Image.Image:
+    """Simple closing card appended after the last ayah: same background
+    (gradient/solid/image) as the rest of the video, with short centered
+    text in the theme's gold header color. No per-word layout needed --
+    this is a single static frame held for a few seconds by video_build.py."""
+    THEME = theme_mod.THEME
+    w, h = size
+
+    if THEME["background_style"] == "solid":
+        img = Image.new("RGB", size, tuple(THEME["bg_solid"]))
+    elif THEME["background_style"] == "image" and THEME.get("background_image"):
+        bg = _cached_background_image(THEME["background_image"])
+        if bg is not None:
+            scale = max(w / bg.width, h / bg.height)
+            iw, ih = int(bg.width * scale), int(bg.height * scale)
+            bg = bg.resize((iw, ih), Image.LANCZOS)
+            img = Image.new("RGB", size)
+            img.paste(bg, ((w - iw) // 2, (h - ih) // 2))
+            overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
+            img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+        else:
+            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+    else:
+        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+
+    draw = ImageDraw.Draw(img)
+    font_size = int(h * 0.032)
+    font = _cached_font(str(theme_mod.LATIN_FONT_REGULAR), font_size)
+    lines = wrap_latin_lines(text, font, int(w * (1 - 2 * THEME["margin_frac"])))
+    line_height = font_size * 1.35
+    total_h = line_height * len(lines)
+    y = (h - total_h) / 2
+    for line in lines:
+        bbox = font.getbbox(line)
+        line_w = bbox[2] - bbox[0]
+        x = (w - line_w) / 2
+        draw.text((x, y), line, font=font, fill=tuple(THEME["header_color"]))
+        y += line_height
+
+    return img

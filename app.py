@@ -381,6 +381,7 @@ def api_generate():
     ayah_end = field("ayahEnd")
     no_translation = bool(field("noTranslation"))
     no_split_basmala = bool(field("noSplitBasmala"))
+    no_outro = bool(field("noOutro"))
     theme = field("theme")  # dict or None, as exported by the Ayah Frame Studio editor
     timing = field("timing")  # dict or None, a timing manifest (see quran_lib/timing.py)
     theme_name = field("themeName")  # display label only, for the library list
@@ -396,6 +397,7 @@ def api_generate():
         "translation": translation,
         "noTranslation": no_translation,
         "noSplitBasmala": no_split_basmala,
+        "noOutro": no_outro,
         "theme": theme,
         "themeName": theme_name,
         "timing": timing,
@@ -420,6 +422,8 @@ def api_generate():
         cmd += ["--no-translation"]
     if no_split_basmala:
         cmd += ["--no-split-basmala"]
+    if no_outro:
+        cmd += ["--no-outro"]
 
     if theme:
         theme_path = job_dir / "theme.json"

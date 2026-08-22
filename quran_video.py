@@ -81,6 +81,8 @@ def main():
     parser.add_argument("--no-translation", action="store_true", help="Arabic only, no translation text")
     parser.add_argument("--no-split-basmala", action="store_true",
                          help="Keep Bismillah merged into ayah 1's frame instead of splitting it out")
+    parser.add_argument("--no-outro", action="store_true",
+                         help="Skip the short 'thank you for watching' closing card")
     parser.add_argument("--output", default=None, help="Output mp4 path")
     parser.add_argument("--theme", default=None,
                          help="Path to a theme.json exported from the Ayah Frame Studio editor "
@@ -118,7 +120,7 @@ def main():
     build_video(
         verses, surah_name_arabic, args.surah, args.reciter, size, output_path,
         show_translation=not args.no_translation, timing_manifest=timing_manifest,
-        surah_name_text=surah_name,
+        surah_name_text=surah_name, outro_enabled=not args.no_outro,
     )
     print(f"\nDone! Video saved to: {output_path}")
 
