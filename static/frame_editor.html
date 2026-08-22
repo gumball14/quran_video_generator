@@ -147,8 +147,8 @@
     display:block; position:absolute; top:50%; height:0;
     border-top:var(--badge-line-w, .12cqw) solid var(--badge-border-c, rgba(255,255,255,.45));
   }
-  .fc-badge-line-left{ right:100%; width:65%; }
-  .fc-badge-line-right{ left:100%; width:65%; }
+  .fc-badge-line-left{ right:100%; width:var(--badge-line-len, 5.2cqw); }
+  .fc-badge-line-right{ left:100%; width:var(--badge-line-len, 5.2cqw); }
   .fc-badge-cap{
     position:absolute; top:0; width:var(--badge-line-cap, .6cqw); height:var(--badge-line-cap, .6cqw);
     background:var(--badge-border-c, rgba(255,255,255,.45));
@@ -309,7 +309,12 @@
   }
   .sheet-close svg{ width:12px; height:12px; }
 
-  .sheet-body{ flex:1; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:14px 18px calc(env(safe-area-inset-bottom,0px) + 18px); }
+  .sheet-body{
+    flex:1; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    padding:14px 18px calc(env(safe-area-inset-bottom,0px) + 18px);
+    scrollbar-width:none;
+  }
+  .sheet-body::-webkit-scrollbar{ display:none; }
 
   .panel{ display:none; flex-direction:column; gap:12px; }
   .panel.active{ display:flex; }
@@ -613,7 +618,7 @@
           </div>
         </div>
         <div class="slider-row">
-          <div class="slider-top"><div class="row-label">Gap — fine offset from anchor</div><div class="slider-val" id="badgeGapVal">0.030</div></div>
+          <div class="slider-top"><div class="row-label">Gap</div><div class="slider-val" id="badgeGapVal">0.030</div></div>
           <input type="range" id="badgeGap" min="0" max="0.12" step="0.005" value="0.03">
         </div>
       </div>
@@ -660,7 +665,7 @@
 
       <div class="card">
         <div class="row" style="padding-top:0;">
-          <div class="row-label">Line accent — a horizontal line through the border, poking out past it on both sides</div>
+          <div class="row-label">Line accent</div>
           <label class="switch"><input type="checkbox" id="badgeLineEnabled"><span class="switch-track"></span></label>
         </div>
         <div id="badgeLineFields" style="display:none;">
@@ -673,14 +678,17 @@
             </div>
           </div>
           <div class="slider-row">
-            <div class="slider-top"><div class="row-label">Line width</div><div class="slider-val" id="badgeLineWidthVal">0.15</div></div>
+            <div class="slider-top"><div class="row-label">Line thickness</div><div class="slider-val" id="badgeLineWidthVal">0.15</div></div>
             <input type="range" id="badgeLineWidth" min="0.02" max="1" step="0.02" value="0.15">
           </div>
           <div class="slider-row">
-            <div class="slider-top"><div class="row-label">End size (each end)</div><div class="slider-val" id="badgeLineCapSizeVal">0.30</div></div>
+            <div class="slider-top"><div class="row-label">Line width</div><div class="slider-val" id="badgeLineLengthVal">10%</div></div>
+            <input type="range" id="badgeLineLength" min="0" max="100" step="1" value="10">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">End size</div><div class="slider-val" id="badgeLineCapSizeVal">0.30</div></div>
             <input type="range" id="badgeLineCapSize" min="0.05" max="1" step="0.02" value="0.30">
           </div>
-          <div class="font-hint" style="margin-top:0;">Works with any border style above, and always uses the border color/style set there — there's no separate line color.</div>
         </div>
       </div>
     </div>
@@ -913,7 +921,7 @@
       text: JSON.parse(JSON.stringify(samples.long)),
       textStyle:{
         header:{ size:2.1, color:'#FFFFFF', y:0.06 },
-        badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14, lineEnabled:false, lineCapStyle:'dot', lineWidth:0.15, lineCapSize:0.30 },
+        badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14, lineEnabled:false, lineCapStyle:'dot', lineWidth:0.15, lineLength:10, lineCapSize:0.30 },
         arabic:{ size:5.2, color:'#FFFFFF', y:0.36 },
         translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
       },
@@ -957,6 +965,7 @@
     s.textStyle.badge.lineEnabled = theme.badge_line_enabled ?? s.textStyle.badge.lineEnabled;
     s.textStyle.badge.lineCapStyle = theme.badge_line_style || s.textStyle.badge.lineCapStyle;
     s.textStyle.badge.lineWidth = theme.badge_line_width ?? s.textStyle.badge.lineWidth;
+    s.textStyle.badge.lineLength = theme.badge_line_length ?? s.textStyle.badge.lineLength;
     s.textStyle.badge.lineCapSize = theme.badge_line_cap_size ?? s.textStyle.badge.lineCapSize;
 
     s.textStyle.arabic.color = rgbToHex(theme.arabic_color);
@@ -1021,6 +1030,7 @@
       badge_line_enabled: ts.badge.lineEnabled,
       badge_line_style: ts.badge.lineCapStyle,
       badge_line_width: ts.badge.lineWidth,
+      badge_line_length: ts.badge.lineLength,
       badge_line_cap_size: ts.badge.lineCapSize,
     };
   }
@@ -1274,6 +1284,7 @@
     fcBadge.style.setProperty('--badge-border-w', ts.badge.borderWidth + 'cqw');
     fcBadge.style.setProperty('--badge-fill', ts.badge.fillEnabled ? hexToRgba(ts.badge.fillColor, ts.badge.fillOpacity) : 'transparent');
     fcBadge.style.setProperty('--badge-line-w', ts.badge.lineWidth + 'cqw');
+    fcBadge.style.setProperty('--badge-line-len', (ts.badge.lineLength / 2) + 'cqw');
     fcBadge.style.setProperty('--badge-line-cap', ts.badge.lineCapSize + 'cqw');
 
     // ---- arabic block (positioned relative to the screen) ----
@@ -1518,6 +1529,7 @@
   wireSlider('badgeBorderWidth', 'badgeBorderWidthVal', v => state.textStyle.badge.borderWidth = v, v => v.toFixed(2));
   wireSlider('badgeFillOpacity', 'badgeFillOpacityVal', v => state.textStyle.badge.fillOpacity = v, v => v.toFixed(2));
   wireSlider('badgeLineWidth', 'badgeLineWidthVal', v => state.textStyle.badge.lineWidth = v, v => v.toFixed(2));
+  wireSlider('badgeLineLength', 'badgeLineLengthVal', v => state.textStyle.badge.lineLength = v, v => Math.round(v) + '%');
   wireSlider('badgeLineCapSize', 'badgeLineCapSizeVal', v => state.textStyle.badge.lineCapSize = v, v => v.toFixed(2));
   wireSlider('arabicSize', 'arabicSizeVal', v => state.textStyle.arabic.size = v, v => v.toFixed(1));
   wireSlider('arabicY', 'arabicYVal', v => state.textStyle.arabic.y = v, v => v.toFixed(2));
@@ -1650,6 +1662,7 @@
     el('badgeLineFields').style.display = ts.badge.lineEnabled ? 'block' : 'none';
     el('badgeLineCapSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === ts.badge.lineCapStyle));
     el('badgeLineWidth').value = ts.badge.lineWidth; el('badgeLineWidthVal').textContent = ts.badge.lineWidth.toFixed(2);
+    el('badgeLineLength').value = ts.badge.lineLength; el('badgeLineLengthVal').textContent = Math.round(ts.badge.lineLength) + '%';
     el('badgeLineCapSize').value = ts.badge.lineCapSize; el('badgeLineCapSizeVal').textContent = ts.badge.lineCapSize.toFixed(2);
 
     el('arabicColor').value = ts.arabic.color; el('arabicColorHex').value = ts.arabic.color;
