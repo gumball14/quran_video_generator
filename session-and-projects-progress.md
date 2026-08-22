@@ -104,3 +104,18 @@ Goal (from user request):
     as Phase 4 if wanted later.
   - Verified with a Node syntax check of `index.html`'s inline script only
     (no live browser click-through in this environment).
+  - **Additionally verified against a real running server** (a second
+    instance on `PORT=5099`, separate from the user's already-running
+    dev server on 5050, so as not to disturb it): a real
+    `POST /api/generate` for Al-Ikhlas (surah 112) wrote
+    `projects/<id>.json`, finished encoding, and showed up via
+    `/api/videos` with the correct `projectId`; a follow-up
+    `POST /api/generate` with only `{projectId, theme, themeName}`
+    correctly reused the stored surah/range/reciter and produced a second
+    video with the new theme. All test-generated files (`output/*`,
+    `jobs/*`, `projects/*`) and the temporary server process were cleaned
+    up afterward. Still no live browser click-through of the
+    `index.html`/`new_video.html` UI itself in this environment.
+  - Added `projects/` to `.gitignore` (matches the existing `jobs/`,
+    `output/`, `themes/` pattern — these are runtime-generated, not
+    checked-in project files).
