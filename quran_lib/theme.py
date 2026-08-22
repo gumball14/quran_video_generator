@@ -89,6 +89,7 @@ DEFAULT_THEME = {
     "highlight_fallback_wps": 2.2,
     "highlight_pointer_enabled": False,
     "highlight_pointer_style": "hand",
+    "highlight_pointer_position": "top",  # "top" (pointer sits above the highlighted word) | "bottom" (pointer sits below it)
     "highlight_pointer_gap_mult": 1.0,
 
     "outro_enabled": False,           # append a plain background screen (no text) after the last ayah

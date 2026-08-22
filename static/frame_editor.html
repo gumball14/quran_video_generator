@@ -9,6 +9,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Scheherazade+New:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400;500;600;700&family=Lateef:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
+  /* Served straight from the generator's own fonts/ dir (see app.py's
+     /fonts/<file> route) so the preview uses the exact same file
+     text_render.py rasterizes with, not a Google Fonts lookalike. */
+  @font-face{
+    font-family:'Amiri Quran';
+    src:url('/fonts/AmiriQuran.ttf') format('truetype');
+    font-weight:400;
+    font-display:swap;
+  }
+
   :root{
     --bg:#F6F1E4;
     --surface:#FFFDF6;
@@ -746,7 +756,7 @@
     <div class="panel" data-panel="fonts">
       <div class="card">
         <div class="card-title">Arabic font</div>
-        <div class="font-hint" style="margin-top:0;">Previews live here, but only Amiri/Noto Naskh Arabic is bundled with the generator right now — other picks preview in the editor but render with the default Arabic font in the exported video.</div>
+        <div class="font-hint" style="margin-top:0;">Previews live here, but only Amiri Quran and Noto Naskh Arabic (marked "bundled") are actually rendered by the generator — other picks preview in the editor but render with the default Arabic font in the exported video.</div>
         <div class="font-grid" id="arabicFontGrid"></div>
       </div>
       <div class="card">
@@ -857,6 +867,13 @@
             <button data-value="dot">Dot</button>
           </div>
         </div>
+        <div class="field" id="highlightPointerPositionField" style="display:none;">
+          <div class="field-label">Pointer position</div>
+          <div class="segmented" id="highlightPointerPositionSeg">
+            <button class="active" data-value="top">Top</button>
+            <button data-value="bottom">Bottom</button>
+          </div>
+        </div>
         <div class="slider-row" id="highlightPointerGapRow" style="display:none;">
           <div class="slider-top"><div class="row-label">Pointer gap</div><div class="slider-val" id="highlightPointerGapVal">1.00</div></div>
           <input type="range" id="highlightPointerGap" min="0.3" max="2.5" step="0.05" value="1.00">
@@ -910,6 +927,29 @@
   };
   let sampleKey = 'long';
 
+  // ---------- fonts (universal: one Arabic font, one text font) ----------
+  // `bundled` entries have real .ttf files in fonts/ (see quran_lib/theme.py's
+  // arabic_font_regular/bold) so stateToTheme() can point the actual export
+  // at them -- everything else is a Google Fonts preview only, and export
+  // silently falls back to the theme's default Arabic font (Noto Naskh).
+  const arabicFonts = [
+    { value:'Amiri Quran', label:'Amiri Quran', bundled:true, regular:'fonts/AmiriQuran.ttf', bold:'fonts/AmiriQuran.ttf' },
+    { value:'Noto Naskh Arabic', label:'Noto Naskh', bundled:true, regular:'fonts/NotoNaskhArabic-Regular.ttf', bold:'fonts/NotoNaskhArabic-Bold.ttf' },
+    { value:'Amiri', label:'Amiri' },
+    { value:'Scheherazade New', label:'Scheherazade' },
+    { value:'Aref Ruqaa', label:'Aref Ruqaa' },
+    { value:'Reem Kufi', label:'Reem Kufi' },
+    { value:'Lateef', label:'Lateef' }
+  ];
+  const textFonts = [
+    { value:'Manrope', label:'Manrope' },
+    { value:'Fraunces', label:'Fraunces' },
+    { value:'Playfair Display', label:'Playfair' },
+    { value:'Poppins', label:'Poppins' },
+    { value:'Inter', label:'Inter' },
+    { value:'Cormorant Garamond', label:'Cormorant' }
+  ];
+
   // ---------- theme.py <-> editor `state` conversion ----------
   function rgbToHex(rgb){
     return '#' + (rgb || [255,255,255]).map(v => Math.max(0, Math.min(255, v|0)).toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -937,7 +977,7 @@
         arabic:{ size:5.2, color:'#FFFFFF', y:0.36 },
         translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
       },
-      highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerGap:1.0 },
+      highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerPosition:'top', pointerGap:1.0 },
       fadeDuration:0.6, kenBurns:false,
       outroEnabled:false, outroDuration:2.0
     };
@@ -968,6 +1008,11 @@
     s.badgeNumeralStyle = theme.badge_numeral_style || s.badgeNumeralStyle;
     s.badgePosition = theme.badge_position || s.badgePosition;
 
+    if (theme.arabic_font_regular) {
+      const matched = arabicFonts.find(f => f.bundled && f.regular === theme.arabic_font_regular);
+      if (matched) s.fonts.arabic = matched.value;
+    }
+
     s.textStyle.header.color = rgbToHex(theme.header_color);
     if (theme.header_size_frac != null) s.textStyle.header.size = +(theme.header_size_frac * 100).toFixed(2);
     if (theme.header_y_frac != null) s.textStyle.header.y = theme.header_y_frac;
@@ -996,6 +1041,7 @@
     s.highlight.pace = theme.highlight_fallback_wps ?? s.highlight.pace;
     s.highlight.pointer = theme.highlight_pointer_enabled ?? s.highlight.pointer;
     s.highlight.pointerStyle = theme.highlight_pointer_style || s.highlight.pointerStyle;
+    s.highlight.pointerPosition = theme.highlight_pointer_position || s.highlight.pointerPosition;
     s.highlight.pointerGap = theme.highlight_pointer_gap_mult ?? s.highlight.pointerGap;
 
     s.fadeDuration = theme.fade_duration ?? s.fadeDuration;
@@ -1009,13 +1055,17 @@
   function stateToTheme(s){
     const ts = s.textStyle;
     const arabicMax = ts.arabic.size / 100;
+    // Only a `bundled` pick actually changes what the exported video renders
+    // with -- everything else previews in the editor but falls back to the
+    // default Arabic font here, same as the font-hint text warns.
+    const arabicFont = arabicFonts.find(f => f.value === s.fonts.arabic && f.bundled);
     return {
       background_style: s.bgStyle,
       bg_top: hexToRgb(s.bgTop), bg_bottom: hexToRgb(s.bgBottom), bg_solid: hexToRgb(s.bgSolid),
       arabic_color: hexToRgb(ts.arabic.color), translation_color: hexToRgb(ts.translation.color),
       header_color: hexToRgb(ts.header.color), badge_color: hexToRgb(ts.badge.color),
-      arabic_font_regular: "fonts/NotoNaskhArabic-Regular.ttf",
-      arabic_font_bold: "fonts/NotoNaskhArabic-Bold.ttf",
+      arabic_font_regular: arabicFont ? arabicFont.regular : "fonts/NotoNaskhArabic-Regular.ttf",
+      arabic_font_bold: arabicFont ? arabicFont.bold : "fonts/NotoNaskhArabic-Bold.ttf",
       latin_font: "fonts/NotoSans-Regular.ttf",
       margin_frac: s.margin, header_y_frac: ts.header.y, header_size_frac: ts.header.size / 100,
       arabic_center_y_frac: ts.arabic.y, arabic_size_max_frac: arabicMax, arabic_size_min_frac: +(arabicMax * 0.577).toFixed(4),
@@ -1034,6 +1084,7 @@
       highlight_color: hexToRgb(s.highlight.color), highlight_bg_opacity: s.highlight.opacity,
       highlight_fallback_wps: s.highlight.pace,
       highlight_pointer_enabled: s.highlight.pointer, highlight_pointer_style: s.highlight.pointerStyle,
+      highlight_pointer_position: s.highlight.pointerPosition,
       highlight_pointer_gap_mult: s.highlight.pointerGap,
       badge_style: s.badgeStyle,
       badge_numeral_style: s.badgeNumeralStyle,
@@ -1145,29 +1196,11 @@
     el('badgeStyleGrid').querySelectorAll('.badge-style-btn').forEach(b => b.classList.toggle('active', b === btn));
     render();
   });
-
-  // ---------- fonts (universal: one Arabic font, one text font) ----------
-  const arabicFonts = [
-    { value:'Amiri', label:'Amiri' },
-    { value:'Noto Naskh Arabic', label:'Noto Naskh' },
-    { value:'Scheherazade New', label:'Scheherazade' },
-    { value:'Aref Ruqaa', label:'Aref Ruqaa' },
-    { value:'Reem Kufi', label:'Reem Kufi' },
-    { value:'Lateef', label:'Lateef' }
-  ];
-  const textFonts = [
-    { value:'Manrope', label:'Manrope' },
-    { value:'Fraunces', label:'Fraunces' },
-    { value:'Playfair Display', label:'Playfair' },
-    { value:'Poppins', label:'Poppins' },
-    { value:'Inter', label:'Inter' },
-    { value:'Cormorant Garamond', label:'Cormorant' }
-  ];
   function renderFontGrid(gridId, fonts, sampleText, sampleClass, current){
     el(gridId).innerHTML = fonts.map(f => `
       <button class="font-btn${f.value === current ? ' active' : ''}" data-value="${f.value}">
         <span class="font-preview ${sampleClass}" style="font-family:'${f.value}', ${sampleClass === 'is-arabic' ? 'serif' : 'sans-serif'};">${sampleText}</span>
-        <span class="font-name">${f.label}</span>
+        <span class="font-name">${f.label}${f.bundled ? ' · bundled' : ''}</span>
       </button>
     `).join('');
   }
@@ -1492,6 +1525,7 @@
     el('highlightOpacityRow').style.display = v === 'pill' ? 'block' : 'none';
   });
   wireSegmented('highlightPointerStyleSeg', v => state.highlight.pointerStyle = v);
+  wireSegmented('highlightPointerPositionSeg', v => state.highlight.pointerPosition = v);
   wireSegmented('headerScriptSeg', v => state.headerScript = v);
   wireSegmented('badgeNumeralSeg', v => state.badgeNumeralStyle = v);
   wireSegmented('badgePositionSeg', v => state.badgePosition = v);
@@ -1578,6 +1612,7 @@
   el('highlightPointerEnabled').addEventListener('change', e => {
     state.highlight.pointer = e.target.checked;
     el('highlightPointerStyleField').style.display = e.target.checked ? 'block' : 'none';
+    el('highlightPointerPositionField').style.display = e.target.checked ? 'block' : 'none';
     el('highlightPointerGapRow').style.display = e.target.checked ? 'block' : 'none';
     render();
   });
@@ -1726,6 +1761,8 @@
     el('highlightPointerStyleField').style.display = state.highlight.pointer ? 'block' : 'none';
     el('highlightPointerGapRow').style.display = state.highlight.pointer ? 'block' : 'none';
     el('highlightPointerStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.pointerStyle));
+    el('highlightPointerPositionField').style.display = state.highlight.pointer ? 'block' : 'none';
+    el('highlightPointerPositionSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.pointerPosition));
     el('highlightPointerGap').value = state.highlight.pointerGap; el('highlightPointerGapVal').textContent = state.highlight.pointerGap.toFixed(2);
 
     el('fadeDuration').value = state.fadeDuration; el('fadeDurationVal').textContent = state.fadeDuration.toFixed(2) + 's';

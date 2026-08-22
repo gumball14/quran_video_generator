@@ -34,18 +34,44 @@ STATIC_DIR = HERE / "static"
 OUTPUT_DIR = HERE / "output"          # matches quran_video.py's own default
 JOBS_DIR = HERE / "jobs"              # per-job temp files (e.g. uploaded theme.json)
 THEMES_DIR = HERE / "themes"          # user-saved custom themes, one JSON file per theme
-PROJECTS_DIR = HERE / "projects"      # full generation configs, kept so a video can be regenerated with a different theme
+SESSIONS_DIR = HERE / "sessions"      # one JSON per video-creation session: full generation config + incomplete/complete status
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(exist_ok=True)
 THEMES_DIR.mkdir(exist_ok=True)
-PROJECTS_DIR.mkdir(exist_ok=True)
+SESSIONS_DIR.mkdir(exist_ok=True)
+
+
+def _migrate_legacy_projects_dir():
+    """Older versions of this app only ever wrote projects/<id>.json after a
+    successful generate, so every legacy file is safe to treat as a
+    "complete" session. Copies forward (doesn't touch/delete the old dir)."""
+    legacy_dir = HERE / "projects"
+    if not legacy_dir.is_dir():
+        return
+    for legacy_path in legacy_dir.glob("*.json"):
+        dest_path = SESSIONS_DIR / legacy_path.name
+        if dest_path.exists():
+            continue
+        try:
+            data = json.loads(legacy_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        data.setdefault("status", "complete")
+        data.setdefault("id", legacy_path.stem)
+        now = legacy_path.stat().st_mtime
+        data.setdefault("createdAt", now)
+        data.setdefault("updatedAt", now)
+        dest_path.write_text(json.dumps(data), encoding="utf-8")
+
+
+_migrate_legacy_projects_dir()
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 
 from quran_lib.quran_api import fetch_verses, Verse
 from quran_lib.audio import download_ayah_audio, split_basmala_audio
-from quran_lib.constants import CACHE_DIR
+from quran_lib.constants import CACHE_DIR, FONT_DIR
 from quran_lib.theme import load_theme
 from quran_lib.text_render import build_ayah_layout, draw_dynamic_layer
 from quran_lib import theme as theme_mod
@@ -74,19 +100,107 @@ THEME_LOCK = threading.Lock()
 
 TOTAL_VERSES_RE = re.compile(r"—\s*(\d+)\s*verse")
 FRAME_RE = re.compile(r"rendering frame")
-PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+SESSION_FIELDS = (
+    "surah", "ayahStart", "ayahEnd", "reciter", "orientation", "translation",
+    "noTranslation", "noSplitBasmala", "noOutro", "theme", "themeName", "timing",
+)
 
 
-def _load_project(project_id):
-    if not PROJECT_ID_RE.match(project_id or ""):
+def _session_path(session_id):
+    if not SESSION_ID_RE.match(session_id or ""):
         return None
-    path = PROJECTS_DIR / f"{project_id}.json"
-    if not path.exists():
+    return SESSIONS_DIR / f"{session_id}.json"
+
+
+def _load_session(session_id):
+    path = _session_path(session_id)
+    if path is None or not path.exists():
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def _save_session(session):
+    path = _session_path(session["id"])
+    path.write_text(json.dumps(session), encoding="utf-8")
+
+
+def _new_session():
+    now = time.time()
+    session = {"id": uuid.uuid4().hex[:10], "status": "incomplete", "createdAt": now, "updatedAt": now}
+    for key in SESSION_FIELDS:
+        session[key] = None
+    session["orientation"] = "vertical"
+    session["translation"] = "en.sahih"
+    for key in ("noTranslation", "noSplitBasmala", "noOutro"):
+        session[key] = False
+    return session
+
+
+# --------------------------------------------------------------------------
+# Sessions (a video-creation project: created when the user starts a new
+# video, edited while "incomplete", locked to only theme/style changes once
+# "complete" -- see sessions-refactor-progress.md)
+# --------------------------------------------------------------------------
+
+@app.route("/api/sessions", methods=["POST"])
+def api_create_session():
+    session = _new_session()
+    _save_session(session)
+    return jsonify(session)
+
+
+@app.route("/api/sessions")
+def api_list_sessions():
+    sessions = []
+    for path in SESSIONS_DIR.glob("*.json"):
+        try:
+            s = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        s.pop("timing", None)  # can be a large manifest; not needed for the list view
+        sessions.append(s)
+    sessions.sort(key=lambda s: s.get("updatedAt") or 0, reverse=True)
+    return jsonify(sessions)
+
+
+@app.route("/api/sessions/<session_id>")
+def api_get_session(session_id):
+    session = _load_session(session_id)
+    if session is None:
+        abort(404)
+    return jsonify(session)
+
+
+@app.route("/api/sessions/<session_id>", methods=["PUT"])
+def api_update_session(session_id):
+    session = _load_session(session_id)
+    if session is None:
+        abort(404)
+    if session.get("status") == "complete":
+        return jsonify({"error": "This session is already complete and can't be edited."}), 409
+    data = request.get_json(force=True, silent=True) or {}
+    for key in SESSION_FIELDS:
+        if key in data:
+            session[key] = data[key]
+    session["updatedAt"] = time.time()
+    _save_session(session)
+    return jsonify(session)
+
+
+@app.route("/api/sessions/<session_id>", methods=["DELETE"])
+def api_delete_session(session_id):
+    path = _session_path(session_id)
+    if path is None:
+        abort(400)
+    if not path.exists():
+        abort(404)
+    path.unlink(missing_ok=True)
+    return jsonify({"ok": True})
 
 
 # --------------------------------------------------------------------------
@@ -96,6 +210,14 @@ def _load_project(project_id):
 @app.route("/")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
+
+
+@app.route("/fonts/<path:filename>")
+def fonts(filename):
+    """Serves the bundled .ttf files so the browser preview (frame_editor.html's
+    font picker) can @font-face the exact same files text_render.py renders
+    with -- not just an approximation from Google Fonts."""
+    return send_from_directory(FONT_DIR, filename)
 
 
 @app.route("/api/reciters")
@@ -347,23 +469,39 @@ def api_delete_theme(theme_id):
 def api_generate():
     data = request.get_json(force=True, silent=True) or {}
 
-    # A request can reuse a previously-saved project's config (surah, ayah
+    # A request can reuse a previously-created session's config (surah, ayah
     # range, reciter, translation, timing manifest, ...) by passing
-    # `projectId` and only overriding the fields it wants to change -- this
-    # is how "regenerate this video with a different theme" works, without
-    # making the caller resend the whole timing manifest.
-    project_id = data.get("projectId")
-    stored_project = None
-    if project_id:
-        stored_project = _load_project(project_id)
-        if stored_project is None:
-            return jsonify({"error": "That project could no longer be found."}), 404
+    # `sessionId` and only overriding the fields it wants to change -- this
+    # is how "make a new video from this (completed) session with a
+    # different theme" works, without resending the whole timing manifest.
+    #
+    # Once a session is "complete" it's locked: only theme/themeName may be
+    # overridden by the request, everything else is forced from the stored
+    # session even if the request sent something else.
+    session_id = data.get("sessionId")
+    session = None
+    if session_id:
+        session = _load_session(session_id)
+        if session is None:
+            return jsonify({"error": "That session could no longer be found."}), 404
+
+    locked = session is not None and session.get("status") == "complete"
 
     def field(key, default=None):
+        if locked:
+            return session.get(key, default)
         if key in data and data[key] not in (None, ""):
             return data[key]
-        if stored_project is not None and key in stored_project:
-            return stored_project[key]
+        if session is not None and key in session:
+            return session[key]
+        return default
+
+    def override_field(key, default=None):
+        # Always overridable, even on a locked/complete session (theme/themeName).
+        if key in data and data[key] not in (None, ""):
+            return data[key]
+        if session is not None and key in session:
+            return session[key]
         return default
 
     try:
@@ -390,26 +528,33 @@ def api_generate():
     no_translation = bool(field("noTranslation"))
     no_split_basmala = bool(field("noSplitBasmala"))
     no_outro = bool(field("noOutro"))
-    theme = field("theme")  # dict or None, as exported by the Ayah Frame Studio editor
+    theme = override_field("theme")  # dict or None, as exported by the Ayah Frame Studio editor
     timing = field("timing")  # dict or None, a timing manifest (see quran_lib/timing.py)
-    theme_name = field("themeName")  # display label only, for the library list
+    theme_name = override_field("themeName")  # display label only, for the library list
 
-    if not project_id:
-        project_id = uuid.uuid4().hex[:10]
-    PROJECTS_DIR.joinpath(f"{project_id}.json").write_text(json.dumps({
-        "surah": surah,
-        "ayahStart": ayah_start,
-        "ayahEnd": ayah_end,
-        "reciter": reciter,
-        "orientation": orientation,
-        "translation": translation,
-        "noTranslation": no_translation,
-        "noSplitBasmala": no_split_basmala,
-        "noOutro": no_outro,
-        "theme": theme,
-        "themeName": theme_name,
-        "timing": timing,
-    }), encoding="utf-8")
+    if session is None:
+        # No pre-created session (e.g. a direct API call) -- create one now
+        # so this generate still has somewhere to record its config.
+        session = _new_session()
+        session_id = session["id"]
+
+    if not locked:
+        session.update({
+            "surah": surah,
+            "ayahStart": ayah_start,
+            "ayahEnd": ayah_end,
+            "reciter": reciter,
+            "orientation": orientation,
+            "translation": translation,
+            "noTranslation": no_translation,
+            "noSplitBasmala": no_split_basmala,
+            "noOutro": no_outro,
+            "theme": theme,
+            "themeName": theme_name,
+            "timing": timing,
+        })
+        session["updatedAt"] = time.time()
+        _save_session(session)
 
     job_id = uuid.uuid4().hex[:10]
     job_dir = JOBS_DIR / job_id
@@ -466,7 +611,7 @@ def api_generate():
                 "ayahEnd": int(ayah_end) if ayah_end not in (None, "") else None,
                 "reciter": reciter,
                 "themeName": theme_name,
-                "projectId": project_id,
+                "sessionId": session_id,
             },
         }
 
@@ -503,6 +648,7 @@ def _run_job(job_id, cmd):
                 job["status"] = "done"
                 job["percent"] = 100
                 _write_video_sidecar(job)
+                _mark_session_complete(job["meta"].get("sessionId"))
             else:
                 job["status"] = "error"
                 job["error"] = f"quran_video.py exited with code {proc.returncode} -- see log above."
@@ -514,6 +660,19 @@ def _run_job(job_id, cmd):
         with JOBS_LOCK:
             JOBS[job_id]["status"] = "error"
             JOBS[job_id]["error"] = str(e)
+
+
+def _mark_session_complete(session_id):
+    """A session becomes "complete" only once a generate for it actually
+    succeeds -- a failed job leaves it "incomplete" so the user can go back
+    and retry, instead of silently locking a broken config."""
+    if not session_id:
+        return
+    session = _load_session(session_id)
+    if session and session.get("status") != "complete":
+        session["status"] = "complete"
+        session["updatedAt"] = time.time()
+        _save_session(session)
 
 
 def _write_video_sidecar(job):
@@ -593,7 +752,7 @@ def api_videos():
             "themeName": meta.get("themeName"),
             "duration": duration,
             "createdAt": meta.get("createdAt"),
-            "projectId": meta.get("projectId"),
+            "sessionId": meta.get("sessionId"),
         })
     videos.sort(key=lambda v: v["createdAt"] or 0, reverse=True)
     return jsonify(videos)

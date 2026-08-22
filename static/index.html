@@ -141,14 +141,23 @@
   .vid-time{ font-size:10.5px; color:var(--ink-mute); opacity:.75; margin-top:3px; }
 
   .vid-actions{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
-  .vid-delete, .vid-regen{
+  .vid-delete{
     flex-shrink:0; width:36px; height:36px; border-radius:11px;
     border:none; background:transparent; display:flex; align-items:center; justify-content:center;
     cursor:pointer; transition:background .12s ease;
   }
-  .vid-delete svg, .vid-regen svg{ width:16px; height:16px; }
+  .vid-delete svg{ width:16px; height:16px; }
   .vid-delete:active{ background:rgba(178,59,59,.12); }
-  .vid-regen:active{ background:var(--surface-2); }
+
+  /* ---------- sessions ---------- */
+  .sessions{ margin-top:26px; }
+  .sess-badge{
+    font-size:9.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+    padding:2px 7px; border-radius:100px; flex-shrink:0;
+  }
+  .sess-badge.incomplete{ background:rgba(173,130,38,.16); color:var(--gold); }
+  .sess-badge.complete{ background:rgba(47,143,106,.14); color:var(--success); }
+  .vid-meta .sess-badge{ margin-right:2px; }
 
   /* ---------- regenerate theme sheet + bottom sheet (shared pattern) ---------- */
   .sheet-backdrop{
@@ -298,7 +307,7 @@
     </div>
   </div>
 
-  <button class="cta" onclick="location.href='/new_video.html'">
+  <button class="cta" id="newVideoBtn">
     <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
     Start a new video
   </button>
@@ -314,6 +323,20 @@
     </button>
   </div>
 
+  <div class="recent sessions">
+    <div class="recent-head">
+      <div class="recent-title">Your sessions</div>
+      <span class="recent-count" id="sessCount"></span>
+    </div>
+
+    <div class="vid-list" id="sessList"></div>
+
+    <div class="empty" id="sessEmptyState">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
+      <p>No sessions yet. Tap "Start a new video" to begin one.</p>
+    </div>
+  </div>
+
   <div class="recent">
     <div class="recent-head">
       <div class="recent-title">Your videos</div>
@@ -324,7 +347,7 @@
 
     <div class="empty" id="emptyState">
       <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
-      <p>No videos yet. Tap "Start a new video" to frame your first ayah.</p>
+      <p>No videos yet. Finish a session to generate your first one.</p>
     </div>
   </div>
 
@@ -370,10 +393,15 @@
 <script>
   const RECITER_LABELS = {}; // filled from /api/reciters
   let videos = [];
+  let sessions = [];
 
   const listEl = document.getElementById('vidList');
   const emptyEl = document.getElementById('emptyState');
   const countEl = document.getElementById('vidCount');
+
+  const sessListEl = document.getElementById('sessList');
+  const sessEmptyEl = document.getElementById('sessEmptyState');
+  const sessCountEl = document.getElementById('sessCount');
 
   function surahOf(n){ return window.SURAHS.find(s => s.n === n); }
 
@@ -433,13 +461,6 @@
           <div class="vid-time">${fmtTimeAgo(v.createdAt)}</div>
         </div>
         <div class="vid-actions">
-          ${v.projectId ? `
-          <button class="vid-regen" aria-label="Regenerate with a different theme" data-id="${v.id}" data-project-id="${v.projectId}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 0115-6.7M21 12a9 9 0 01-15 6.7"/>
-              <path d="M3 3v5h5M21 21v-5h-5"/>
-            </svg>
-          </button>` : ''}
           <button class="vid-delete" aria-label="Delete video" data-id="${v.id}">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/>
@@ -452,12 +473,96 @@
     }).join('');
   }
 
-  listEl.addEventListener('click', async (e) => {
-    const regenBtn = e.target.closest('.vid-regen');
-    if (regenBtn){
-      openThemeSheet(regenBtn.dataset.projectId);
+  function sessTitleOf(s){
+    const surahEntry = surahOf(s.surah);
+    if (!surahEntry) return 'New session';
+    if (s.ayahStart == null || s.ayahEnd == null) return surahEntry.en;
+    if (s.ayahStart === s.ayahEnd) return `${surahEntry.en} ${s.ayahStart}`;
+    return `${surahEntry.en} ${s.ayahStart}–${s.ayahEnd}`;
+  }
+
+  function renderSessions(){
+    sessCountEl.textContent = sessions.length ? `${sessions.length} session${sessions.length === 1 ? '' : 's'}` : '';
+
+    if (!sessions.length){
+      sessListEl.style.display = 'none';
+      sessEmptyEl.style.display = 'flex';
       return;
     }
+    sessListEl.style.display = 'flex';
+    sessEmptyEl.style.display = 'none';
+
+    sessListEl.innerHTML = sessions.map(s => {
+      const surahEntry = surahOf(s.surah);
+      const reciterLabel = RECITER_LABELS[s.reciter] || s.reciter || '';
+      const isComplete = s.status === 'complete';
+      return `
+      <div class="vid-row" data-id="${s.id}" data-status="${s.status}">
+        <div class="vid-thumb">
+          <div class="vid-thumb-ayah">${surahEntry ? surahEntry.ar : ''}</div>
+        </div>
+        <div class="vid-info">
+          <div class="vid-title">${sessTitleOf(s)}</div>
+          <div class="vid-meta">
+            <span class="sess-badge ${isComplete ? 'complete' : 'incomplete'}">${isComplete ? 'Ready' : 'In progress'}</span>
+            ${s.themeName ? `· ${s.themeName}` : ''} ${reciterLabel ? `· ${reciterLabel}` : ''}
+          </div>
+          <div class="vid-time">${fmtTimeAgo(s.updatedAt)}</div>
+        </div>
+        <div class="vid-actions">
+          <button class="vid-delete" aria-label="Delete session" data-id="${s.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/>
+              <path d="M10 11v6M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  sessListEl.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('.vid-delete');
+    if (delBtn){
+      const id = delBtn.dataset.id;
+      const row = delBtn.closest('.vid-row');
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+      } catch (err) {
+        alert("Couldn't delete that session.");
+        return;
+      }
+      row.classList.add('removing');
+      row.addEventListener('transitionend', () => {
+        sessions = sessions.filter(s => s.id !== id);
+        renderSessions();
+      }, { once: true });
+      return;
+    }
+    const row = e.target.closest('.vid-row');
+    if (!row) return;
+    const s = sessions.find(x => x.id === row.dataset.id);
+    if (!s) return;
+    if (s.status === 'complete'){
+      openThemeSheet(s.id);
+    } else {
+      location.href = `/new_video.html?sessionId=${encodeURIComponent(s.id)}`;
+    }
+  });
+
+  document.getElementById('newVideoBtn').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/sessions', { method: 'POST' });
+      const session = await res.json();
+      location.href = `/new_video.html?sessionId=${encodeURIComponent(session.id)}`;
+    } catch (e) {
+      location.href = '/new_video.html';
+    }
+  });
+
+  listEl.addEventListener('click', async (e) => {
     const delBtn = e.target.closest('.vid-delete');
     if (delBtn){
       const id = delBtn.dataset.id;
@@ -495,9 +600,9 @@
     if (e.target.id === 'playerBackdrop') document.getElementById('playerClose').click();
   });
 
-  // ============ REGENERATE WITH A DIFFERENT THEME ============
+  // ============ MAKE A NEW VIDEO FROM A COMPLETED SESSION, WITH A DIFFERENT THEME ============
   let savedThemes = []; // [{id, name, theme}], fetched from /api/themes
-  let regenProjectId = null;
+  let regenSessionId = null;
   let regenThemeKey = null;
 
   function getHiddenPresets(){
@@ -547,8 +652,8 @@
     });
   }
 
-  async function openThemeSheet(projectId){
-    regenProjectId = projectId;
+  async function openThemeSheet(sessionId){
+    regenSessionId = sessionId;
     regenThemeKey = null;
     themeSheetSelect.disabled = true;
     try {
@@ -598,7 +703,7 @@
     try {
       const res = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: regenProjectId, theme: entry.theme, themeName: entry.name }),
+        body: JSON.stringify({ sessionId: regenSessionId, theme: entry.theme, themeName: entry.name }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
@@ -628,6 +733,8 @@
           genOverlay.classList.remove('open');
           videos = await fetch('/api/videos').then(r => r.json());
           renderVideos();
+          sessions = await fetch('/api/sessions').then(r => r.json());
+          renderSessions();
         } else if (json.status === 'error'){
           clearInterval(poll);
           showGenError(json.error || 'The generator hit an error.');
@@ -651,6 +758,13 @@
       videos = [];
     }
     renderVideos();
+
+    try {
+      sessions = await fetch('/api/sessions').then(r => r.json());
+    } catch (e) {
+      sessions = [];
+    }
+    renderSessions();
   }
 
   init();

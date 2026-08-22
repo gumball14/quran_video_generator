@@ -490,6 +490,42 @@
   const surahs = window.SURAHS;
   let reciters = []; // [{key, name}], filled from /api/reciters
 
+  // ============ SESSION (server-side video-creation project; see sessions-refactor-progress.md) ============
+  let sessionId = new URLSearchParams(location.search).get('sessionId');
+
+  async function ensureSession(){
+    if (sessionId){
+      const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
+      if (res.ok){
+        const session = await res.json();
+        if (session.status !== 'complete') return session;
+        // A completed session can't be edited -- shouldn't normally be
+        // reachable from the UI, but fall through to starting a fresh one.
+      }
+      sessionId = null;
+    }
+    const created = await fetch('/api/sessions', { method: 'POST' }).then(r => r.json());
+    sessionId = created.id;
+    history.replaceState(null, '', `/new_video.html?sessionId=${encodeURIComponent(sessionId)}`);
+    return created;
+  }
+
+  function saveSessionState(){
+    if (!sessionId) return;
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        surah: state.surah.n,
+        ayahStart: state.from,
+        ayahEnd: state.to,
+        reciter: state.reciter ? state.reciter.key : null,
+        translation: 'en.sahih',
+        theme: state.themeObject,
+        themeName: state.themeLabel,
+      }),
+    }).catch(() => { /* best-effort; local state is still correct either way */ });
+  }
+
   // ============ STATE ============
   let state = {
     surah: surahs[0],
@@ -585,7 +621,7 @@
     updateSurahDisplay();
     updateRangeDisplay();
     closeSheet('surah');
-    saveDraftState();
+    saveSessionState();
   });
 
   // ============ AYAH RANGE STEPPERS (no text input) ============
@@ -604,10 +640,10 @@
     rangeHint.textContent = `${count} ayah${count === 1 ? '' : 's'} selected`;
   }
 
-  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveDraftState(); } });
-  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveDraftState(); } });
-  document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); saveDraftState(); } });
-  document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); saveDraftState(); } });
+  document.getElementById('fromMinus').addEventListener('click', () => { if (state.from > 1){ state.from--; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveSessionState(); } });
+  document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveSessionState(); } });
+  document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); saveSessionState(); } });
+  document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); saveSessionState(); } });
 
   // ============ RECITER SELECT ============
   const reciterBtn = document.getElementById('reciterBtn');
@@ -648,7 +684,7 @@
     state.reciter = reciters.find(r => r.key === reciterPick);
     updateReciterDisplay();
     closeSheet('reciter');
-    saveDraftState();
+    saveSessionState();
   });
 
   // ============ BOTTOM SHEET HELPERS ============
@@ -696,25 +732,6 @@
       backdrop.classList.add('open');
       modal.classList.add('open');
     });
-  }
-
-  // ============ DRAFT PERSISTENCE (survives navigating to timing.html and back) ============
-  function saveDraftState(){
-    localStorage.setItem('afs_draft', JSON.stringify({
-      surah: state.surah.n,
-      from: state.from,
-      to: state.to,
-      reciterKey: state.reciter ? state.reciter.key : null,
-      translation: 'en.sahih',
-      themeKey: state.themeKey,
-      themeLabel: state.themeLabel,
-      theme: state.themeObject,
-    }));
-  }
-
-  function loadDraftState(){
-    try { return JSON.parse(localStorage.getItem('afs_draft') || 'null'); }
-    catch (e) { return null; }
   }
 
   // ============ THEME: built-in presets + saved custom themes ============
@@ -837,7 +854,7 @@
     themeAddBtn.classList.toggle('is-custom', !!(entry && entry.id));
     updateThemeAddTile();
     updateContinueBtn();
-    saveDraftState();
+    saveSessionState();
   }
 
   function updateThemeAddTile(){
@@ -887,22 +904,21 @@
 
   continueBtn.addEventListener('click', () => {
     if (!state.themeKey) return;
-    saveDraftState();
-    location.href = '/timing.html';
+    saveSessionState();
+    location.href = `/timing.html?sessionId=${encodeURIComponent(sessionId)}`;
   });
 
   // ============ INIT ============
   async function init(){
-    const draft = loadDraftState();
-    if (draft){
-      const restoredSurah = surahs.find(s => s.n === draft.surah);
-      if (restoredSurah){
-        state.surah = restoredSurah;
-        if (Number.isInteger(draft.from) && Number.isInteger(draft.to) &&
-            draft.from >= 1 && draft.to <= restoredSurah.ayahs && draft.from <= draft.to){
-          state.from = draft.from;
-          state.to = draft.to;
-        }
+    const session = await ensureSession();
+
+    const restoredSurah = surahs.find(s => s.n === session.surah);
+    if (restoredSurah){
+      state.surah = restoredSurah;
+      if (Number.isInteger(session.ayahStart) && Number.isInteger(session.ayahEnd) &&
+          session.ayahStart >= 1 && session.ayahEnd <= restoredSurah.ayahs && session.ayahStart <= session.ayahEnd){
+        state.from = session.ayahStart;
+        state.to = session.ayahEnd;
       }
     }
 
@@ -911,7 +927,10 @@
     updateThemeAddTile();
     updateContinueBtn();
     await loadSavedThemes();
-    if (draft && draft.themeKey) selectTheme(draft.themeKey);
+    if (session.themeName){
+      const match = themeEntries().find(t => t.name === session.themeName);
+      if (match) selectTheme(match.key);
+    }
 
     try {
       const data = await fetch('/api/reciters').then(r => r.json());
@@ -919,7 +938,7 @@
     } catch (e) {
       reciters = [{ key: 'yasser_al_dossary', name: 'Yasser Al-Dossary' }];
     }
-    const restoredReciter = draft && draft.reciterKey ? reciters.find(r => r.key === draft.reciterKey) : null;
+    const restoredReciter = session.reciter ? reciters.find(r => r.key === session.reciter) : null;
     state.reciter = restoredReciter || reciters[0];
     updateReciterDisplay();
 

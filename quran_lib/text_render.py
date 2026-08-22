@@ -6,6 +6,7 @@ entry point everything else (video_build.py) calls.
 """
 import functools
 import math
+import os
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
@@ -170,36 +171,137 @@ def vertical_gradient(size, top_color, bottom_color):
     return base.resize((w, h))
 
 
-def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: float):
-    """Vector pointer marker under/over the active word. (Not a real emoji --
-    Pillow can't reliably render color emoji without a bundled color-emoji
-    font, so 'hand' and 'arrow' both render as a small triangular marker;
-    'hand' adds a short stem so it reads more like a pointing finger.)
+# Common install locations for a color-emoji font. None of these ship with
+# the project (the bundled fonts/ directory only has the Arabic + Latin
+# faces used for verse text), so the "hand" pointer only gets a real 👆
+# glyph when the host system happens to have one of these installed --
+# otherwise draw_pointer() falls back to the vector marker it always used.
+_EMOJI_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+    "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+    "/usr/share/fonts/truetype/noto-emoji/NotoColorEmoji.ttf",
+    "/usr/local/share/fonts/NotoColorEmoji.ttf",
+    "/System/Library/Fonts/Apple Color Emoji.ttc",
+    "C:\\Windows\\Fonts\\seguiemj.ttf",
+]
+
+# Color-emoji fonts (Noto Color Emoji, Apple Color Emoji, Segoe UI Emoji) are
+# bitmap fonts (CBDT/sbix) that embed only ONE fixed-size strike -- e.g. Noto
+# Color Emoji ships just a 109px strike. Pillow does NOT snap an arbitrary
+# requested size to that strike the way it does for outline fonts: asking
+# for any other size raises `OSError: invalid pixel size`, so a naive
+# `ImageFont.truetype(path, font_size)` silently fails for every size except
+# that one exact value and _emoji_font() used to swallow the error and fall
+# back to the vector marker every time. Instead, load the font at whichever
+# of these common native strike sizes actually works, then raster the glyph
+# once at that native size and resize the *bitmap* to whatever size
+# draw_pointer needs.
+_EMOJI_STRIKE_SIZES = [109, 136, 128, 96, 72, 64, 48, 160]
+
+_emoji_font_cache = {}
+
+
+def _emoji_font():
+    """Loads the host's color-emoji font at its native bitmap strike size,
+    trying a handful of common install locations and strike sizes, and
+    caches the (font, native_size) result -- including a None on failure --
+    so every frame doesn't re-hit the filesystem. Returns None if no usable
+    emoji font is installed on the host."""
+    if "result" in _emoji_font_cache:
+        return _emoji_font_cache["result"]
+    result = None
+    for path in _EMOJI_FONT_CANDIDATES:
+        if not os.path.exists(path):
+            continue
+        for size in _EMOJI_STRIKE_SIZES:
+            try:
+                result = (ImageFont.truetype(path, size), size)
+                break
+            except Exception:
+                continue
+        if result is not None:
+            break
+    _emoji_font_cache["result"] = result
+    return result
+
+
+def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: float, bottom_y: float = None,
+                  img: Image.Image = None):
+    """Pointer marker for the active word, placed above it (top_y) or below
+    it (bottom_y), per highlight_pointer_position.
+
+    'hand' draws a real hand emoji (👆 above the word / 👇 below it) when a
+    color-emoji font is installed on the host (see _emoji_font()) AND `img`
+    is passed (needed to paste the resized glyph bitmap -- see below);
+    'arrow' always renders as a vector triangle, and 'dot' as a vector
+    circle -- those two have no natural emoji equivalent that reads as a
+    pointer at a glance, and a plain arrow/dot in the theme's highlight
+    color matches the rest of the highlight styling better than a
+    fixed-color emoji glyph would. If no emoji font/img is available, 'hand'
+    falls back to the same triangle-plus-stem vector marker it always used.
 
     Sized up from the original marker (which read as a faint speck at
     typical frame sizes) and outlined in black so it stays visible against
     highlight-colored or light-colored words too, not just dark backgrounds."""
     THEME = theme_mod.THEME
     style = THEME["highlight_pointer_style"]
+    position = THEME.get("highlight_pointer_position", "top")
     gap = THEME.get("highlight_pointer_gap_mult", 1.0)
     r, g, b = THEME["highlight_color"]
     outline = (0, 0, 0)
     outline_width = max(1, round(font_size * 0.035))
+    if bottom_y is None:
+        bottom_y = top_y + font_size * 1.12  # matches the highlight pill's bottom edge
+
+    if style == "hand":
+        loaded = _emoji_font()
+        if loaded is not None and img is not None:
+            font, native_size = loaded
+            # The glyph must point AT the word, not away from it: when the
+            # pointer sits above the word (position == "top") it needs the
+            # downward-pointing hand (👇), and vice versa for "bottom".
+            glyph = "\U0001F447" if position == "top" else "\U0001F446"  # 👇 / 👆
+            bbox = draw.textbbox((0, 0), glyph, font=font, embedded_color=True)
+            gw, gh = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            if gw > 0 and gh > 0:
+                # Raster the glyph at the font's native (fixed) strike size,
+                # then resize the bitmap itself to the size we actually want
+                # -- Pillow can't render this color-bitmap font at an
+                # arbitrary point size directly (see _emoji_font()).
+                glyph_img = Image.new("RGBA", (gw, gh), (0, 0, 0, 0))
+                ImageDraw.Draw(glyph_img).text((-bbox[0], -bbox[1]), glyph, font=font, embedded_color=True)
+                target_h = round(font_size * 1.1)
+                scale = target_h / native_size
+                new_w, new_h = max(1, round(gw * scale)), max(1, round(gh * scale))
+                glyph_img = glyph_img.resize((new_w, new_h), Image.LANCZOS)
+
+                gx = round(x - new_w / 2)
+                if position == "top":
+                    gy = round(top_y - new_h * gap)
+                else:
+                    gy = round(bottom_y + font_size * 0.15 * gap)
+                img.paste(glyph_img, (gx, gy), glyph_img)
+                return
+        # no emoji font/img available -- fall through to the vector marker below
 
     if style in ("hand", "arrow"):
         s = font_size * 0.46
-        tip_y = top_y - font_size * 0.22 * gap
-        pts = [(x, tip_y), (x - s, tip_y - s), (x + s, tip_y - s)]
+        stem_h = font_size * 0.42 * gap
+        stem_w = s * 0.6
+        if position == "top":
+            tip_y = top_y - font_size * 0.22 * gap
+            pts = [(x, tip_y), (x - s, tip_y - s), (x + s, tip_y - s)]
+            stem_box = [x - stem_w / 2, tip_y - s - stem_h, x + stem_w / 2, tip_y - s]
+        else:
+            tip_y = bottom_y + font_size * 0.22 * gap
+            pts = [(x, tip_y), (x - s, tip_y + s), (x + s, tip_y + s)]
+            stem_box = [x - stem_w / 2, tip_y + s, x + stem_w / 2, tip_y + s + stem_h]
         draw.polygon(pts, fill=(r, g, b), outline=outline, width=outline_width)
         if style == "hand":
-            stem_w = s * 0.6
-            draw.rectangle(
-                [x - stem_w / 2, tip_y - s - font_size * 0.42 * gap, x + stem_w / 2, tip_y - s],
-                fill=(r, g, b), outline=outline, width=outline_width,
-            )
+            draw.rectangle(stem_box, fill=(r, g, b), outline=outline, width=outline_width)
     elif style == "dot":
         rad = font_size * 0.15
-        cy = top_y + font_size * 1.25 * gap
+        cy = (top_y - font_size * 0.25 * gap) if position == "top" else (bottom_y + font_size * 0.25 * gap)
         draw.ellipse([x - rad, cy - rad, x + rad, cy + rad], fill=(r, g, b), outline=outline, width=outline_width)
 
 
@@ -675,7 +777,7 @@ def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1
         draw.text((box["left"], box["top"]), box["display"], font=arabic_font, fill=fill, **box["kwargs"])
 
     if THEME["highlight_enabled"] and THEME["highlight_pointer_enabled"] and pointer_pos is not None:
-        draw_pointer(draw, pointer_pos["x"], pointer_pos["top"], pointer_pos["font_size"])
+        draw_pointer(draw, pointer_pos["x"], pointer_pos["top"], pointer_pos["font_size"], img=img)
 
     return img
 

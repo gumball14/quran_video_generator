@@ -40,6 +40,97 @@ def get_audio_duration(path: Path) -> float:
     return float(result.stdout.strip())
 
 
+# How much silence to leave in place at each trimmed edge. 0 = cut right up
+# to the detected onset/offset of speech, so consecutive ayahs play back to
+# back with no gap at all once concatenated.
+_SILENCE_KEEP = 0.0
+
+
+def get_silence_trim_bounds(path: Path, keep_silence: float = _SILENCE_KEEP):
+    """Detects leading/trailing silence in an ayah's audio file and returns
+    (start, end) trim points -- the window to actually play, leaving
+    `keep_silence` seconds of padding at each trimmed edge. Returns
+    (0.0, full_duration) if no confident leading/trailing silence is found.
+
+    Each per-ayah file from everyayah.com typically has its own silence
+    padding baked in at both ends (sounds like a normal short pause when
+    played alone). When ayahs are placed back-to-back in the rendered video,
+    one ayah's trailing padding plus the next one's leading padding stack
+    into a noticeably longer gap than either file has on its own -- this is
+    used to shrink that stack back down before ayahs are concatenated."""
+    total_duration = get_audio_duration(path)
+    # -35dB (used by split_basmala_audio, which looks for a much more
+    # obvious silent gap *inside* the recitation) is too strict for the
+    # quieter, low-level noise floor typically present in these edge
+    # paddings -- it misses most of them. -20dB reliably catches the real
+    # edge padding without tripping on quiet passages mid-recitation.
+    result = subprocess.run(
+        ["ffmpeg", "-i", str(path), "-af", "silencedetect=noise=-20dB:d=0.15", "-f", "null", "-"],
+        capture_output=True, text=True,
+    )
+    # Walk start/end markers in the order ffmpeg printed them (silence_start
+    # always precedes its matching silence_end) to reconstruct silent
+    # intervals. A trailing silence_start with no matching silence_end means
+    # the silence runs all the way to EOF.
+    events = re.findall(r"silence_(start|end):\s*([0-9.]+)", result.stderr)
+    intervals = []
+    pending_start = None
+    for kind, val in events:
+        val = float(val)
+        if kind == "start":
+            pending_start = val
+        elif pending_start is not None:
+            intervals.append((pending_start, val))
+            pending_start = None
+    if pending_start is not None:
+        intervals.append((pending_start, total_duration))
+
+    start_trim = 0.0
+    if intervals and intervals[0][0] < 0.2:  # silence begins essentially at t=0
+        start_trim = max(0.0, min(intervals[0][1] - keep_silence, total_duration))
+
+    end_trim = total_duration
+    if intervals and intervals[-1][1] > total_duration - 0.2:  # silence runs to (near) EOF
+        end_trim = max(start_trim, min(intervals[-1][0] + keep_silence, total_duration))
+
+    return start_trim, end_trim
+
+
+def get_trimmed_ayah_audio(path: Path, keep_silence: float = _SILENCE_KEEP) -> Path:
+    """Returns a silence-trimmed copy of this ayah's audio, cached next to
+    the source file. Cuts with ffmpeg directly into a real file instead of
+    moviepy's in-memory AudioFileClip.subclipped(), which only seeks
+    compressed (mp3) audio approximately -- landing mid-frame at the cut
+    point can leave a faint blip/glitch right at the boundary between two
+    concatenated ayahs, which is audible as a stutter/restart rather than a
+    clean cut.
+
+    Re-encoded to WAV (pcm_s16le), not mp3: re-encoding the trimmed segment
+    back to mp3 runs it through libmp3lame again, which inserts its own
+    encoder "priming" delay -- a few dozen ms of silence -- at the start of
+    *every* file it writes, including this one. That silently reintroduces
+    almost exactly the kind of boundary glitch this function exists to
+    remove. WAV is uncompressed PCM, so there's no encoder delay and no
+    frame-alignment ambiguity -- the cut lands on an exact sample.
+
+    Returns the original path unchanged if there's nothing worth trimming."""
+    start, end = get_silence_trim_bounds(path, keep_silence)
+    total_duration = get_audio_duration(path)
+    if start <= 0.0 and end >= total_duration - 0.01:
+        return path
+
+    trimmed_path = path.with_name(f"{path.stem}_trimmed.wav")
+    if trimmed_path.exists() and trimmed_path.stat().st_size > 0:
+        return trimmed_path
+
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(path), "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+         "-acodec", "pcm_s16le", str(trimmed_path)],
+        capture_output=True, check=True,
+    )
+    return trimmed_path
+
+
 def split_basmala_audio(audio_path: Path, out_dir: Path):
     """Ayah-1 audio (for every surah except At-Tawbah) usually has the Bismillah
     recited right before the ayah itself, in one file, with a brief pause between.

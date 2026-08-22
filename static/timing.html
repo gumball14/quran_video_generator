@@ -364,7 +364,7 @@
 
   <div class="topbar">
     <div class="topbar-left">
-      <button class="icon-btn" aria-label="Back" onclick="location.href='/new_video.html'">
+      <button class="icon-btn" id="backBtnTop" aria-label="Back" onclick="location.href='/new_video.html'">
         <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="topbar-title">Timing</div>
@@ -477,9 +477,12 @@
 <audio id="ayahAudio" preload="auto"></audio>
 
 <script>
-  // ============ DRAFT ============
-  const draft = JSON.parse(localStorage.getItem('afs_draft') || 'null');
-  if (!draft){ location.href = '/new_video.html'; throw new Error('no draft'); }
+  // ============ SESSION (server-side video-creation project; see sessions-refactor-progress.md) ============
+  const sessionId = new URLSearchParams(location.search).get('sessionId');
+  if (!sessionId){ location.href = '/new_video.html'; throw new Error('no sessionId'); }
+  document.getElementById('backBtnTop').setAttribute('onclick', `location.href='/new_video.html?sessionId=${encodeURIComponent(sessionId)}'`);
+
+  let draft = null;  // populated in init() from GET /api/sessions/<id>; shaped like the old localStorage draft for minimal diff below
 
   const audioEl = document.getElementById('ayahAudio');
   let audioCtx = null;
@@ -1170,6 +1173,7 @@
 
     const manifest = buildManifest();
     const payload = {
+      sessionId: draft.id,
       surah: draft.surah,
       ayahStart: draft.from,
       ayahEnd: draft.to,
@@ -1211,7 +1215,6 @@
 
         if (json.status === 'done'){
           clearInterval(poll);
-          localStorage.removeItem('afs_draft');
           clearSavedSession();
           location.href = '/';
         } else if (json.status === 'error'){
@@ -1234,6 +1237,32 @@
 
   // ============ INIT ============
   (async function init(){
+    const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
+    if (!res.ok){ location.href = '/new_video.html'; return; }
+    const session = await res.json();
+    if (session.status === 'complete'){
+      // Shouldn't be reachable from the UI (completed sessions can't be
+      // re-edited), but guard anyway rather than letting this page run with
+      // a locked session's config.
+      location.href = '/';
+      return;
+    }
+    draft = {
+      id: session.id,
+      surah: session.surah,
+      from: session.ayahStart,
+      to: session.ayahEnd,
+      reciterKey: session.reciter,
+      translation: session.translation || 'en.sahih',
+      theme: session.theme,
+      themeLabel: session.themeName,
+    };
+    if (!draft.surah || !draft.from || !draft.to || !draft.reciterKey){
+      // Incomplete draft (skipped straight here without finishing new_video.html) -- go finish it there.
+      location.href = `/new_video.html?sessionId=${encodeURIComponent(sessionId)}`;
+      return;
+    }
+
     try {
       ayahs = await buildAyahSkeleton();
     } catch (e) {
