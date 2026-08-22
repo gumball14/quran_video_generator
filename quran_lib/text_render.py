@@ -258,7 +258,8 @@ def _draw_line_cap(target, x, y, direction, cap, size, color):
 
 
 def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px,
-                       line_width_px=0, line_cap_style="dot", line_cap_size_px=0, line_color=None):
+                       line_width_px=0, line_cap_style="dot", line_cap_size_px=0, line_color=None,
+                       line_half_len=None):
     """Draws the badge outline/fill onto `img`, returning the (possibly new)
     (img, draw) pair to keep using -- a new Image is only created when alpha
     blending (a translucent fill) requires compositing.
@@ -268,16 +269,21 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
     badge_style shape so the shape's own fill covers the line's middle,
     leaving it visible only where it pokes out past the border on each
     side. This works with every badge_style, including "none" (a bare line
-    with no shape around it)."""
+    with no shape around it). line_half_len is the line's horizontal reach
+    on EACH side of center, in px -- pass it explicitly (see badge_line_length
+    in render_verse_frame) so the accent's length matches the editor's
+    "Line width" slider; falls back to a fixed proportion of the badge for
+    any caller that doesn't supply one."""
     kind, data = _badge_shape(style, cx, cy, half)
     if kind == "none" and line_width_px <= 0:
         return img, draw
+    if line_half_len is None:
+        line_half_len = half * 2.6
 
     if kind == "none":
         # No shape at all -- just the line accent, drawn straight onto the
         # base draw context (no translucent fill to composite here).
         lc = line_color if line_color is not None else (border_rgb if border_rgb is not None else (255, 255, 255))
-        line_half_len = half * 2.6
         draw.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=lc, width=line_width_px)
         _draw_line_cap(draw, cx - line_half_len, cy, -1, line_cap_style, line_cap_size_px, lc)
         _draw_line_cap(draw, cx + line_half_len, cy, 1, line_cap_style, line_cap_size_px, lc)
@@ -293,7 +299,6 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
 
     if line_width_px > 0:
         lc = line_color if line_color is not None else (border_rgb if border_rgb is not None else (255, 255, 255))
-        line_half_len = half * 2.6
         target.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=lc, width=line_width_px)
         _draw_line_cap(target, cx - line_half_len, cy, -1, line_cap_style, line_cap_size_px, lc)
         _draw_line_cap(target, cx + line_half_len, cy, 1, line_cap_style, line_cap_size_px, lc)
@@ -321,7 +326,6 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
         # with a dot/arrowhead/diamond marker.
         line_color = border_rgb if border_rgb is not None else (255, 255, 255)
         line_width = border_width_px if border_width_px > 0 else max(1, round(half * 0.12))
-        line_half_len = half * 2.6
         cap_size = max(line_width * 1.7, half * 0.16)
         target.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=line_color, width=line_width)
         _draw_line_cap(target, cx - line_half_len, cy, -1, data["cap"], cap_size, line_color)
@@ -542,16 +546,24 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
         line_width_px = 0
         line_cap_style = THEME.get("badge_line_style", "dot")
         line_cap_size_px = 0
+        line_half_len_px = None
         line_color = tuple(THEME.get("badge_border_color", THEME["badge_color"]))
         if THEME.get("badge_line_enabled", False):
             line_width_val = THEME.get("badge_line_width", 0.15)
             line_width_px = max(1, round(box_size * 0.14 * line_width_val))
             cap_size_val = THEME.get("badge_line_cap_size", 0.30)
             line_cap_size_px = max(line_width_px * 1.3, half * 0.5 * cap_size_val)
+            # badge_line_length is the TOTAL span of both pokes, as a % of the
+            # frame width `w` (matches the editor's "Line width" slider, where
+            # 100 stretches the line edge to edge) -- line_half_len is each
+            # side's reach, so divide by 200 rather than 100.
+            line_length_val = THEME.get("badge_line_length", 10)
+            line_half_len_px = w * (line_length_val / 200.0)
 
         img, draw = _draw_badge_shape(img, draw, style, badge_cx, badge_cy, half,
                                        fill_rgba, border_color, border_width_px,
-                                       line_width_px, line_cap_style, line_cap_size_px, line_color)
+                                       line_width_px, line_cap_style, line_cap_size_px, line_color,
+                                       line_half_len_px)
 
         # Plain digits are drawn left-to-right with no direction/language kwargs
         # (unlike the Arabic verse/header text above) so the bbox-based centering

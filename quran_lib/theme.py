@@ -70,7 +70,9 @@ DEFAULT_THEME = {
                                        # every badge_style (including "none") and always uses badge_border_color
                                        # -- there's no separate line color.
     "badge_line_style": "dot",        # "dot" | "arrow" | "diamond" -- shape of the marker at each end of the line
-    "badge_line_width": 0.15,         # 0-1, same slider scale as badge_border_width
+    "badge_line_width": 0.15,         # 0-1, same slider scale as badge_border_width -- this is the line's THICKNESS (stroke weight)
+    "badge_line_length": 10,          # 0-100 (%), the line's horizontal LENGTH: total span of both pokes combined, as a
+                                       # percentage of the frame width -- 100 stretches the line edge to edge
     "badge_line_cap_size": 0.30,      # 0-1, size of each end marker relative to the badge
 
     "background_image": None,          # file path OR "data:image/...;base64,..." (from the HTML editor export)
