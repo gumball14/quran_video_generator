@@ -208,6 +208,7 @@ def api_preview_frame():
         basmala_arabic=verse_data.get("basmala_arabic"),
     )
     surah_name_arabic = verse_data.get("surah_name_arabic") or ""
+    surah_name_text = verse_data.get("surah_name_text") or ""
 
     job_id = uuid.uuid4().hex[:10]
     theme_path = JOBS_DIR / f"preview_{job_id}.json"
@@ -217,7 +218,7 @@ def api_preview_frame():
             load_theme(theme_path)
             image, _word_boxes = render_verse_frame(
                 verse, surah_name_arabic, size, show_translation,
-                highlight_index, pointer_pos,
+                highlight_index, pointer_pos, surah_name_text=surah_name_text,
             )
             buf = BytesIO()
             image.save(buf, format="PNG")
@@ -572,6 +573,15 @@ if __name__ == "__main__":
     # environment if you'd rather restrict it to this machine only.
     host = os.environ.get("HOST", "0.0.0.0")
 
+    # DEV=1 turns on Werkzeug's file-watcher/reloader, so editing app.py or
+    # quran_lib/*.py auto-restarts the process -- no more manually killing
+    # and relaunching after every change. This is *not* the same as Flask's
+    # debug=True: that also turns on the interactive in-browser debugger,
+    # which lets anyone who can reach this server (including other devices
+    # on the same Wi-Fi, since host defaults to 0.0.0.0) run arbitrary code.
+    # We only want the reload behavior, so debug stays False either way.
+    dev_mode = os.environ.get("DEV") == "1"
+
     print(f"\nAyah Frame Studio is running:")
     print(f"  On this computer -> http://127.0.0.1:{port}")
     if host == "0.0.0.0":
@@ -580,6 +590,8 @@ if __name__ == "__main__":
             print(f"  On your phone/other devices (same Wi-Fi) -> http://{lan_ip}:{port}")
         else:
             print("  On your phone/other devices (same Wi-Fi) -> http://<this-computer's-LAN-IP>:%d" % port)
+    if dev_mode:
+        print("  Auto-reload is ON (DEV=1) -- code changes restart the server automatically.")
     print()
 
-    app.run(host=host, port=port, debug=False, threaded=True)
+    app.run(host=host, port=port, debug=False, use_reloader=dev_mode, threaded=True)
