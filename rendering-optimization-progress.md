@@ -11,9 +11,10 @@ independently.
 - [x] Phase 1 — per-ayah layout caching (`text_render.py` split into
       `build_ayah_layout` + `draw_dynamic_layer`, font/gradient caching)
 - [x] Phase 2 — skip PNG disk round-trip (numpy array straight into `ImageClip`)
-- [ ] Phase 3 — per-ayah `concatenate_videoclips` + native crossfade instead of
-      one flat `CompositeVideoClip`
-- [ ] Phase 5 — encoding tuning (`preset`, `threads`)
+- [x] Phase 3 — per-ayah `concatenate_videoclips` instead of one flat
+      `CompositeVideoClip` over every word-level clip (see deviation note below
+      — did NOT use native negative-padding crossfade at the top level)
+- [x] Phase 5 — encoding tuning (`preset`, `threads`)
 
 ## Verification approach
 
@@ -55,6 +56,38 @@ ayahs — good fast smoke test) from repo root.
   untouched).
 - Added `numpy` to `requirements.txt` (was only an indirect moviepy/Pillow
   dependency before; now imported directly in `video_build.py`).
+- **Phase 3 deviation (important — read before touching this again)**: the
+  plan's literal Phase 3 (`concatenate_videoclips(ayah_clips, padding=-fade_duration,
+  method="compose")` at the top level, with `vfx.CrossFadeOut`/`CrossFadeIn`
+  between ayah clips) would desync audio from video. That native pattern
+  shifts each subsequent clip's *start time* earlier by `fade_duration` to
+  create the crossfade — fine if audio travels with the clip, but this app's
+  audio is deliberately a hard cut at each ayah boundary
+  (`a_clip.with_start(scene_origin)`, no overlap) while only the *video*
+  crossfades over it. Shifting the video's start earlier without shifting
+  its paired audio would misalign video against audio by a full
+  `fade_duration` for the entire body of every ayah after the first
+  (compounding each transition) — not just a glitch at the boundary.
+  Implemented instead: concatenate each ayah's own sub-clips into one clip
+  via `concatenate_videoclips(sub_clips, method="chain")` (cheap, no
+  compositing needed — they're already sequential), then reproduced the
+  *existing* manual-overlap trick (widen the scene's first sub-clip by
+  `fade_duration` before concatenating, position the whole ayah clip at
+  `scene_origin - overlap`, apply `vfx.CrossFadeIn` once per ayah clip)
+  at ayah granularity instead of per-word-clip granularity. This still cuts
+  the top-level `CompositeVideoClip`'s clip count from thousands (all words
+  across the whole video) down to `len(verses)` — which is what actually
+  drives Phase 3's O(clips × frames) compositing cost — while keeping
+  audio/video sync and the crossfade visual behavior byte-for-byte identical
+  to before. Verified: total video duration matched the pre-Phase-3 run to
+  the microsecond (10.663991s on the same test surah), and a boundary-frame
+  screenshot showed the expected two-frame dissolve.
+- Also tested the manual-timing-manifest path (`--timing jobs/050240296c/timing.json
+  --surah 1`, which has per-word `highlight_words` sub-timings) end-to-end —
+  renders correctly, 47s output, frame-checked visually.
+- Phase 5: asked the user for the preset tradeoff (veryfast / faster / skip);
+  chose **faster** (`threads=os.cpu_count()`) as a middle ground between
+  encode speed and file size.
 
 ## Deferred (not implemented in this pass)
 

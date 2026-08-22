@@ -2,6 +2,7 @@
 Video assembly: turns fetched verses + downloaded audio into the final
 .mp4, including the optional per-word highlight/pointer animation.
 """
+import os
 import sys
 
 import numpy as np
@@ -12,6 +13,7 @@ try:
         AudioFileClip,
         CompositeVideoClip,
         CompositeAudioClip,
+        concatenate_videoclips,
         vfx,
     )
 except ImportError:
@@ -26,19 +28,19 @@ from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_lay
 from .timing import get_ayah_frames
 
 
-def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
-                                 duration, cursor, fade_duration, verse_number_for_filenames, overlap=0.0):
+def _add_word_highlighted_scene(render_verse, surah_name_arabic, surah_name_text, size, show_translation, duration):
     """Renders one scene as a sequence of short ImageClips, switching the
     highlighted word (and, if enabled, gliding the pointer to it) evenly
     across the scene's REAL audio duration -- not the editor's simulated
     preview pace, which only exists because the browser has no audio to
-    time against. Appends the clips to `clips` and returns the new cursor.
+    time against.
 
-    `overlap`: seconds the scene's first clip should start EARLY (and run
-    longer), so it overlaps the tail of the previous scene's still-visible
-    clip instead of fading in over the compositor's black background. Only
-    the first clip (k == 0) is widened -- the returned cursor position is
-    unaffected, so all later word timings stay exactly where they were."""
+    Returns (sub_clips, duration): sub_clips is an ordered list of clips
+    with no absolute position set (just durations) that sum to exactly
+    `duration` seconds -- the caller (build_video) concatenates them into
+    one per-ayah clip and positions/crossfades that as a whole, instead of
+    every word-level clip being placed individually into the top-level
+    composite."""
     THEME = theme_mod.THEME
     words = [wd for wd in render_verse.arabic.split(" ") if wd]
     n = max(1, len(words))
@@ -55,35 +57,29 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_na
     glide_steps = 5   # sub-frames used to animate the pointer between two words
     hold_frac = 0.5   # fraction of a word's duration the pointer rests before gliding on
 
-    def emit(highlight_idx, pointer_pos, dur, t, k):
-        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, pointer_pos)
-        start = t - overlap if k == 0 else t
-        real_dur = dur + overlap if k == 0 else dur
-        clip = ImageClip(np.array(frame_img)).with_duration(real_dur).with_start(start)
-        if k == 0:
-            clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
-        clips.append(clip)
-        return t + dur
+    sub_clips = []
 
-    t = cursor
-    end_time = cursor + duration
-    k = 0
+    def emit(highlight_idx, pointer_pos, dur):
+        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, pointer_pos)
+        sub_clips.append(ImageClip(np.array(frame_img)).with_duration(dur))
+
+    t = 0.0
     for idx in range(n):
         is_last = idx == n - 1
-        seg_dur = (end_time - t) if is_last else word_dur
+        seg_dur = (duration - t) if is_last else word_dur
         if seg_dur <= 0:
             continue
         cur_box = word_boxes[idx]
         next_box = word_boxes[idx + 1] if idx + 1 < n else cur_box
 
         if not pointer_on:
-            t = emit(idx, None, seg_dur, t, k)
-            k += 1
+            emit(idx, None, seg_dur)
+            t += seg_dur
             continue
 
         hold_dur = seg_dur * hold_frac
-        t = emit(idx, {"x": cur_box["cx"], "top": cur_box["top"], "font_size": cur_box["font_size"]}, hold_dur, t, k)
-        k += 1
+        emit(idx, {"x": cur_box["cx"], "top": cur_box["top"], "font_size": cur_box["font_size"]}, hold_dur)
+        t += hold_dur
 
         glide_dur = (seg_dur - hold_dur) / glide_steps
         for step in range(1, glide_steps + 1):
@@ -94,43 +90,33 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_na
                 "top": cur_box["top"] + (next_box["top"] - cur_box["top"]) * ease,
                 "font_size": cur_box["font_size"] + (next_box["font_size"] - cur_box["font_size"]) * ease,
             }
-            t = emit(idx, pointer_pos, glide_dur, t, k)
-            k += 1
+            emit(idx, pointer_pos, glide_dur)
+            t += glide_dur
 
-    return end_time
+    return sub_clips, duration
 
 
-def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, size, show_translation,
-                             fallback_translation, cursor, fade_duration, verse_number_for_filenames, overlap=0.0):
+def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, show_translation,
+                             fallback_translation, verse_number_for_filenames):
     """Renders one scene from an explicit list of timing-manifest frames
     (see quran_lib/timing.py) instead of the automatic wps pacing. Each
     frame gets its own text and, optionally, its own per-word highlight
-    sub-timings. Appends clips to `clips` and returns the new cursor,
-    exactly like _add_word_highlighted_scene(). Frames don't have to
-    start at the audio's local time 0 or run to its end (e.g. you might
-    only mark the middle of a long ayah) -- the caller is responsible for
-    trimming the *audio* clip to match (frames[0]["start"] .. frames[-1]["end"]),
-    since this function only ever produces the video side of the scene.
+    sub-timings. Frames don't have to start at the audio's local time 0 or
+    run to its end (e.g. you might only mark the middle of a long ayah) --
+    the caller is responsible for trimming the *audio* clip to match
+    (frames[0]["start"] .. frames[-1]["end"]), since this function only
+    ever produces the video side of the scene.
 
-    `overlap`: see _add_word_highlighted_scene() -- same idea, widens only
-    the first clip (k == 0) so it crossfades against the previous scene
-    instead of the compositor's black background."""
-    k = 0
+    Returns (sub_clips, duration), exactly like _add_word_highlighted_scene()
+    -- duration is frames[-1]["end"] - frames[0]["start"]."""
+    sub_clips = []
 
-    def emit(base_img, layout, highlight_idx, dur, t):
-        nonlocal k
+    def emit(base_img, layout, highlight_idx, dur):
         frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, None)
-        start = t - overlap if k == 0 else t
-        real_dur = dur + overlap if k == 0 else dur
-        clip = ImageClip(np.array(frame_img)).with_duration(real_dur).with_start(start)
-        if k == 0:
-            clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
-        clips.append(clip)
-        k += 1
-        return t + dur
+        sub_clips.append(ImageClip(np.array(frame_img)).with_duration(dur))
 
     scene_start = frames[0]["start"]
-    t = cursor
+    t = 0.0
     for frame in frames:
         render_verse = Verse(
             number=verse_number_for_filenames,
@@ -143,32 +129,37 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
         # per emitted sub-clip.
         base_img, layout = build_ayah_layout(render_verse, surah_name_arabic, size, show_translation,
                                               surah_name_text=surah_name_text)
-        frame_start_t = cursor + (frame["start"] - scene_start)
-        frame_end_t = cursor + (frame["end"] - scene_start)
+        frame_start_t = frame["start"] - scene_start
+        frame_end_t = frame["end"] - scene_start
         word_timings = sorted(frame.get("highlight_words", []), key=lambda w: w["start"])
 
         if not word_timings:
-            t = emit(base_img, layout, -1, frame_end_t - frame_start_t, frame_start_t)
+            emit(base_img, layout, -1, frame_end_t - frame_start_t)
+            t = frame_end_t
             continue
 
         # gap before the first highlighted word (if any) shows with no highlight
         if word_timings[0]["start"] > frame["start"]:
-            gap = (frame_start_t + (word_timings[0]["start"] - frame["start"])) - frame_start_t
-            t = emit(base_img, layout, -1, gap, frame_start_t)
+            gap_end_t = frame_start_t + (word_timings[0]["start"] - frame["start"])
+            emit(base_img, layout, -1, gap_end_t - frame_start_t)
+            t = gap_end_t
         else:
             t = frame_start_t
 
-        for i, wt in enumerate(word_timings):
-            seg_start_t = cursor + (wt["start"] - scene_start)
-            seg_end_t = cursor + (wt["end"] - scene_start)
+        for wt in word_timings:
+            seg_start_t = wt["start"] - scene_start
+            seg_end_t = wt["end"] - scene_start
             if seg_start_t > t:  # gap between two highlighted words -- show unhighlighted
-                t = emit(base_img, layout, -1, seg_start_t - t, t)
-            t = emit(base_img, layout, wt["index"], seg_end_t - t, t)
+                emit(base_img, layout, -1, seg_start_t - t)
+                t = seg_start_t
+            emit(base_img, layout, wt["index"], seg_end_t - t)
+            t = seg_end_t
 
         if t < frame_end_t:  # trailing gap after the last highlighted word
-            t = emit(base_img, layout, -1, frame_end_t - t, t)
+            emit(base_img, layout, -1, frame_end_t - t)
+            t = frame_end_t
 
-    return t
+    return sub_clips, t
 
 
 def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, output_path,
@@ -210,9 +201,9 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                 manual_start, manual_end = manual_frames[0]["start"], manual_frames[-1]["end"]
                 print(f"  {label}: rendering {len(manual_frames)} manually-timed frame(s) "
                       f"(using {manual_start:.1f}s-{manual_end:.1f}s of {duration:.1f}s audio)…")
-                cursor = _add_manual_frame_scene(
-                    clips, manual_frames, surah_name_arabic, surah_name_text, size, show_translation,
-                    render_verse.translation, cursor, fade_duration, verse.number, overlap,
+                sub_clips, scene_duration = _add_manual_frame_scene(
+                    manual_frames, surah_name_arabic, surah_name_text, size, show_translation,
+                    render_verse.translation, verse.number,
                 )
                 # only the marked window of audio plays -- anything before the first frame
                 # or after the last one (e.g. unmarked lead-in/trailing silence) is trimmed
@@ -224,26 +215,38 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                 )
             elif THEME["highlight_enabled"]:
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
-                cursor = _add_word_highlighted_scene(
-                    clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
-                    duration, cursor, fade_duration, verse.number, overlap,
+                sub_clips, scene_duration = _add_word_highlighted_scene(
+                    render_verse, surah_name_arabic, surah_name_text, size, show_translation, duration,
                 )
                 a_clip = AudioFileClip(str(scene_audio_path)).with_start(scene_origin)
             else:
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
                 frame, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
                                                surah_name_text=surah_name_text)
-
-                img_clip = (
-                    ImageClip(np.array(frame))
-                    .with_duration(duration + overlap)
-                    .with_start(cursor - overlap)
-                    .with_effects([vfx.CrossFadeIn(fade_duration)])
-                )
-                clips.append(img_clip)
-                cursor += duration
+                sub_clips = [ImageClip(np.array(frame)).with_duration(duration)]
+                scene_duration = duration
                 a_clip = AudioFileClip(str(scene_audio_path)).with_start(scene_origin)
 
+            # Concatenate this ayah's own sub-clips into ONE clip (cheap --
+            # they're already sequential/non-overlapping) instead of handing
+            # every word-level clip to the top-level CompositeVideoClip, which
+            # otherwise has to check every one of them against every output
+            # frame's timestamp across the WHOLE video. Only `len(verses)`
+            # clips ever reach the top-level composite now.
+            if overlap > 0:
+                # widen just the scene's first sub-clip so it starts `overlap`
+                # seconds early and crossfades against the previous ayah's
+                # still-visible tail instead of fading in over black -- same
+                # trick as before, just applied once per ayah instead of once
+                # per word-level clip.
+                sub_clips[0] = sub_clips[0].with_duration(sub_clips[0].duration + overlap)
+            ayah_clip = concatenate_videoclips(sub_clips, method="chain") if len(sub_clips) > 1 else sub_clips[0]
+            ayah_clip = ayah_clip.with_start(scene_origin - overlap)
+            if overlap > 0:
+                ayah_clip = ayah_clip.with_effects([vfx.CrossFadeIn(fade_duration)])
+            clips.append(ayah_clip)
+
+            cursor = scene_origin + scene_duration
             audio_clips.append(a_clip)
 
     video = CompositeVideoClip(clips, size=size).with_duration(cursor)
@@ -253,5 +256,5 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
     OUTPUT_DIR.mkdir(exist_ok=True)
     video.write_videofile(
         str(output_path), fps=FPS, codec="libx264", audio_codec="aac",
-        preset="medium", threads=4,
+        preset="faster", threads=os.cpu_count() or 4,
     )
