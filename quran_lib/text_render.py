@@ -132,6 +132,75 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
         draw.ellipse([x - rad, cy - rad, x + rad, cy + rad], fill=(r, g, b))
 
 
+def _badge_shape(style, cx, cy, half):
+    """Returns (kind, data) describing the badge outline for `style`, centered
+    at (cx, cy) with half-width/height `half`. Mirrors the CSS shapes in
+    frame_editor.html (.fc-badge.style-*) so the exported frame matches the
+    editor's live preview.
+    kind is one of: "none", "ellipse", "ring", "rounded_rect", "polygon"."""
+    if style == "none":
+        return "none", None
+    if style == "circle":
+        return "ellipse", [cx - half, cy - half, cx + half, cy + half]
+    if style == "ring":
+        return "ring", [cx - half, cy - half, cx + half, cy + half]
+    if style == "square":
+        return "rounded_rect", ([cx - half, cy - half, cx + half, cy + half], half * 0.36)
+    if style == "diamond":
+        return "polygon", [(cx, cy - half), (cx + half, cy), (cx, cy + half), (cx - half, cy)]
+    if style == "hexagon":
+        pts_pct = [(0.5, 0), (1, 0.25), (1, 0.75), (0.5, 1), (0, 0.75), (0, 0.25)]
+        return "polygon", [(cx - half + px * half * 2, cy - half + py * half * 2) for px, py in pts_pct]
+    if style == "flower":
+        pts_pct = [
+            (0.5, 0), (0.61, 0.18), (0.82, 0.10), (0.79, 0.33), (1.0, 0.5),
+            (0.79, 0.67), (0.82, 0.90), (0.61, 0.82), (0.5, 1.0), (0.39, 0.82),
+            (0.18, 0.90), (0.21, 0.67), (0.0, 0.5), (0.21, 0.33), (0.18, 0.10), (0.39, 0.18),
+        ]
+        return "polygon", [(cx - half + px * half * 2, cy - half + py * half * 2) for px, py in pts_pct]
+    # "ornament" (default) and any unrecognized style: soft rounded rect
+    return "rounded_rect", ([cx - half, cy - half, cx + half, cy + half], half * 0.6)
+
+
+def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px):
+    """Draws the badge outline/fill onto `img`, returning the (possibly new)
+    (img, draw) pair to keep using -- a new Image is only created when alpha
+    blending (a translucent fill) requires compositing."""
+    kind, data = _badge_shape(style, cx, cy, half)
+    if kind == "none":
+        return img, draw
+
+    needs_overlay = fill_rgba is not None and fill_rgba[3] < 255
+    if needs_overlay:
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        target = ImageDraw.Draw(overlay)
+    else:
+        target = draw
+    fill_solid = fill_rgba[:3] if (fill_rgba is not None and not needs_overlay) else None
+
+    if kind == "ellipse":
+        target.ellipse(data, fill=(fill_rgba if needs_overlay else fill_solid),
+                        outline=border_rgb, width=border_width_px)
+    elif kind == "ring":
+        offset = border_width_px * 2
+        outer = [data[0] - offset, data[1] - offset, data[2] + offset, data[3] + offset]
+        if fill_rgba is not None:
+            target.ellipse(data, fill=(fill_rgba if needs_overlay else fill_solid))
+        target.ellipse(outer, outline=border_rgb, width=border_width_px)
+    elif kind == "rounded_rect":
+        rect, radius = data
+        target.rounded_rectangle(rect, radius=radius, fill=(fill_rgba if needs_overlay else fill_solid),
+                                  outline=border_rgb, width=border_width_px)
+    elif kind == "polygon":
+        target.polygon(data, fill=(fill_rgba if needs_overlay else fill_solid),
+                        outline=border_rgb, width=border_width_px)
+
+    if needs_overlay:
+        img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+        draw = ImageDraw.Draw(img)
+    return img, draw
+
+
 def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translation=True,
                         highlight_index=-1, pointer_pos=None, surah_name_text=None):
     """Renders one frame. Returns (PIL.Image, word_boxes) where word_boxes is
@@ -285,12 +354,39 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     badge_cx = arabic_col_left + arabic_col_width / 2
     badge_y = start_y + total_arabic_h + h * 0.015
     if THEME["show_badge"] and verse.number > 0:
-        badge_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["badge_size_frac"]))
+        badge_font_size = int(h * THEME["badge_size_frac"])
+        badge_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), badge_font_size)
         badge_display, badge_kwargs = arabic_draw_args(f"\u06dd{verse.number}")  # Arabic ayah-end symbol + number
         bb = draw.textbbox((0, 0), badge_display, font=badge_font, **badge_kwargs)
-        draw.text((badge_cx - (bb[2] - bb[0]) / 2, badge_y), badge_display, font=badge_font,
-                   fill=tuple(THEME["badge_color"]), **badge_kwargs)
-    badge_bottom = badge_y + h * THEME["badge_size_frac"] * 1.8 if (THEME["show_badge"] and verse.number > 0) else badge_y
+        text_w = bb[2] - bb[0]
+        text_h = bb[3] - bb[1]
+
+        # Badge box: big enough for the glyph (with padding) or a sane minimum,
+        # whichever is larger -- so 2-3 digit ayah numbers still fit inside
+        # circle/diamond/etc shapes instead of overflowing them.
+        pad = badge_font_size * 0.7
+        box_size = max(badge_font_size * 1.9, text_w + pad, text_h + pad)
+        half = box_size / 2
+        badge_cy = badge_y + badge_font_size * 0.62
+
+        style = THEME.get("badge_style", "ornament")
+        border_width_val = THEME.get("badge_border_width", 0.15)
+        border_width_px = max(1, round(box_size * 0.14 * border_width_val)) if border_width_val > 0 else 0
+        border_color = tuple(THEME.get("badge_border_color", THEME["badge_color"])) if border_width_px > 0 else None
+        fill_rgba = None
+        if THEME.get("badge_fill_enabled", False):
+            fr, fg, fb = THEME.get("badge_fill_color", THEME["badge_color"])
+            alpha = int(255 * THEME.get("badge_fill_opacity", 0.14))
+            fill_rgba = (fr, fg, fb, alpha)
+
+        img, draw = _draw_badge_shape(img, draw, style, badge_cx, badge_cy, half,
+                                       fill_rgba, border_color, border_width_px)
+
+        draw.text((badge_cx - text_w / 2 - bb[0], badge_cy - text_h / 2 - bb[1]), badge_display,
+                   font=badge_font, fill=tuple(THEME["badge_color"]), **badge_kwargs)
+        badge_bottom = badge_cy + half
+    else:
+        badge_bottom = badge_y
 
     # Translation -- position/column/alignment follow translation_position + text_align
     if show_translation and THEME["show_translation"]:

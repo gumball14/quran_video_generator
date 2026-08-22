@@ -572,7 +572,6 @@
       <div class="card">
         <div class="card-title">Border style</div>
         <div class="badge-style-grid" id="badgeStyleGrid"></div>
-        <div class="font-hint" style="margin:10px 0 0;">Border shapes are saved with the theme but aren't rendered by the video generator yet — the exported frame currently always draws a plain number.</div>
       </div>
 
       <div class="card">
@@ -899,8 +898,7 @@
     return s;
   }
 
-  // editor `state` -> theme.py's on-disk shape (only DEFAULT_THEME's real
-  // keys, plus the harmless-if-ignored `badge_style` for round-tripping).
+  // editor `state` -> theme.py's on-disk shape (mirrors DEFAULT_THEME's keys).
   function stateToTheme(s){
     const ts = s.textStyle;
     const arabicMax = ts.arabic.size / 100;
@@ -929,6 +927,11 @@
       highlight_pointer_enabled: s.highlight.pointer, highlight_pointer_style: s.highlight.pointerStyle,
       highlight_pointer_gap_mult: s.highlight.pointerGap,
       badge_style: s.badgeStyle,
+      badge_border_color: hexToRgb(ts.badge.borderColor),
+      badge_border_width: ts.badge.borderWidth,
+      badge_fill_enabled: ts.badge.fillEnabled,
+      badge_fill_color: hexToRgb(ts.badge.fillColor),
+      badge_fill_opacity: ts.badge.fillOpacity,
     };
   }
 

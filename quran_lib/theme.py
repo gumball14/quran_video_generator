@@ -56,6 +56,12 @@ DEFAULT_THEME = {
     "show_badge": True,
     "show_translation": True,
     "badge_size_frac": 0.022,
+    "badge_style": "ornament",        # "ornament" | "circle" | "hexagon" | "diamond" | "square" | "ring" | "flower" | "none"
+    "badge_border_color": list(WHITE),
+    "badge_border_width": 0.15,       # 0-1, same slider scale as the editor
+    "badge_fill_enabled": True,
+    "badge_fill_color": list(WHITE),
+    "badge_fill_opacity": 0.14,
 
     "background_image": None,          # file path OR "data:image/...;base64,..." (from the HTML editor export)
     "background_video": None,          # not yet implemented -- falls back to gradient, see load_theme()
