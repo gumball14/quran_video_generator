@@ -34,10 +34,12 @@ STATIC_DIR = HERE / "static"
 OUTPUT_DIR = HERE / "output"          # matches quran_video.py's own default
 JOBS_DIR = HERE / "jobs"              # per-job temp files (e.g. uploaded theme.json)
 THEMES_DIR = HERE / "themes"          # user-saved custom themes, one JSON file per theme
+PROJECTS_DIR = HERE / "projects"      # full generation configs, kept so a video can be regenerated with a different theme
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(exist_ok=True)
 THEMES_DIR.mkdir(exist_ok=True)
+PROJECTS_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 
@@ -71,6 +73,19 @@ THEME_LOCK = threading.Lock()
 
 TOTAL_VERSES_RE = re.compile(r"—\s*(\d+)\s*verse")
 FRAME_RE = re.compile(r"rendering frame")
+PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def _load_project(project_id):
+    if not PROJECT_ID_RE.match(project_id or ""):
+        return None
+    path = PROJECTS_DIR / f"{project_id}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 # --------------------------------------------------------------------------
@@ -324,32 +339,67 @@ def api_delete_theme(theme_id):
 def api_generate():
     data = request.get_json(force=True, silent=True) or {}
 
+    # A request can reuse a previously-saved project's config (surah, ayah
+    # range, reciter, translation, timing manifest, ...) by passing
+    # `projectId` and only overriding the fields it wants to change -- this
+    # is how "regenerate this video with a different theme" works, without
+    # making the caller resend the whole timing manifest.
+    project_id = data.get("projectId")
+    stored_project = None
+    if project_id:
+        stored_project = _load_project(project_id)
+        if stored_project is None:
+            return jsonify({"error": "That project could no longer be found."}), 404
+
+    def field(key, default=None):
+        if key in data and data[key] not in (None, ""):
+            return data[key]
+        if stored_project is not None and key in stored_project:
+            return stored_project[key]
+        return default
+
     try:
-        surah = int(data.get("surah"))
+        surah = int(field("surah"))
     except (TypeError, ValueError):
         return jsonify({"error": "Please choose a surah."}), 400
     if not (1 <= surah <= 114):
         return jsonify({"error": "Surah must be between 1 and 114."}), 400
 
-    reciter = data.get("reciter", "yasser_al_dossary")
+    reciter = field("reciter", "yasser_al_dossary")
     if reciter not in RECITERS:
         return jsonify({"error": "Unknown reciter."}), 400
 
-    orientation = data.get("orientation", "vertical")
+    orientation = field("orientation", "vertical")
     if orientation not in ("vertical", "horizontal"):
         return jsonify({"error": "Orientation must be vertical or horizontal."}), 400
 
-    translation = (data.get("translation") or "en.sahih").strip()
+    translation = (field("translation") or "en.sahih").strip()
     if not re.match(r"^[a-zA-Z0-9_.\-]+$", translation):
         return jsonify({"error": "That translation edition code doesn't look valid."}), 400
 
-    ayah_start = data.get("ayahStart")
-    ayah_end = data.get("ayahEnd")
-    no_translation = bool(data.get("noTranslation"))
-    no_split_basmala = bool(data.get("noSplitBasmala"))
-    theme = data.get("theme")  # dict or None, as exported by the Ayah Frame Studio editor
-    timing = data.get("timing")  # dict or None, a timing manifest (see quran_lib/timing.py)
-    theme_name = data.get("themeName")  # display label only, for the library list
+    ayah_start = field("ayahStart")
+    ayah_end = field("ayahEnd")
+    no_translation = bool(field("noTranslation"))
+    no_split_basmala = bool(field("noSplitBasmala"))
+    theme = field("theme")  # dict or None, as exported by the Ayah Frame Studio editor
+    timing = field("timing")  # dict or None, a timing manifest (see quran_lib/timing.py)
+    theme_name = field("themeName")  # display label only, for the library list
+
+    if not project_id:
+        project_id = uuid.uuid4().hex[:10]
+    PROJECTS_DIR.joinpath(f"{project_id}.json").write_text(json.dumps({
+        "surah": surah,
+        "ayahStart": ayah_start,
+        "ayahEnd": ayah_end,
+        "reciter": reciter,
+        "orientation": orientation,
+        "translation": translation,
+        "noTranslation": no_translation,
+        "noSplitBasmala": no_split_basmala,
+        "theme": theme,
+        "themeName": theme_name,
+        "timing": timing,
+    }), encoding="utf-8")
 
     job_id = uuid.uuid4().hex[:10]
     job_dir = JOBS_DIR / job_id
@@ -404,6 +454,7 @@ def api_generate():
                 "ayahEnd": int(ayah_end) if ayah_end not in (None, "") else None,
                 "reciter": reciter,
                 "themeName": theme_name,
+                "projectId": project_id,
             },
         }
 
@@ -530,6 +581,7 @@ def api_videos():
             "themeName": meta.get("themeName"),
             "duration": duration,
             "createdAt": meta.get("createdAt"),
+            "projectId": meta.get("projectId"),
         })
     videos.sort(key=lambda v: v["createdAt"] or 0, reverse=True)
     return jsonify(videos)

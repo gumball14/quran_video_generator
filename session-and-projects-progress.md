@@ -1,6 +1,7 @@
 # Session persistence + regenerable projects — implementation progress
 
-**Status: not started.**
+**Status: Phases 1-3 done.** Phase 4 (richer project-aware UI) intentionally
+deferred, not requested.
 
 Goal (from user request):
 1. Client-side "session" state so navigating between `new_video.html` ->
@@ -19,22 +20,20 @@ Goal (from user request):
     `frame_editor.html` where relevant) reads on load and writes on every
     relevant change, so back/forward navigation preserves state.
   - Keep it scoped to in-progress-draft only (not finished videos).
-- [ ] Phase 2 — Persist full generation config as a "project"
+- [x] Phase 2 — Persist full generation config as a "project"
   - When `/api/generate` runs, write the full config (surah, ayah range,
     reciter, translation, orientation, flags, theme dict, timing manifest) to
     a permanent `projects/<project_id>.json`, not just job-scratch.
   - Link each generated video's sidecar to its `projectId`.
-- [ ] Phase 3 — "Regenerate with different theme" flow
-  - Library UI: action on a video/project to relaunch generation reusing the
-    stored project config but with a different theme (existing saved theme or
-    the frame editor).
-  - Backend: `/api/projects/<id>/regenerate` (or extend `/api/generate` to
-    accept `projectId` + override `theme`) that loads the stored config and
-    reruns `quran_video.py`.
-- [ ] Phase 4 — Library UI updates
-  - `index.html` video library grouped/aware of projects; show "regenerate"
-    action; make sure deleting a video doesn't delete the project config it
-    came from (so it can still be reused).
+- [x] Phase 3 — "Regenerate with different theme" flow
+  - Library UI: action on a video to relaunch generation reusing the stored
+    project config but with a different theme (existing preset/saved theme).
+  - Backend: extended `/api/generate` to accept `projectId` + override
+    `theme`/`themeName`; other fields fall back to the stored project config.
+- [ ] Phase 4 (deferred, not requested yet) — richer project-aware library UI
+  (e.g. grouping multiple videos under one project, picking a *new* custom
+  theme via the frame editor from the regenerate flow instead of only
+  existing presets/saved themes).
 
 ## Notes / decisions log
 
@@ -60,3 +59,48 @@ Goal (from user request):
   - Verified with a Node syntax check of the extracted inline `<script>`
     block (no headless browser available in this environment); did not do a
     live click-through in a real browser.
+
+- Phase 2/3 (`app.py`): added `PROJECTS_DIR = HERE / "projects"` and
+  `_load_project(project_id)`. `/api/generate` now accepts an optional
+  `projectId`; a `field(key, default)` helper resolves each config value as
+  request-value-if-explicitly-given, else stored-project-value, else
+  default, so a regenerate call only needs to send
+  `{projectId, theme, themeName}` and everything else (surah, ayah range,
+  reciter, translation, orientation, flags, timing manifest) comes from the
+  saved project. The merged/effective config is written back to
+  `projects/<project_id>.json` on every generate call (fresh or regenerate),
+  and `project_id` flows into the job's `meta` dict -> the video sidecar
+  (`_write_video_sidecar` already copies `meta` wholesale) -> `/api/videos`
+  response as `projectId`.
+  - New project IDs are generated separately from job IDs (`uuid4().hex[:10]`,
+    same shape) since one project config is meant to produce many videos
+    over time (one per regenerate-with-different-theme call).
+  - Deleting a video (`DELETE /api/videos/<id>`) intentionally does **not**
+    touch `projects/`, so a project stays regenerate-able even after its
+    original video is deleted. Nothing currently deletes project files —
+    acceptable for now (small JSON files), revisit if `projects/` growth
+    becomes a real concern.
+  - Verified with a scripted Flask `test_client` run (`threading.Thread`
+    monkey-patched to a no-op so no real `quran_video.py` subprocess/network
+    calls happen): a fresh generate call creates `projects/<id>.json` with
+    the full config; a follow-up call passing only `{projectId, theme,
+    themeName}` correctly reused the stored surah/ayah range/reciter and
+    only changed the theme; `/api/videos` correctly surfaces `projectId`
+    from a sidecar.
+  - `index.html`: added a "regenerate" icon button on each video row (only
+    shown when `v.projectId` is present — older videos generated before this
+    change won't have one and simply don't get the button), which opens a
+    theme-picker bottom sheet (reusing the same preset+saved-theme listing
+    and swatch styling as `new_video.html`'s theme cards, just as
+    `sheet-row`s instead of a card grid) and, on selection, POSTs to
+    `/api/generate` with `{projectId, theme, themeName}` and polls
+    `/api/status/<jobId>` with the same overlay pattern already used in
+    `timing.html`. On completion it refreshes the video list in place rather
+    than redirecting.
+  - Scope decision: regenerate only lets you pick from existing presets/saved
+    themes (not create a brand new custom theme via the frame editor
+    mid-flow) — matches what the user asked for ("regenerate using different
+    theme") without scope-creeping into a cross-page editor handoff. Noted
+    as Phase 4 if wanted later.
+  - Verified with a Node syntax check of `index.html`'s inline script only
+    (no live browser click-through in this environment).
