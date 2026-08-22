@@ -4,6 +4,7 @@ and the layout math (column width, translation_position, text_align) that
 mirrors the HTML editor's canvas preview. render_verse_frame() is the one
 entry point everything else (video_build.py) calls.
 """
+import functools
 import math
 import sys
 
@@ -132,6 +133,28 @@ def wrap_latin_lines(text: str, font: ImageFont.FreeTypeFont, max_width: int):
     if current:
         lines.append(" ".join(current))
     return lines
+
+
+@functools.lru_cache(maxsize=64)
+def _cached_font(path_str: str, size: int) -> ImageFont.FreeTypeFont:
+    """ImageFont.truetype() re-parses the font file from disk on every call;
+    (path, size) pairs repeat constantly across frames/ayahs, so cache them."""
+    return ImageFont.truetype(path_str, size)
+
+
+@functools.lru_cache(maxsize=8)
+def _cached_background_image(spec: str):
+    """Wraps theme_mod.load_background_image() so the same background_image
+    spec doesn't get decoded from disk/base64 on every ayah."""
+    return theme_mod.load_background_image(spec)
+
+
+@functools.lru_cache(maxsize=8)
+def _cached_gradient(size, top_color, bottom_color) -> Image.Image:
+    """vertical_gradient() does a 1920-row Python pixel loop -- cache the
+    result per (size, colors) since it's the same for every ayah that shares
+    a theme. Callers must .copy() the result before drawing on it."""
+    return vertical_gradient(size, top_color, bottom_color).convert("RGB")
 
 
 def vertical_gradient(size, top_color, bottom_color):
@@ -339,12 +362,19 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
     return img, draw
 
 
-def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translation=True,
-                        highlight_index=-1, pointer_pos=None, surah_name_text=None):
-    """Renders one frame. Returns (PIL.Image, word_boxes) where word_boxes is
-    a list of {left, right, cx, top, font_size} dicts, one per Arabic word,
-    in reading order -- used by video_build.build_video() to time the
-    highlight/pointer against each word's on-screen position.
+def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translation=True, surah_name_text=None):
+    """Runs once per ayah: background, header, Arabic font-fitting/wrapping/
+    word measurement, badge, and translation. Returns (base_image, layout)
+    where base_image is a finished PIL.Image with everything EXCEPT the
+    Arabic word glyphs, highlight pill, and pointer (those depend on
+    highlight_index/pointer_pos, which change every frame), and layout is
+    {"arabic_font", "arabic_size", "word_boxes"} for draw_dynamic_layer().
+
+    word_boxes is a list of {left, right, cx, top, font_size, display, kwargs}
+    dicts, one per Arabic word, in reading order -- used both by
+    draw_dynamic_layer() (display/kwargs let it draw each word without
+    re-measuring) and by video_build.build_video() (left/right/cx/top/
+    font_size time the highlight/pointer against each word's position).
 
     surah_name_text is the surah's English/Latin name (e.g. "Al-Fatiha").
     Which of it or surah_name_arabic gets drawn as the header is controlled
@@ -356,7 +386,7 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     if THEME["background_style"] == "solid":
         img = Image.new("RGB", size, tuple(THEME["bg_solid"]))
     elif THEME["background_style"] == "image" and THEME.get("background_image"):
-        bg = theme_mod.load_background_image(THEME["background_image"])
+        bg = _cached_background_image(THEME["background_image"])
         if bg is not None:
             # cover-fit, centered -- matches the editor preview's canvas math
             scale = max(w / bg.width, h / bg.height)
@@ -367,9 +397,9 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
             img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
         else:
-            img = vertical_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).convert("RGB")
+            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
     else:
-        img = vertical_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).convert("RGB")
+        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
     draw = ImageDraw.Draw(img)
 
     # --- layout columns: side-by-side translation splits the width, text_align shifts within a column ---
@@ -392,12 +422,12 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     header_text = surah_name_text if use_text_header else surah_name_arabic
     if THEME["show_header"] and header_text:
         if use_text_header:
-            header_font = ImageFont.truetype(str(theme_mod.LATIN_FONT_REGULAR), int(h * THEME["header_size_frac"]))
+            header_font = _cached_font(str(theme_mod.LATIN_FONT_REGULAR), int(h * THEME["header_size_frac"]))
             hb = draw.textbbox((0, 0), header_text, font=header_font)
             draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_text,
                        font=header_font, fill=tuple(THEME["header_color"]))
         else:
-            header_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["header_size_frac"]))
+            header_font = _cached_font(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["header_size_frac"]))
             header_display, header_kwargs = arabic_draw_args(header_text)
             hb = draw.textbbox((0, 0), header_display, font=header_font, **header_kwargs)
             draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_display,
@@ -407,7 +437,7 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     arabic_size = int(h * THEME["arabic_size_max_frac"])
     min_size = int(h * THEME["arabic_size_min_frac"])
     while arabic_size > min_size:
-        arabic_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_BOLD), arabic_size)
+        arabic_font = _cached_font(str(theme_mod.ARABIC_FONT_BOLD), arabic_size)
         lines = wrap_arabic_lines(verse.arabic, arabic_font, arabic_col_width, draw)
         line_height = int(arabic_size * THEME["arabic_line_height_mult"])
         block_height = line_height * len(lines)
@@ -445,47 +475,12 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             wd_width = wd_bbox[2] - wd_bbox[0]
             left = cursor - wd_width
             word_boxes.append({"left": left, "right": cursor, "cx": left + wd_width / 2,
-                                "top": y, "font_size": arabic_size})
+                                "top": y, "font_size": arabic_size,
+                                "display": wd_display, "kwargs": wd_kwargs})
             cursor -= wd_width + space_width
 
-    # --- the highlight pill needs alpha blending and must sit BEHIND the word text,
-    #     so composite it onto the background before drawing any text ---
-    if THEME["highlight_enabled"] and THEME["highlight_style"] == "pill" and 0 <= highlight_index < len(word_boxes):
-        box = word_boxes[highlight_index]
-        overlay = Image.new("RGBA", size, (0, 0, 0, 0))
-        odraw = ImageDraw.Draw(overlay)
-        pad_x = box["font_size"] * 0.14
-        top = box["top"] - box["font_size"] * 0.08
-        bottom = box["top"] + box["font_size"] * 1.12
-        alpha = int(255 * THEME["highlight_bg_opacity"])
-        r, g, b = THEME["highlight_color"]
-        odraw.rounded_rectangle(
-            [box["left"] - pad_x, top, box["right"] + pad_x, bottom],
-            radius=box["font_size"] * 0.24, fill=(r, g, b, alpha),
-        )
-        img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-        draw = ImageDraw.Draw(img)
-
-    # --- pass 2: draw the actual word glyphs on top ---
-    global_idx = 0
-    for words, right_edge, y in line_layout:
-        cursor = right_edge
-        for word in words:
-            wd_display, wd_kwargs = arabic_draw_args(word)
-            wd_bbox = draw.textbbox((0, 0), wd_display, font=arabic_font, **wd_kwargs)
-            wd_width = wd_bbox[2] - wd_bbox[0]
-            fill = tuple(THEME["arabic_color"])
-            if THEME["highlight_enabled"] and global_idx == highlight_index:
-                if THEME["highlight_style"] == "underline":
-                    ly = y + arabic_size * 1.02
-                    draw.line([(cursor - wd_width, ly), (cursor, ly)],
-                               fill=tuple(THEME["highlight_color"]),
-                               width=max(1, int(arabic_size * 0.06)))
-                elif THEME["highlight_style"] == "color":
-                    fill = tuple(THEME["highlight_color"])
-            draw.text((cursor - wd_width, y), wd_display, font=arabic_font, fill=fill, **wd_kwargs)
-            cursor -= wd_width + space_width
-            global_idx += 1
+    # Word glyphs, highlight pill, and pointer are all per-frame (highlight_index/
+    # pointer_pos change 6x/word) -- drawn later by draw_dynamic_layer(), not here.
 
     # Verse number badge (skip for the Basmala scene, number 0). Where it sits
     # is controlled by badge_position: "below_header" (right under the surah
@@ -513,7 +508,7 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
         # plain and Arabic-Indic digits both read fine in the Arabic font
         # (as plain digits already did before this option existed).
         badge_font_path = theme_mod.LATIN_FONT_REGULAR if numeral_style == "roman" else theme_mod.ARABIC_FONT_REGULAR
-        badge_font = ImageFont.truetype(str(badge_font_path), badge_font_size)
+        badge_font = _cached_font(str(badge_font_path), badge_font_size)
         bb = draw.textbbox((0, 0), badge_display, font=badge_font)
         text_w = bb[2] - bb[0]
         text_h = bb[3] - bb[1]
@@ -584,7 +579,7 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     # Translation -- position/column/alignment follow translation_position + text_align
     if show_translation and THEME["show_translation"]:
         trans_size = int(h * THEME["translation_size_frac"])
-        trans_font = ImageFont.truetype(str(theme_mod.LATIN_FONT_REGULAR), trans_size)
+        trans_font = _cached_font(str(theme_mod.LATIN_FONT_REGULAR), trans_size)
         trans_col_width_eff = trans_col_width if side_mode else max_text_width
         trans_lines = wrap_latin_lines(verse.translation, trans_font, trans_col_width_eff)
         t_line_height = int(trans_size * 1.5)
@@ -614,7 +609,72 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             y = t_start_y + i * t_line_height
             draw.text((x, y), line, font=trans_font, fill=tuple(THEME["translation_color"]))
 
+    layout = {"arabic_font": arabic_font, "arabic_size": arabic_size, "word_boxes": word_boxes}
+    return img, layout
+
+
+def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1, pointer_pos=None) -> Image.Image:
+    """Runs per frame (6x/word): copies the cached base image from
+    build_ayah_layout() and draws just the highlight pill + word glyphs +
+    pointer on top. No re-measuring, no re-wrapping, no font reload."""
+    THEME = theme_mod.THEME
+    arabic_font = layout["arabic_font"]
+    arabic_size = layout["arabic_size"]
+    word_boxes = layout["word_boxes"]
+
+    img = base_image.copy()
+
+    # --- the highlight pill needs alpha blending and must sit BEHIND the word text,
+    #     so composite it onto the background before drawing any text ---
+    if THEME["highlight_enabled"] and THEME["highlight_style"] == "pill" and 0 <= highlight_index < len(word_boxes):
+        box = word_boxes[highlight_index]
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        odraw = ImageDraw.Draw(overlay)
+        pad_x = box["font_size"] * 0.14
+        top = box["top"] - box["font_size"] * 0.08
+        bottom = box["top"] + box["font_size"] * 1.12
+        alpha = int(255 * THEME["highlight_bg_opacity"])
+        r, g, b = THEME["highlight_color"]
+        odraw.rounded_rectangle(
+            [box["left"] - pad_x, top, box["right"] + pad_x, bottom],
+            radius=box["font_size"] * 0.24, fill=(r, g, b, alpha),
+        )
+        img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+    draw = ImageDraw.Draw(img)
+
+    # --- draw the actual word glyphs on top, using the display/kwargs cached
+    #     by build_ayah_layout() (no re-measuring) ---
+    for idx, box in enumerate(word_boxes):
+        fill = tuple(THEME["arabic_color"])
+        if THEME["highlight_enabled"] and idx == highlight_index:
+            if THEME["highlight_style"] == "underline":
+                ly = box["top"] + arabic_size * 1.02
+                draw.line([(box["left"], ly), (box["right"], ly)],
+                           fill=tuple(THEME["highlight_color"]),
+                           width=max(1, int(arabic_size * 0.06)))
+            elif THEME["highlight_style"] == "color":
+                fill = tuple(THEME["highlight_color"])
+        draw.text((box["left"], box["top"]), box["display"], font=arabic_font, fill=fill, **box["kwargs"])
+
     if THEME["highlight_enabled"] and THEME["highlight_pointer_enabled"] and pointer_pos is not None:
         draw_pointer(draw, pointer_pos["x"], pointer_pos["top"], pointer_pos["font_size"])
 
-    return img, word_boxes
+    return img
+
+
+def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translation=True,
+                        highlight_index=-1, pointer_pos=None, surah_name_text=None):
+    """Renders one complete frame in a single call -- convenience wrapper
+    around build_ayah_layout() + draw_dynamic_layer() for callers (app.py's
+    single-frame preview endpoint) that don't need to reuse the layout
+    across multiple frames. Returns (PIL.Image, word_boxes); see
+    build_ayah_layout() for what word_boxes contains.
+
+    Hot paths rendering many frames per ayah (video_build.py) should call
+    build_ayah_layout() once and draw_dynamic_layer() per frame directly,
+    instead of this wrapper, to avoid redoing the layout work every frame."""
+    base_img, layout = build_ayah_layout(verse, surah_name_arabic, size, show_translation,
+                                          surah_name_text=surah_name_text)
+    img = draw_dynamic_layer(base_img, layout, highlight_index, pointer_pos)
+    return img, layout["word_boxes"]

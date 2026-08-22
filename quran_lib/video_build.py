@@ -4,6 +4,8 @@ Video assembly: turns fetched verses + downloaded audio into the final
 """
 import sys
 
+import numpy as np
+
 try:
     from moviepy import (
         ImageClip,
@@ -16,11 +18,11 @@ except ImportError:
     print("Missing dependency. Run: pip install moviepy --break-system-packages")
     sys.exit(1)
 
-from .constants import CACHE_DIR, OUTPUT_DIR, FPS
+from .constants import OUTPUT_DIR, FPS
 from . import theme as theme_mod
 from .quran_api import Verse
 from .audio import download_ayah_audio, get_audio_duration
-from .text_render import render_verse_frame
+from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer
 from .timing import get_ayah_frames
 
 
@@ -45,22 +47,19 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_na
     wps = max(0.4, THEME["highlight_fallback_wps"])
     word_dur = min(1.0 / wps, duration / n)
 
-    _, word_boxes = render_verse_frame(render_verse, surah_name_arabic, size, show_translation, highlight_index=-1,
-                                        surah_name_text=surah_name_text)
+    base_img, layout = build_ayah_layout(render_verse, surah_name_arabic, size, show_translation,
+                                          surah_name_text=surah_name_text)
+    word_boxes = layout["word_boxes"]
 
     pointer_on = THEME["highlight_pointer_enabled"]
     glide_steps = 5   # sub-frames used to animate the pointer between two words
     hold_frac = 0.5   # fraction of a word's duration the pointer rests before gliding on
 
     def emit(highlight_idx, pointer_pos, dur, t, k):
-        frame_img, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
-                                            highlight_index=highlight_idx, pointer_pos=pointer_pos,
-                                            surah_name_text=surah_name_text)
-        frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_{render_verse.number:03d}_{k:04d}.png"
-        frame_img.save(frame_path)
+        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, pointer_pos)
         start = t - overlap if k == 0 else t
         real_dur = dur + overlap if k == 0 else dur
-        clip = ImageClip(str(frame_path)).with_duration(real_dur).with_start(start)
+        clip = ImageClip(np.array(frame_img)).with_duration(real_dur).with_start(start)
         if k == 0:
             clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
         clips.append(clip)
@@ -118,15 +117,12 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
     instead of the compositor's black background."""
     k = 0
 
-    def emit(render_verse, highlight_idx, dur, t):
+    def emit(base_img, layout, highlight_idx, dur, t):
         nonlocal k
-        frame_img, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
-                                            highlight_index=highlight_idx, surah_name_text=surah_name_text)
-        frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_manual_{k:04d}.png"
-        frame_img.save(frame_path)
+        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, None)
         start = t - overlap if k == 0 else t
         real_dur = dur + overlap if k == 0 else dur
-        clip = ImageClip(str(frame_path)).with_duration(real_dur).with_start(start)
+        clip = ImageClip(np.array(frame_img)).with_duration(real_dur).with_start(start)
         if k == 0:
             clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
         clips.append(clip)
@@ -141,18 +137,24 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
             arabic=frame["text"],
             translation=frame.get("translation", fallback_translation),
         )
+        # every emit() call below shares this same render_verse (same text/
+        # translation) for this `frame` -- only highlight_idx changes between
+        # them, so the layout only needs to be built once per frame, not once
+        # per emitted sub-clip.
+        base_img, layout = build_ayah_layout(render_verse, surah_name_arabic, size, show_translation,
+                                              surah_name_text=surah_name_text)
         frame_start_t = cursor + (frame["start"] - scene_start)
         frame_end_t = cursor + (frame["end"] - scene_start)
         word_timings = sorted(frame.get("highlight_words", []), key=lambda w: w["start"])
 
         if not word_timings:
-            t = emit(render_verse, -1, frame_end_t - frame_start_t, frame_start_t)
+            t = emit(base_img, layout, -1, frame_end_t - frame_start_t, frame_start_t)
             continue
 
         # gap before the first highlighted word (if any) shows with no highlight
         if word_timings[0]["start"] > frame["start"]:
             gap = (frame_start_t + (word_timings[0]["start"] - frame["start"])) - frame_start_t
-            t = emit(render_verse, -1, gap, frame_start_t)
+            t = emit(base_img, layout, -1, gap, frame_start_t)
         else:
             t = frame_start_t
 
@@ -160,11 +162,11 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
             seg_start_t = cursor + (wt["start"] - scene_start)
             seg_end_t = cursor + (wt["end"] - scene_start)
             if seg_start_t > t:  # gap between two highlighted words -- show unhighlighted
-                t = emit(render_verse, -1, seg_start_t - t, t)
-            t = emit(render_verse, wt["index"], seg_end_t - t, t)
+                t = emit(base_img, layout, -1, seg_start_t - t, t)
+            t = emit(base_img, layout, wt["index"], seg_end_t - t, t)
 
         if t < frame_end_t:  # trailing gap after the last highlighted word
-            t = emit(render_verse, -1, frame_end_t - t, t)
+            t = emit(base_img, layout, -1, frame_end_t - t, t)
 
     return t
 
@@ -231,11 +233,9 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
                 frame, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
                                                surah_name_text=surah_name_text)
-                frame_path = CACHE_DIR / f"frame_{verse.number:03d}_{render_verse.number:03d}.png"
-                frame.save(frame_path)
 
                 img_clip = (
-                    ImageClip(str(frame_path))
+                    ImageClip(np.array(frame))
                     .with_duration(duration + overlap)
                     .with_start(cursor - overlap)
                     .with_effects([vfx.CrossFadeIn(fade_duration)])
