@@ -524,6 +524,13 @@
       <div class="card">
         <div class="card-title">Surah name</div>
         <div class="field" style="margin-top:0;">
+          <div class="field-label">Script</div>
+          <div class="segmented" id="headerScriptSeg">
+            <button class="active" data-value="arabic">Arabic</button>
+            <button data-value="text">Text</button>
+          </div>
+        </div>
+        <div class="field">
           <div class="field-label">Color</div>
           <div class="swatch-row">
             <div class="colorpick"><input type="color" id="headerColor" value="#FFFFFF"></div>
@@ -826,7 +833,7 @@
       overlayOpacity:0.45, bgImageDataUrl:null, bgImageName:null,
       align:'center', transPos:'below',
       margin:0.09,
-      showHeader:true, showBadge:true, showTranslation:true, badgeStyle:'ornament',
+      showHeader:true, headerScript:'arabic', showBadge:true, showTranslation:true, badgeStyle:'ornament',
       fonts:{ arabic:'Amiri', text:'Manrope' },
       text: JSON.parse(JSON.stringify(samples.long)),
       textStyle:{
@@ -858,6 +865,7 @@
     s.transPos = theme.translation_position || s.transPos;
     s.margin = theme.margin_frac ?? s.margin;
     s.showHeader = theme.show_header ?? s.showHeader;
+    s.headerScript = theme.header_script || s.headerScript;
     s.showBadge = theme.show_badge ?? s.showBadge;
     s.showTranslation = theme.show_translation ?? s.showTranslation;
     s.badgeStyle = theme.badge_style || s.badgeStyle;
@@ -909,7 +917,7 @@
       arabic_line_height_mult: 1.55,
       translation_gap_frac: ts.translation.gap, translation_size_frac: ts.translation.size / 100,
       translation_position: s.transPos, text_align: s.align,
-      show_header: s.showHeader, show_badge: s.showBadge, show_translation: s.showTranslation,
+      show_header: s.showHeader, header_script: s.headerScript, show_badge: s.showBadge, show_translation: s.showTranslation,
       badge_size_frac: ts.badge.size / 100,
       background_image: s.bgStyle === 'image' ? (s.bgImageDataUrl || null) : null,
       background_video: null,
@@ -1090,7 +1098,6 @@
     const textFontStack = `'${state.fonts.text}', sans-serif`;
     fcArabic.style.fontFamily = arabicFontStack;
     fcBadgeNum.style.fontFamily = arabicFontStack;
-    fcHeader.style.fontFamily = textFontStack;
     fcTranslation.style.fontFamily = textFontStack;
 
     // ---- surah name ----
@@ -1098,7 +1105,15 @@
     fcHeader.style.paddingTop = (ts.header.y * 100 + 5) + '%';
     fcHeader.style.fontSize = ts.header.size + 'cqw';
     fcHeader.style.color = ts.header.color;
-    fcHeader.textContent = state.text.header;
+    if (state.headerScript === 'text'){
+      fcHeader.textContent = state.text.header;
+      fcHeader.style.fontFamily = textFontStack;
+      fcHeader.dir = 'ltr';
+    } else {
+      fcHeader.textContent = state.text.headerArabic;
+      fcHeader.style.fontFamily = arabicFontStack;
+      fcHeader.dir = 'rtl';
+    }
 
     // ---- ayah number badge (positioned relative to the name above it) ----
     fcBadgeRow.style.display = state.showBadge ? 'flex' : 'none';
@@ -1154,7 +1169,8 @@
       fcWord.style.opacity = 1;
     }
 
-    el('previewMetaSub').textContent = `${state.text.header || 'Untitled'} · ${state.orientation}`;
+    const previewLabel = state.headerScript === 'arabic' ? (state.text.headerArabic || state.text.header) : state.text.header;
+    el('previewMetaSub').textContent = `${previewLabel || 'Untitled'} · ${state.orientation}`;
 
     scheduleRealPreview();
   }
@@ -1182,6 +1198,7 @@
         arabic: arabicFull,
         translation: state.text.translation || '',
         surah_name_arabic: state.text.headerArabic || '',
+        surah_name_text: state.text.header || '',
       },
       highlightIndex,
     };
@@ -1286,6 +1303,7 @@
     el('highlightOpacityRow').style.display = v === 'pill' ? 'block' : 'none';
   });
   wireSegmented('highlightPointerStyleSeg', v => state.highlight.pointerStyle = v);
+  wireSegmented('headerScriptSeg', v => state.headerScript = v);
   wireSegmented('bgStyleSeg', v => {
     state.bgStyle = v;
     el('bgGradientFields').style.display = v === 'gradient' ? 'block' : 'none';
@@ -1430,6 +1448,7 @@
     el('overlayOpacity').value = state.overlayOpacity; el('overlayOpacityVal').textContent = state.overlayOpacity.toFixed(2);
     if (state.bgImageName) el('bgImageName').textContent = state.bgImageName;
 
+    el('headerScriptSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.headerScript));
     el('orientationSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.orientation));
     el('alignSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.align));
     el('transPosSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.transPos));

@@ -133,11 +133,15 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
 
 
 def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translation=True,
-                        highlight_index=-1, pointer_pos=None):
+                        highlight_index=-1, pointer_pos=None, surah_name_text=None):
     """Renders one frame. Returns (PIL.Image, word_boxes) where word_boxes is
     a list of {left, right, cx, top, font_size} dicts, one per Arabic word,
     in reading order -- used by video_build.build_video() to time the
-    highlight/pointer against each word's on-screen position."""
+    highlight/pointer against each word's on-screen position.
+
+    surah_name_text is the surah's English/Latin name (e.g. "Al-Fatiha").
+    Which of it or surah_name_arabic gets drawn as the header is controlled
+    by THEME["header_script"] ("arabic" | "text")."""
     THEME = theme_mod.THEME
     w, h = size
 
@@ -173,13 +177,24 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
         gap = max_text_width * 0.05
         arabic_col_left = margin + trans_col_width + gap if text_align == "right" else margin
 
-    # Header: surah name (small, top)
-    if THEME["show_header"] and surah_name_arabic:
-        header_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["header_size_frac"]))
-        header_display, header_kwargs = arabic_draw_args(surah_name_arabic)
-        hb = draw.textbbox((0, 0), header_display, font=header_font, **header_kwargs)
-        draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_display,
-                   font=header_font, fill=tuple(THEME["header_color"]), **header_kwargs)
+    # Header: surah name (small, top). header_script picks which string/font/
+    # shaping path to use -- "text" draws surah_name_text in the Latin font
+    # left-to-right (like the translation), "arabic" (default) draws
+    # surah_name_arabic in the Arabic font with RTL shaping, as before.
+    use_text_header = THEME.get("header_script") == "text"
+    header_text = surah_name_text if use_text_header else surah_name_arabic
+    if THEME["show_header"] and header_text:
+        if use_text_header:
+            header_font = ImageFont.truetype(str(theme_mod.LATIN_FONT_REGULAR), int(h * THEME["header_size_frac"]))
+            hb = draw.textbbox((0, 0), header_text, font=header_font)
+            draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_text,
+                       font=header_font, fill=tuple(THEME["header_color"]))
+        else:
+            header_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["header_size_frac"]))
+            header_display, header_kwargs = arabic_draw_args(header_text)
+            hb = draw.textbbox((0, 0), header_display, font=header_font, **header_kwargs)
+            draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_display,
+                       font=header_font, fill=tuple(THEME["header_color"]), **header_kwargs)
 
     # Arabic verse text, sized down if long
     arabic_size = int(h * THEME["arabic_size_max_frac"])

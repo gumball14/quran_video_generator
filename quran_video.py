@@ -118,6 +118,7 @@ def main():
     build_video(
         verses, surah_name_arabic, args.surah, args.reciter, size, output_path,
         show_translation=not args.no_translation, timing_manifest=timing_manifest,
+        surah_name_text=surah_name,
     )
     print(f"\nDone! Video saved to: {output_path}")
 

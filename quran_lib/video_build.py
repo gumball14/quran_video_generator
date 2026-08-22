@@ -24,7 +24,7 @@ from .text_render import render_verse_frame
 from .timing import get_ayah_frames
 
 
-def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, size, show_translation,
+def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
                                  duration, cursor, fade_duration, verse_number_for_filenames):
     """Renders one scene as a sequence of short ImageClips, switching the
     highlighted word (and, if enabled, gliding the pointer to it) evenly
@@ -39,7 +39,8 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, size, sh
     wps = max(0.4, THEME["highlight_fallback_wps"])
     word_dur = min(1.0 / wps, duration / n)
 
-    _, word_boxes = render_verse_frame(render_verse, surah_name_arabic, size, show_translation, highlight_index=-1)
+    _, word_boxes = render_verse_frame(render_verse, surah_name_arabic, size, show_translation, highlight_index=-1,
+                                        surah_name_text=surah_name_text)
 
     pointer_on = THEME["highlight_pointer_enabled"]
     glide_steps = 5   # sub-frames used to animate the pointer between two words
@@ -47,7 +48,8 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, size, sh
 
     def emit(highlight_idx, pointer_pos, dur, t, k):
         frame_img, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
-                                            highlight_index=highlight_idx, pointer_pos=pointer_pos)
+                                            highlight_index=highlight_idx, pointer_pos=pointer_pos,
+                                            surah_name_text=surah_name_text)
         frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_{render_verse.number:03d}_{k:04d}.png"
         frame_img.save(frame_path)
         clip = ImageClip(str(frame_path)).with_duration(dur).with_start(t)
@@ -91,7 +93,7 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, size, sh
     return end_time
 
 
-def _add_manual_frame_scene(clips, frames, surah_name_arabic, size, show_translation,
+def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, size, show_translation,
                              fallback_translation, cursor, fade_duration, verse_number_for_filenames):
     """Renders one scene from an explicit list of timing-manifest frames
     (see quran_lib/timing.py) instead of the automatic wps pacing. Each
@@ -107,7 +109,7 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, size, show_transla
     def emit(render_verse, highlight_idx, dur, t):
         nonlocal k
         frame_img, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
-                                            highlight_index=highlight_idx)
+                                            highlight_index=highlight_idx, surah_name_text=surah_name_text)
         frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_manual_{k:04d}.png"
         frame_img.save(frame_path)
         clip = ImageClip(str(frame_path)).with_duration(dur).with_start(t)
@@ -154,7 +156,7 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, size, show_transla
 
 
 def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, output_path,
-                 fade_duration=None, show_translation=True, timing_manifest=None):
+                 fade_duration=None, show_translation=True, timing_manifest=None, surah_name_text=None):
     THEME = theme_mod.THEME
     if fade_duration is None:
         fade_duration = THEME["fade_duration"]
@@ -188,7 +190,7 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                 print(f"  {label}: rendering {len(manual_frames)} manually-timed frame(s) "
                       f"(using {manual_start:.1f}s-{manual_end:.1f}s of {duration:.1f}s audio)…")
                 cursor = _add_manual_frame_scene(
-                    clips, manual_frames, surah_name_arabic, size, show_translation,
+                    clips, manual_frames, surah_name_arabic, surah_name_text, size, show_translation,
                     render_verse.translation, cursor, fade_duration, verse.number,
                 )
                 # only the marked window of audio plays -- anything before the first frame
@@ -202,13 +204,14 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
             elif THEME["highlight_enabled"]:
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
                 cursor = _add_word_highlighted_scene(
-                    clips, render_verse, surah_name_arabic, size, show_translation,
+                    clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
                     duration, cursor, fade_duration, verse.number,
                 )
                 a_clip = AudioFileClip(str(scene_audio_path)).with_start(scene_origin)
             else:
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
-                frame, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation)
+                frame, _ = render_verse_frame(render_verse, surah_name_arabic, size, show_translation,
+                                               surah_name_text=surah_name_text)
                 frame_path = CACHE_DIR / f"frame_{verse.number:03d}_{render_verse.number:03d}.png"
                 frame.save(frame_path)
 

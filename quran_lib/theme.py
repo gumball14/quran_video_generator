@@ -52,6 +52,7 @@ DEFAULT_THEME = {
     "text_align": "center",           # "left" | "center" | "right"
 
     "show_header": True,
+    "header_script": "arabic",        # "arabic" | "text" -- which surah-name string render_verse_frame() draws
     "show_badge": True,
     "show_translation": True,
     "badge_size_frac": 0.022,
