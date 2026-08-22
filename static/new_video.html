@@ -523,7 +523,12 @@
       const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.previewAyah}&translation=en.sahih`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'fetch failed');
-      verseAr.textContent = (data.basmalaArabic ? data.basmalaArabic + ' ۝ ' : '') + data.arabic;
+      // Show exactly what the generated video's frame will render for this ayah --
+      // the Basmala is split off (data.basmalaArabic) but the generator never plays
+      // or shows it as part of ayah 1's scene (see video_build.py), since the
+      // per-ayah recitation audio for most reciters doesn't include it spoken. Adding
+      // it back here would make the preview lie about what actually gets produced.
+      verseAr.textContent = data.arabic;
       verseEn.textContent = data.translation;
     } catch (e) {
       verseAr.textContent = state.surah.ar;

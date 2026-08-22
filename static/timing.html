@@ -67,7 +67,7 @@
     padding:6px 11px; font-size:11px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
   }
 
-  .ayah-dots{ display:flex; justify-content:center; gap:0; padding:10px 20px 2px; }
+  .ayah-dots{ display:flex; justify-content:center; gap:0; padding:0 4px 8px; }
   .ayah-dot-hit{
     border:none; background:none; padding:7px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
@@ -216,6 +216,10 @@
     flex:1; min-height:0; overflow-y:auto;
     padding:4px;
   }
+  /* content taller than the card: top-align instead of centering, otherwise
+     centering pushes the overflow above scrollTop:0 where it can never be
+     scrolled to (see updateWordChipsOverflow()) */
+  .word-chips.overflowing{ align-content:flex-start; }
   .word-chip{
     font-family:'Amiri', serif; font-weight:700; font-size:19px;
     padding:8px 14px; border-radius:12px;
@@ -253,6 +257,7 @@
   .mark-panel:empty{ display:none; margin-top:0; padding:0; border:none; box-shadow:none; }
 
   .mp-nav-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mp-nav-row.mp-nav-row--bottom{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); }
   .mp-navbtn{
     display:flex; align-items:center; gap:5px; border:none; cursor:pointer;
     background:var(--surface-2); color:var(--ink); font-weight:800; font-size:11.5px;
@@ -265,7 +270,7 @@
 
   .mp-adjust-head{
     display:flex; align-items:center; justify-content:space-between;
-    margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); margin-bottom:12px;
+    margin-bottom:12px;
   }
   .mp-word{ display:flex; align-items:center; gap:9px; }
   .mp-word-ar{ font-family:'Amiri', serif; font-weight:700; font-size:20px; }
@@ -298,39 +303,35 @@
   .mp-playfrom svg{ width:15px; height:15px; }
   .mp-playfrom:active{ transform:scale(.94); }
 
-  /* ---------- sticky footer ---------- */
+  /* ---------- sticky footer (ayah-dots merged in to save room for word-card) ---------- */
   .footbar{
     flex-shrink:0;
-    padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+    padding:8px 20px calc(env(safe-area-inset-bottom,0px) + 14px);
     background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
     border-top:1px solid var(--line-soft);
-    display:flex; gap:10px;
+    display:flex; flex-direction:column; gap:4px;
   }
-  .skip-btn{
-    flex-shrink:0; height:54px; padding:0 18px; border-radius:16px;
-    background:var(--surface); border:1px solid var(--line); color:var(--ink-mute);
-    font-weight:800; font-size:13px; cursor:pointer;
-  }
-  .skip-btn:active{ transform:scale(.97); }
-  .prev-btn{
+  .footbar .ayah-dots{ padding:0 0 2px; }
+  .footbar-row{ display:flex; align-items:center; gap:10px; }
+  .foot-icon-btn{
     flex-shrink:0; width:54px; height:54px; border-radius:16px;
     background:var(--surface); border:1px solid var(--line); cursor:pointer;
     display:flex; align-items:center; justify-content:center;
     transition:transform .12s ease, opacity .12s ease;
   }
-  .prev-btn svg{ width:16px; height:16px; }
-  .prev-btn:active{ transform:scale(.94); }
-  .prev-btn:disabled{ opacity:.35; pointer-events:none; }
-  .next-btn{
+  .foot-icon-btn svg{ width:16px; height:16px; }
+  .foot-icon-btn:active{ transform:scale(.94); }
+  .foot-icon-btn:disabled{ opacity:.35; pointer-events:none; }
+  .continue-btn{
     flex:1; height:54px; border-radius:16px; border:none; cursor:pointer;
     background:var(--ink); color:#F6F1E4; font-weight:800; font-size:14px;
     display:flex; align-items:center; justify-content:center; gap:8px;
     box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
     transition:transform .12s ease, opacity .12s ease;
   }
-  .next-btn:active{ transform:scale(.97); }
-  .next-btn:disabled{ opacity:.4; box-shadow:none; }
-  .next-btn svg{ width:14px; height:14px; }
+  .continue-btn:active{ transform:scale(.97); }
+  .continue-btn:disabled{ opacity:.4; box-shadow:none; }
+  .continue-btn svg{ width:14px; height:14px; }
 
   /* ---------- generating overlay ---------- */
   .gen-overlay{
@@ -372,8 +373,6 @@
       <div class="progress-pill" id="progressPill">Ayah 1/1</div>
     </div>
   </div>
-
-  <div class="ayah-dots" id="ayahDots"></div>
 
   <div class="body">
 
@@ -449,14 +448,19 @@
   </div>
 
   <div class="footbar">
-    <button class="prev-btn" id="prevBtn" aria-label="Previous ayah" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-    </button>
-    <button class="skip-btn" id="skipBtn">Skip</button>
-    <button class="next-btn" id="nextBtn" disabled>
-      Next ayah
-      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-    </button>
+    <div class="ayah-dots" id="ayahDots"></div>
+    <div class="footbar-row">
+      <button class="foot-icon-btn" id="prevBtn" aria-label="Previous ayah" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="continue-btn" id="nextBtn" disabled>
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <button class="foot-icon-btn" id="skipBtn" aria-label="Skip ayah">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
   </div>
 
 </div>
@@ -669,11 +673,12 @@
     updatePreviewAvailability();
 
     renderChips();
+    wordChipsEl.scrollTop = 0;  // fresh ayah: don't inherit the previous ayah's scroll offset
     renderWaveMarkers();
     updateNextButtonState();
     nextBtn.innerHTML = (ayahIndex === ayahs.length - 1)
       ? 'Generate video <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
-      : 'Next ayah <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+      : 'Continue <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
     renderMarkPanel();
   }
@@ -703,6 +708,46 @@
     };
   }
 
+  // ============ SESSION PERSISTENCE (resume after closing the browser mid-ayah) ============
+  // Keyed to the draft's identifying fields, not the draft object as a whole, so
+  // switching only the theme (regenerate-with-new-theme) doesn't discard progress,
+  // but picking a different surah/range/reciter/translation correctly starts fresh.
+  const SESSION_KEY = 'afs_timing_session';
+  function sessionKeyFor(d){ return [d.surah, d.from, d.to, d.reciterKey, d.translation].join('|'); }
+
+  function persistSession(){
+    saveCurrentAyahState();
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      key: sessionKeyFor(draft), ayahIndex, ayahStates,
+    }));
+  }
+
+  function loadSavedSession(){
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+    catch (e) { return null; }
+    if (!saved || saved.key !== sessionKeyFor(draft)) return null;
+    return saved;
+  }
+
+  function clearSavedSession(){ localStorage.removeItem(SESSION_KEY); }
+
+  // When there are more words than fit, `align-content:center` (used to keep
+  // short ayahs looking nice) centers the wrapped rows by pushing overflow
+  // equally above *and* below the container -- but scrollTop can never go
+  // negative, so that top overflow becomes permanently unreachable no matter
+  // how far the user scrolls. Switch to top-aligned wrapping whenever the
+  // content is actually taller than the visible card, so every word stays
+  // reachable; keep centering only when everything already fits.
+  function updateWordChipsOverflow(){
+    wordChipsEl.classList.toggle('overflowing', wordChipsEl.scrollHeight > wordChipsEl.clientHeight + 1);
+  }
+  // Android address-bar show/hide and the Amiri webfont swapping in both
+  // resize the card after the initial render -- re-check then too.
+  window.addEventListener('resize', updateWordChipsOverflow);
+  window.addEventListener('orientationchange', updateWordChipsOverflow);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateWordChipsOverflow);
+
   function renderChips(){
     const entry = currentAyah();
     wordChipsEl.classList.toggle('previewing', previewMode);
@@ -714,6 +759,7 @@
         const cls = 'word-chip' + (i === curIdx ? ' preview-current' : '');
         return `<div class="${cls}" data-i="${i}">${w}</div>`;
       }).join('');
+      updateWordChipsOverflow();
       return;
     }
 
@@ -728,6 +774,7 @@
       const orderAttr = wordMarkers.length ? ` data-order="${orderLabel}"` : '';
       return `<div class="${cls}" data-i="${i}"${orderAttr}>${w}</div>`;
     }).join('');
+    updateWordChipsOverflow();
   }
 
   function getPreviewCurrentWordIndex(t){
@@ -776,6 +823,9 @@
 
   function updateMarkPanelBodyClass(){
     document.body.classList.toggle('mark-panel-open', panelOpen && markerList.length > 0);
+    // toggling this class resizes .word-card (the transport controls hide/show),
+    // which can flip whether the chips actually overflow -- re-measure.
+    updateWordChipsOverflow();
   }
 
   function renderMarkPanel(){
@@ -795,8 +845,9 @@
     const selectedPos = markerList.findIndex(m => m.id === selectedMarkerId);
     const hasSelection = selectedPos !== -1;
 
-    let html = `
-      <div class="mp-nav-row">
+    // nav row (prev/next marker + count) now renders at the BOTTOM of the panel
+    const navRow = `
+      <div class="mp-nav-row${hasSelection ? ' mp-nav-row--bottom' : ''}">
         <button class="mp-navbtn" id="mpPrevBtn" aria-label="Go to previous marker">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
           Prev
@@ -808,6 +859,8 @@
         </button>
       </div>
     `;
+
+    let html = '';
 
     if (hasSelection){
       const m = markerList[selectedPos];
@@ -841,6 +894,8 @@
       `;
     }
 
+    html += navRow;
+
     markPanelEl.innerHTML = html;
 
     document.getElementById('mpPrevBtn').addEventListener('click', () => selectRelativeMarker(-1));
@@ -873,6 +928,7 @@
     renderChips();
     renderWaveMarkers();
     renderMarkPanel();
+    persistSession();
   }
 
   function unmarkMarker(id){
@@ -885,6 +941,7 @@
     renderChips();
     renderWaveMarkers();
     renderMarkPanel();
+    persistSession();
   }
 
   function nudgeMarker(id, delta){
@@ -896,6 +953,7 @@
     renderChips();
     renderWaveMarkers();
     renderMarkPanel();
+    persistSession();
   }
 
   function playFrom(t){
@@ -956,6 +1014,7 @@
     renderChips();
     renderWaveMarkers();
     renderMarkPanel();
+    persistSession();
   }
 
   // ============ REAL AUDIO PLAYBACK ============
@@ -1059,7 +1118,7 @@
 
   function goToAyah(i){
     if (i < 0 || i >= ayahs.length || i === ayahIndex) return;
-    saveCurrentAyahState();
+    persistSession();
     ayahIndex = i;
     loadAyah();
   }
@@ -1068,7 +1127,7 @@
     if (ayahIndex < ayahs.length - 1){
       goToAyah(ayahIndex + 1);
     } else {
-      saveCurrentAyahState();
+      persistSession();
       generateVideo();
     }
   }
@@ -1153,6 +1212,7 @@
         if (json.status === 'done'){
           clearInterval(poll);
           localStorage.removeItem('afs_draft');
+          clearSavedSession();
           location.href = '/';
         } else if (json.status === 'error'){
           clearInterval(poll);
@@ -1181,6 +1241,13 @@
       return;
     }
     ayahStates = ayahs.map(() => null);
+
+    const saved = loadSavedSession();
+    if (saved && Array.isArray(saved.ayahStates) && saved.ayahStates.length === ayahs.length){
+      ayahStates = saved.ayahStates;
+      ayahIndex = Math.max(0, Math.min(saved.ayahIndex || 0, ayahs.length - 1));
+    }
+
     await loadAyah();
   })();
 </script>
