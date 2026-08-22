@@ -356,12 +356,12 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     if THEME["show_badge"] and verse.number > 0:
         badge_font_size = int(h * THEME["badge_size_frac"])
         badge_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), badge_font_size)
-        badge_display, badge_kwargs = arabic_draw_args(f"\u06dd{verse.number}")  # Arabic ayah-end symbol + number
-        bb = draw.textbbox((0, 0), badge_display, font=badge_font, **badge_kwargs)
+        badge_display = str(verse.number)  # plain digits -- no ayah-end ornament glyph
+        bb = draw.textbbox((0, 0), badge_display, font=badge_font)
         text_w = bb[2] - bb[0]
         text_h = bb[3] - bb[1]
 
-        # Badge box: big enough for the glyph (with padding) or a sane minimum,
+        # Badge box: big enough for the digits (with padding) or a sane minimum,
         # whichever is larger -- so 2-3 digit ayah numbers still fit inside
         # circle/diamond/etc shapes instead of overflowing them.
         pad = badge_font_size * 0.7
@@ -382,8 +382,12 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
         img, draw = _draw_badge_shape(img, draw, style, badge_cx, badge_cy, half,
                                        fill_rgba, border_color, border_width_px)
 
+        # Plain digits are drawn left-to-right with no direction/language kwargs
+        # (unlike the Arabic verse/header text above) so the bbox-based centering
+        # below lands the number dead-center in the badge instead of skewed by
+        # RTL shaping.
         draw.text((badge_cx - text_w / 2 - bb[0], badge_cy - text_h / 2 - bb[1]), badge_display,
-                   font=badge_font, fill=tuple(THEME["badge_color"]), **badge_kwargs)
+                   font=badge_font, fill=tuple(THEME["badge_color"]))
         badge_bottom = badge_cy + half
     else:
         badge_bottom = badge_y
