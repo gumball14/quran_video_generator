@@ -900,6 +900,7 @@
 
     s.textStyle.badge.color = rgbToHex(theme.badge_color);
     if (theme.badge_size_frac != null) s.textStyle.badge.size = +(theme.badge_size_frac * 100).toFixed(2);
+    if (theme.badge_gap_frac != null) s.textStyle.badge.gap = theme.badge_gap_frac;
 
     s.textStyle.arabic.color = rgbToHex(theme.arabic_color);
     if (theme.arabic_size_max_frac != null) s.textStyle.arabic.size = +(theme.arabic_size_max_frac * 100).toFixed(2);
@@ -942,6 +943,7 @@
       translation_position: s.transPos, text_align: s.align,
       show_header: s.showHeader, header_script: s.headerScript, show_badge: s.showBadge, show_translation: s.showTranslation,
       badge_size_frac: ts.badge.size / 100,
+      badge_gap_frac: ts.badge.gap,
       background_image: s.bgStyle === 'image' ? (s.bgImageDataUrl || null) : null,
       background_video: null,
       background_overlay_opacity: s.overlayOpacity,
@@ -999,6 +1001,7 @@
   const frameShell = el('frameShell');
   const frameCanvas = el('frameCanvas');
   const fcOverlay = el('fcOverlay');
+  const fcContentEl = document.querySelector('.fc-content');
   const fcHeader = el('fcHeader');
   const fcBadgeRow = el('fcBadgeRow');
   const fcBadge = el('fcBadge');
@@ -1166,25 +1169,39 @@
     }
 
     // ---- ayah number badge ----
-    // "below_header" keeps the badge in its original DOM position (right
-    // after the name); "below_arabic" (default) and "bottom" reorder it
-    // relative to the verse/translation block via flex `order` -- "bottom"
-    // additionally pins it near the bottom of the frame regardless of how
-    // tall the verse block is, since flex order alone can't do that.
+    // "below_header" is a normal (non-absolute) flex sibling right after the
+    // name, so its own marginTop directly controls the gap. "below_arabic"
+    // and "bottom" are taken OUT of the flex flow (position:absolute)
+    // instead of reordered with CSS `order` -- reordering used to place the
+    // badge AFTER fcTextblock, which has `flex:1`; since the frame's total
+    // height is fixed, that flex-grow sibling silently absorbed any change
+    // to the badge's own margin, which is why the gap slider looked like it
+    // did nothing in "below_arabic" (the default). Taking the badge out of
+    // flow avoids that fight entirely -- its exact "below_arabic" position
+    // is computed below, once the Arabic verse block's real layout is known.
     fcBadgeRow.style.display = state.showBadge ? 'flex' : 'none';
     fcHeader.style.order = 0;
     fcTextblock.style.order = 2;
-    if (state.badgePosition === 'bottom'){
+    if (state.badgePosition === 'below_header'){
+      fcBadgeRow.style.position = 'static';
+      fcBadgeRow.style.order = 1;
+      fcBadgeRow.style.marginTop = (ts.badge.gap * 100) + '%';
+      fcBadgeRow.style.left = '';
+      fcBadgeRow.style.right = '';
+      fcBadgeRow.style.top = '';
+      fcBadgeRow.style.bottom = '';
+    } else {
       fcBadgeRow.style.position = 'absolute';
-      fcBadgeRow.style.left = '0';
-      fcBadgeRow.style.right = '0';
-      fcBadgeRow.style.bottom = '6%';
       fcBadgeRow.style.order = '';
       fcBadgeRow.style.marginTop = '0';
-    } else {
-      fcBadgeRow.style.position = 'static';
-      fcBadgeRow.style.order = state.badgePosition === 'below_arabic' ? 3 : 1;
-      fcBadgeRow.style.marginTop = (ts.badge.gap * 100) + '%';
+      fcBadgeRow.style.left = '7%';
+      fcBadgeRow.style.right = '7%';
+      if (state.badgePosition === 'bottom'){
+        fcBadgeRow.style.top = '';
+        fcBadgeRow.style.bottom = '6%';
+      }
+      // "below_arabic" top offset is set later in this function, after the
+      // Arabic verse block below has its real font size/wrapping applied.
     }
     fcBadge.className = 'fc-badge style-' + state.badgeStyle;
     fcBadgeNum.style.fontSize = ts.badge.size + 'cqw';
@@ -1240,6 +1257,18 @@
 
     const previewLabel = state.headerScript === 'arabic' ? (state.text.headerArabic || state.text.header) : state.text.header;
     el('previewMetaSub').textContent = `${previewLabel || 'Untitled'} · ${state.orientation}`;
+
+    // ---- "below_arabic" badge position, resolved now that fcArabic has its
+    // real font size/wrapping applied above -- anchors the badge to the
+    // verse block's actual rendered bottom edge instead of a flex margin,
+    // so the gap slider reliably moves it (see the badge section higher up).
+    if (state.showBadge && state.badgePosition !== 'below_header' && state.badgePosition !== 'bottom'){
+      const contentRect = fcContentEl.getBoundingClientRect();
+      const arabicRect = fcArabic.getBoundingClientRect();
+      const topPx = (arabicRect.bottom - contentRect.top) + ts.badge.gap * contentRect.height;
+      fcBadgeRow.style.top = topPx + 'px';
+      fcBadgeRow.style.bottom = '';
+    }
 
     scheduleRealPreview();
   }

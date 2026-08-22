@@ -418,14 +418,18 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
     # is controlled by badge_position: "below_header" (right under the surah
     # name), "below_arabic" (default -- just under the Arabic block, as
     # before), or "bottom" (pinned near the bottom of the frame regardless of
-    # verse length). Centered within the Arabic column (matches the editor:
-    # full-width when not in side mode).
+    # verse length). badge_gap_frac adds extra breathing room on top of that
+    # anchor (below_arabic keeps its small built-in cushion either way, so
+    # gap=0 still looks the way this used to before the option existed).
+    # Centered within the Arabic column (matches the editor: full-width when
+    # not in side mode).
     arabic_bottom_y = start_y + total_arabic_h + h * 0.015
+    badge_gap_px = h * THEME.get("badge_gap_frac", 0.03)
     badge_position = THEME.get("badge_position", "below_arabic")
     if badge_position == "below_header":
-        badge_top_y = h * THEME["header_y_frac"] + h * THEME["header_size_frac"] * 1.6
+        badge_top_y = h * THEME["header_y_frac"] + h * THEME["header_size_frac"] * 1.6 + badge_gap_px
     else:
-        badge_top_y = arabic_bottom_y  # also used as the "bottom" fallback below
+        badge_top_y = arabic_bottom_y + badge_gap_px  # also used as the "bottom" fallback below
 
     badge_cx = arabic_col_left + arabic_col_width / 2
     if THEME["show_badge"] and verse.number > 0:

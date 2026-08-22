@@ -56,6 +56,7 @@ DEFAULT_THEME = {
     "show_badge": True,
     "show_translation": True,
     "badge_size_frac": 0.022,
+    "badge_gap_frac": 0.03,           # 0-0.12, matches the editor's Gap slider -- extra spacing between the badge and its anchor (the header for "below_header", the verse block for "below_arabic")
     "badge_style": "ornament",        # "ornament" | "circle" | "hexagon" | "diamond" | "square" | "ring" | "flower" | "star8" | "scallop" | "none"
     "badge_numeral_style": "western", # "western" (plain digits) | "arabic" (Eastern Arabic-Indic digits) | "roman" (Roman numerals)
     "badge_position": "below_arabic", # "below_header" (right under the surah name) | "below_arabic" (default, under the verse) | "bottom" (pinned near the bottom of the frame)
