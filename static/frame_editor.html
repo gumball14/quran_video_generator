@@ -139,6 +139,33 @@
   .fc-badge.style-none{ background:transparent!important; border-color:transparent!important; outline:none!important; }
   .badge-style-swatch.style-none{ border:1.5px dashed var(--line); background:transparent; }
 
+  /* ---- line accent: an optional horizontal line through the badge, poking out past
+     whichever border style is active on both sides, capped with a dot/arrowhead/diamond.
+     Independent of .style-* -- toggled on any border style via .has-line-accent. ---- */
+  .fc-badge-line{ display:none; }
+  .fc-badge.has-line-accent .fc-badge-line{
+    display:block; position:absolute; top:50%; height:0;
+    border-top:var(--badge-line-w, .12cqw) solid var(--badge-border-c, rgba(255,255,255,.45));
+  }
+  .fc-badge-line-left{ right:100%; width:65%; }
+  .fc-badge-line-right{ left:100%; width:65%; }
+  .fc-badge-cap{
+    position:absolute; top:0; width:var(--badge-line-cap, .6cqw); height:var(--badge-line-cap, .6cqw);
+    background:var(--badge-border-c, rgba(255,255,255,.45));
+    transform:translate(-50%,-50%);
+  }
+  .fc-badge-line-left .fc-badge-cap{ left:0; }
+  .fc-badge-line-right .fc-badge-cap{ right:0; transform:translate(50%,-50%); }
+  .fc-badge.has-line-accent.line-cap-dot .fc-badge-cap{ border-radius:50%; }
+  .fc-badge.has-line-accent.line-cap-diamond .fc-badge-cap{ border-radius:0; transform:translate(-50%,-50%) rotate(45deg); }
+  .fc-badge.has-line-accent.line-cap-diamond .fc-badge-line-right .fc-badge-cap{ transform:translate(50%,-50%) rotate(45deg); }
+  .fc-badge.has-line-accent.line-cap-arrow .fc-badge-cap{
+    width:0!important; height:0!important; background:transparent; border-radius:0;
+    border-top:var(--badge-line-cap, .42cqw) solid transparent; border-bottom:var(--badge-line-cap, .42cqw) solid transparent;
+  }
+  .fc-badge.has-line-accent.line-cap-arrow .fc-badge-line-left .fc-badge-cap{ border-right:calc(var(--badge-line-cap, .42cqw) * 1.6) solid var(--badge-border-c, rgba(255,255,255,.45)); }
+  .fc-badge.has-line-accent.line-cap-arrow .fc-badge-line-right .fc-badge-cap{ border-left:calc(var(--badge-line-cap, .42cqw) * 1.6) solid var(--badge-border-c, rgba(255,255,255,.45)); }
+
   /* ---- badge style picker (editor sheet, not the live frame) ---- */
   .badge-style-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .badge-style-btn{
@@ -387,7 +414,7 @@
         <img class="fc-real-preview" id="fcRealPreview" alt="">
         <div class="fc-content">
           <div class="fc-header" id="fcHeader">Al-Fātiḥah</div>
-          <div class="fc-badge-row" id="fcBadgeRow"><div class="fc-badge style-ornament" id="fcBadge"><span class="fc-badge-num" id="fcBadgeNum">1</span></div></div>
+          <div class="fc-badge-row" id="fcBadgeRow"><div class="fc-badge style-ornament" id="fcBadge"><span class="fc-badge-line fc-badge-line-left"><span class="fc-badge-cap"></span></span><span class="fc-badge-line fc-badge-line-right"><span class="fc-badge-cap"></span></span><span class="fc-badge-num" id="fcBadgeNum">1</span></div></div>
           <div class="fc-textblock align-center" id="fcTextblock">
             <div class="fc-arabic" id="fcArabic">بِسْمِ اللَّهِ <span class="fc-word" id="fcWord">الرَّحْمَٰنِ</span> الرَّحِيمِ</div>
             <div class="fc-translation" id="fcTranslation">In the name of Allah, the Most Gracious</div>
@@ -630,6 +657,32 @@
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Line accent — a horizontal line through the border, poking out past it on both sides</div>
+          <label class="switch"><input type="checkbox" id="badgeLineEnabled"><span class="switch-track"></span></label>
+        </div>
+        <div id="badgeLineFields" style="display:none;">
+          <div class="field">
+            <div class="field-label">End style</div>
+            <div class="segmented" id="badgeLineCapSeg">
+              <button class="active" data-value="dot">Dot</button>
+              <button data-value="arrow">Arrow</button>
+              <button data-value="diamond">Diamond</button>
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Line width</div><div class="slider-val" id="badgeLineWidthVal">0.15</div></div>
+            <input type="range" id="badgeLineWidth" min="0.02" max="1" step="0.02" value="0.15">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">End size (each end)</div><div class="slider-val" id="badgeLineCapSizeVal">0.30</div></div>
+            <input type="range" id="badgeLineCapSize" min="0.05" max="1" step="0.02" value="0.30">
+          </div>
+          <div class="font-hint" style="margin-top:0;">Works with any border style above, and always uses the border color/style set there — there's no separate line color.</div>
+        </div>
+      </div>
     </div>
 
     <!-- ARABIC VERSE -->
@@ -860,7 +913,7 @@
       text: JSON.parse(JSON.stringify(samples.long)),
       textStyle:{
         header:{ size:2.1, color:'#FFFFFF', y:0.06 },
-        badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14 },
+        badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14, lineEnabled:false, lineCapStyle:'dot', lineWidth:0.15, lineCapSize:0.30 },
         arabic:{ size:5.2, color:'#FFFFFF', y:0.36 },
         translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
       },
@@ -901,6 +954,10 @@
     s.textStyle.badge.color = rgbToHex(theme.badge_color);
     if (theme.badge_size_frac != null) s.textStyle.badge.size = +(theme.badge_size_frac * 100).toFixed(2);
     if (theme.badge_gap_frac != null) s.textStyle.badge.gap = theme.badge_gap_frac;
+    s.textStyle.badge.lineEnabled = theme.badge_line_enabled ?? s.textStyle.badge.lineEnabled;
+    s.textStyle.badge.lineCapStyle = theme.badge_line_style || s.textStyle.badge.lineCapStyle;
+    s.textStyle.badge.lineWidth = theme.badge_line_width ?? s.textStyle.badge.lineWidth;
+    s.textStyle.badge.lineCapSize = theme.badge_line_cap_size ?? s.textStyle.badge.lineCapSize;
 
     s.textStyle.arabic.color = rgbToHex(theme.arabic_color);
     if (theme.arabic_size_max_frac != null) s.textStyle.arabic.size = +(theme.arabic_size_max_frac * 100).toFixed(2);
@@ -961,6 +1018,10 @@
       badge_fill_enabled: ts.badge.fillEnabled,
       badge_fill_color: hexToRgb(ts.badge.fillColor),
       badge_fill_opacity: ts.badge.fillOpacity,
+      badge_line_enabled: ts.badge.lineEnabled,
+      badge_line_style: ts.badge.lineCapStyle,
+      badge_line_width: ts.badge.lineWidth,
+      badge_line_cap_size: ts.badge.lineCapSize,
     };
   }
 
@@ -1203,7 +1264,8 @@
       // "below_arabic" top offset is set later in this function, after the
       // Arabic verse block below has its real font size/wrapping applied.
     }
-    fcBadge.className = 'fc-badge style-' + state.badgeStyle;
+    fcBadge.className = 'fc-badge style-' + state.badgeStyle +
+      (ts.badge.lineEnabled ? ' has-line-accent line-cap-' + ts.badge.lineCapStyle : '');
     fcBadgeNum.style.fontSize = ts.badge.size + 'cqw';
     fcBadgeNum.style.color = ts.badge.color;
     fcBadgeNum.style.fontFamily = state.badgeNumeralStyle === 'roman' ? textFontStack : arabicFontStack;
@@ -1211,6 +1273,8 @@
     fcBadge.style.setProperty('--badge-border-c', ts.badge.borderColor);
     fcBadge.style.setProperty('--badge-border-w', ts.badge.borderWidth + 'cqw');
     fcBadge.style.setProperty('--badge-fill', ts.badge.fillEnabled ? hexToRgba(ts.badge.fillColor, ts.badge.fillOpacity) : 'transparent');
+    fcBadge.style.setProperty('--badge-line-w', ts.badge.lineWidth + 'cqw');
+    fcBadge.style.setProperty('--badge-line-cap', ts.badge.lineCapSize + 'cqw');
 
     // ---- arabic block (positioned relative to the screen) ----
     fcTextblock.className = 'fc-textblock align-' + state.align + (state.transPos === 'side' ? ' pos-side' : '');
@@ -1404,6 +1468,7 @@
   wireSegmented('headerScriptSeg', v => state.headerScript = v);
   wireSegmented('badgeNumeralSeg', v => state.badgeNumeralStyle = v);
   wireSegmented('badgePositionSeg', v => state.badgePosition = v);
+  wireSegmented('badgeLineCapSeg', v => state.textStyle.badge.lineCapStyle = v);
   wireSegmented('bgStyleSeg', v => {
     state.bgStyle = v;
     el('bgGradientFields').style.display = v === 'gradient' ? 'block' : 'none';
@@ -1452,6 +1517,8 @@
   wireSlider('badgeGap', 'badgeGapVal', v => state.textStyle.badge.gap = v, v => v.toFixed(3));
   wireSlider('badgeBorderWidth', 'badgeBorderWidthVal', v => state.textStyle.badge.borderWidth = v, v => v.toFixed(2));
   wireSlider('badgeFillOpacity', 'badgeFillOpacityVal', v => state.textStyle.badge.fillOpacity = v, v => v.toFixed(2));
+  wireSlider('badgeLineWidth', 'badgeLineWidthVal', v => state.textStyle.badge.lineWidth = v, v => v.toFixed(2));
+  wireSlider('badgeLineCapSize', 'badgeLineCapSizeVal', v => state.textStyle.badge.lineCapSize = v, v => v.toFixed(2));
   wireSlider('arabicSize', 'arabicSizeVal', v => state.textStyle.arabic.size = v, v => v.toFixed(1));
   wireSlider('arabicY', 'arabicYVal', v => state.textStyle.arabic.y = v, v => v.toFixed(2));
   wireSlider('translationSize', 'translationSizeVal', v => state.textStyle.translation.size = v, v => v.toFixed(1));
@@ -1470,6 +1537,11 @@
   el('badgeFillEnabled').addEventListener('change', e => {
     state.textStyle.badge.fillEnabled = e.target.checked;
     el('badgeFillFields').style.display = e.target.checked ? 'block' : 'none';
+    render();
+  });
+  el('badgeLineEnabled').addEventListener('change', e => {
+    state.textStyle.badge.lineEnabled = e.target.checked;
+    el('badgeLineFields').style.display = e.target.checked ? 'block' : 'none';
     render();
   });
   el('kenBurns').addEventListener('change', e => { state.kenBurns = e.target.checked; });
@@ -1574,6 +1646,11 @@
     el('badgeFillFields').style.display = ts.badge.fillEnabled ? 'block' : 'none';
     el('badgeFillColor').value = ts.badge.fillColor; el('badgeFillColorHex').value = ts.badge.fillColor;
     el('badgeFillOpacity').value = ts.badge.fillOpacity; el('badgeFillOpacityVal').textContent = ts.badge.fillOpacity.toFixed(2);
+    el('badgeLineEnabled').checked = ts.badge.lineEnabled;
+    el('badgeLineFields').style.display = ts.badge.lineEnabled ? 'block' : 'none';
+    el('badgeLineCapSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === ts.badge.lineCapStyle));
+    el('badgeLineWidth').value = ts.badge.lineWidth; el('badgeLineWidthVal').textContent = ts.badge.lineWidth.toFixed(2);
+    el('badgeLineCapSize').value = ts.badge.lineCapSize; el('badgeLineCapSizeVal').textContent = ts.badge.lineCapSize.toFixed(2);
 
     el('arabicColor').value = ts.arabic.color; el('arabicColorHex').value = ts.arabic.color;
     el('arabicSize').value = ts.arabic.size; el('arabicSizeVal').textContent = ts.arabic.size.toFixed(1);

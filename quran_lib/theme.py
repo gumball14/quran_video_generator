@@ -65,6 +65,13 @@ DEFAULT_THEME = {
     "badge_fill_enabled": True,
     "badge_fill_color": list(WHITE),
     "badge_fill_opacity": 0.14,
+    "badge_line_enabled": False,      # optional accent: a horizontal line through the badge, poking out past
+                                       # whichever badge_style border is active, on both sides. Works with
+                                       # every badge_style (including "none") and always uses badge_border_color
+                                       # -- there's no separate line color.
+    "badge_line_style": "dot",        # "dot" | "arrow" | "diamond" -- shape of the marker at each end of the line
+    "badge_line_width": 0.15,         # 0-1, same slider scale as badge_border_width
+    "badge_line_cap_size": 0.30,      # 0-1, size of each end marker relative to the badge
 
     "background_image": None,          # file path OR "data:image/...;base64,..." (from the HTML editor export)
     "background_video": None,          # not yet implemented -- falls back to gradient, see load_theme()

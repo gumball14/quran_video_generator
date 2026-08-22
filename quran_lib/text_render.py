@@ -227,12 +227,60 @@ def _star_polygon(cx, cy, half, spikes, inner_ratio, rotation_deg=-90):
     return points
 
 
-def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px):
+def _draw_line_cap(target, x, y, direction, cap, size, color):
+    """Draws one end marker for a "line_*" badge style at (x, y) -- the
+    outer tip of the line, `size` past the circle's border. `direction` is
+    -1 for the left-hand end (marker points further left/outward) or +1
+    for the right-hand end (points right/outward). `cap` is "dot",
+    "arrow", or "diamond"."""
+    if cap == "dot":
+        target.ellipse([x - size, y - size, x + size, y + size], fill=color)
+    elif cap == "diamond":
+        target.polygon([(x, y - size), (x + size, y), (x, y + size), (x - size, y)], fill=color)
+    elif cap == "arrow":
+        tip_x = x + direction * size * 1.4
+        target.polygon([(tip_x, y), (x, y - size), (x, y + size)], fill=color)
+
+
+def _draw_line_cap(target, x, y, direction, cap, size, color):
+    """Draws one end marker for the badge's line accent at (x, y) -- the
+    outer tip of the line, `size` past the badge's border. `direction` is
+    -1 for the left-hand end (marker points further left/outward) or +1
+    for the right-hand end (points right/outward). `cap` is "dot",
+    "arrow", or "diamond"."""
+    if cap == "dot":
+        target.ellipse([x - size, y - size, x + size, y + size], fill=color)
+    elif cap == "diamond":
+        target.polygon([(x, y - size), (x + size, y), (x, y + size), (x - size, y)], fill=color)
+    elif cap == "arrow":
+        tip_x = x + direction * size * 1.4
+        target.polygon([(tip_x, y), (x, y - size), (x, y + size)], fill=color)
+
+
+def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px,
+                       line_width_px=0, line_cap_style="dot", line_cap_size_px=0, line_color=None):
     """Draws the badge outline/fill onto `img`, returning the (possibly new)
     (img, draw) pair to keep using -- a new Image is only created when alpha
-    blending (a translucent fill) requires compositing."""
+    blending (a translucent fill) requires compositing.
+
+    line_width_px > 0 additionally draws the optional "line accent": a
+    horizontal line (+ end markers) through the badge, drawn UNDERNEATH the
+    badge_style shape so the shape's own fill covers the line's middle,
+    leaving it visible only where it pokes out past the border on each
+    side. This works with every badge_style, including "none" (a bare line
+    with no shape around it)."""
     kind, data = _badge_shape(style, cx, cy, half)
+    if kind == "none" and line_width_px <= 0:
+        return img, draw
+
     if kind == "none":
+        # No shape at all -- just the line accent, drawn straight onto the
+        # base draw context (no translucent fill to composite here).
+        lc = line_color if line_color is not None else (border_rgb if border_rgb is not None else (255, 255, 255))
+        line_half_len = half * 2.6
+        draw.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=lc, width=line_width_px)
+        _draw_line_cap(draw, cx - line_half_len, cy, -1, line_cap_style, line_cap_size_px, lc)
+        _draw_line_cap(draw, cx + line_half_len, cy, 1, line_cap_style, line_cap_size_px, lc)
         return img, draw
 
     needs_overlay = fill_rgba is not None and fill_rgba[3] < 255
@@ -242,6 +290,13 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
     else:
         target = draw
     fill_solid = fill_rgba[:3] if (fill_rgba is not None and not needs_overlay) else None
+
+    if line_width_px > 0:
+        lc = line_color if line_color is not None else (border_rgb if border_rgb is not None else (255, 255, 255))
+        line_half_len = half * 2.6
+        target.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=lc, width=line_width_px)
+        _draw_line_cap(target, cx - line_half_len, cy, -1, line_cap_style, line_cap_size_px, lc)
+        _draw_line_cap(target, cx + line_half_len, cy, 1, line_cap_style, line_cap_size_px, lc)
 
     if kind == "ellipse":
         target.ellipse(data, fill=(fill_rgba if needs_overlay else fill_solid),
@@ -258,6 +313,20 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
                                   outline=border_rgb, width=border_width_px)
     elif kind == "polygon":
         target.polygon(data, fill=(fill_rgba if needs_overlay else fill_solid),
+                        outline=border_rgb, width=border_width_px)
+    elif kind == "line":
+        # Draw the line (+ end caps) FIRST, then the circle on top -- so the
+        # circle's fill visually "swallows" the middle of the line, leaving
+        # it only visible poking out past the border on each side, capped
+        # with a dot/arrowhead/diamond marker.
+        line_color = border_rgb if border_rgb is not None else (255, 255, 255)
+        line_width = border_width_px if border_width_px > 0 else max(1, round(half * 0.12))
+        line_half_len = half * 2.6
+        cap_size = max(line_width * 1.7, half * 0.16)
+        target.line([(cx - line_half_len, cy), (cx + line_half_len, cy)], fill=line_color, width=line_width)
+        _draw_line_cap(target, cx - line_half_len, cy, -1, data["cap"], cap_size, line_color)
+        _draw_line_cap(target, cx + line_half_len, cy, 1, data["cap"], cap_size, line_color)
+        target.ellipse(data["ellipse"], fill=(fill_rgba if needs_overlay else fill_solid),
                         outline=border_rgb, width=border_width_px)
 
     if needs_overlay:
@@ -466,8 +535,23 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             alpha = int(255 * THEME.get("badge_fill_opacity", 0.14))
             fill_rgba = (fr, fg, fb, alpha)
 
+        # Optional line accent -- a horizontal line through the badge, poking
+        # out past whichever badge_style border is active. Always uses
+        # badge_border_color (no separate line color), and works on top of
+        # any border style, including "none".
+        line_width_px = 0
+        line_cap_style = THEME.get("badge_line_style", "dot")
+        line_cap_size_px = 0
+        line_color = tuple(THEME.get("badge_border_color", THEME["badge_color"]))
+        if THEME.get("badge_line_enabled", False):
+            line_width_val = THEME.get("badge_line_width", 0.15)
+            line_width_px = max(1, round(box_size * 0.14 * line_width_val))
+            cap_size_val = THEME.get("badge_line_cap_size", 0.30)
+            line_cap_size_px = max(line_width_px * 1.3, half * 0.5 * cap_size_val)
+
         img, draw = _draw_badge_shape(img, draw, style, badge_cx, badge_cy, half,
-                                       fill_rgba, border_color, border_width_px)
+                                       fill_rgba, border_color, border_width_px,
+                                       line_width_px, line_cap_style, line_cap_size_px, line_color)
 
         # Plain digits are drawn left-to-right with no direction/language kwargs
         # (unlike the Arabic verse/header text above) so the bbox-based centering
