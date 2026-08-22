@@ -25,12 +25,18 @@ from .timing import get_ayah_frames
 
 
 def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
-                                 duration, cursor, fade_duration, verse_number_for_filenames):
+                                 duration, cursor, fade_duration, verse_number_for_filenames, overlap=0.0):
     """Renders one scene as a sequence of short ImageClips, switching the
     highlighted word (and, if enabled, gliding the pointer to it) evenly
     across the scene's REAL audio duration -- not the editor's simulated
     preview pace, which only exists because the browser has no audio to
-    time against. Appends the clips to `clips` and returns the new cursor."""
+    time against. Appends the clips to `clips` and returns the new cursor.
+
+    `overlap`: seconds the scene's first clip should start EARLY (and run
+    longer), so it overlaps the tail of the previous scene's still-visible
+    clip instead of fading in over the compositor's black background. Only
+    the first clip (k == 0) is widened -- the returned cursor position is
+    unaffected, so all later word timings stay exactly where they were."""
     THEME = theme_mod.THEME
     words = [wd for wd in render_verse.arabic.split(" ") if wd]
     n = max(1, len(words))
@@ -52,7 +58,9 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_na
                                             surah_name_text=surah_name_text)
         frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_{render_verse.number:03d}_{k:04d}.png"
         frame_img.save(frame_path)
-        clip = ImageClip(str(frame_path)).with_duration(dur).with_start(t)
+        start = t - overlap if k == 0 else t
+        real_dur = dur + overlap if k == 0 else dur
+        clip = ImageClip(str(frame_path)).with_duration(real_dur).with_start(start)
         if k == 0:
             clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
         clips.append(clip)
@@ -94,7 +102,7 @@ def _add_word_highlighted_scene(clips, render_verse, surah_name_arabic, surah_na
 
 
 def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, size, show_translation,
-                             fallback_translation, cursor, fade_duration, verse_number_for_filenames):
+                             fallback_translation, cursor, fade_duration, verse_number_for_filenames, overlap=0.0):
     """Renders one scene from an explicit list of timing-manifest frames
     (see quran_lib/timing.py) instead of the automatic wps pacing. Each
     frame gets its own text and, optionally, its own per-word highlight
@@ -103,7 +111,11 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
     start at the audio's local time 0 or run to its end (e.g. you might
     only mark the middle of a long ayah) -- the caller is responsible for
     trimming the *audio* clip to match (frames[0]["start"] .. frames[-1]["end"]),
-    since this function only ever produces the video side of the scene."""
+    since this function only ever produces the video side of the scene.
+
+    `overlap`: see _add_word_highlighted_scene() -- same idea, widens only
+    the first clip (k == 0) so it crossfades against the previous scene
+    instead of the compositor's black background."""
     k = 0
 
     def emit(render_verse, highlight_idx, dur, t):
@@ -112,7 +124,9 @@ def _add_manual_frame_scene(clips, frames, surah_name_arabic, surah_name_text, s
                                             highlight_index=highlight_idx, surah_name_text=surah_name_text)
         frame_path = CACHE_DIR / f"frame_{verse_number_for_filenames:03d}_manual_{k:04d}.png"
         frame_img.save(frame_path)
-        clip = ImageClip(str(frame_path)).with_duration(dur).with_start(t)
+        start = t - overlap if k == 0 else t
+        real_dur = dur + overlap if k == 0 else dur
+        clip = ImageClip(str(frame_path)).with_duration(real_dur).with_start(start)
         if k == 0:
             clip = clip.with_effects([vfx.CrossFadeIn(fade_duration)])
         clips.append(clip)
@@ -184,6 +198,11 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
             manual_frames = get_ayah_frames(timing_manifest, render_verse.number)
 
             scene_origin = cursor  # where THIS scene's audio needs to start playing
+            # Ayah 1 gets no overlap (nothing precedes it to crossfade against);
+            # every later ayah's first clip starts fade_duration seconds early so
+            # it overlaps -- and crossfades against -- the previous ayah's tail
+            # instead of the compositor's black background.
+            overlap = fade_duration if idx > 0 else 0.0
 
             if manual_frames:
                 manual_start, manual_end = manual_frames[0]["start"], manual_frames[-1]["end"]
@@ -191,7 +210,7 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                       f"(using {manual_start:.1f}s-{manual_end:.1f}s of {duration:.1f}s audio)…")
                 cursor = _add_manual_frame_scene(
                     clips, manual_frames, surah_name_arabic, surah_name_text, size, show_translation,
-                    render_verse.translation, cursor, fade_duration, verse.number,
+                    render_verse.translation, cursor, fade_duration, verse.number, overlap,
                 )
                 # only the marked window of audio plays -- anything before the first frame
                 # or after the last one (e.g. unmarked lead-in/trailing silence) is trimmed
@@ -205,7 +224,7 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                 print(f"  {label}: rendering frame ({duration:.1f}s)…")
                 cursor = _add_word_highlighted_scene(
                     clips, render_verse, surah_name_arabic, surah_name_text, size, show_translation,
-                    duration, cursor, fade_duration, verse.number,
+                    duration, cursor, fade_duration, verse.number, overlap,
                 )
                 a_clip = AudioFileClip(str(scene_audio_path)).with_start(scene_origin)
             else:
@@ -217,8 +236,8 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
 
                 img_clip = (
                     ImageClip(str(frame_path))
-                    .with_duration(duration)
-                    .with_start(cursor)
+                    .with_duration(duration + overlap)
+                    .with_start(cursor - overlap)
                     .with_effects([vfx.CrossFadeIn(fade_duration)])
                 )
                 clips.append(img_clip)
