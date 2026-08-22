@@ -24,11 +24,8 @@ from .constants import OUTPUT_DIR, FPS
 from . import theme as theme_mod
 from .quran_api import Verse
 from .audio import download_ayah_audio, get_audio_duration
-from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer, render_outro_frame
+from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer, render_background
 from .timing import get_ayah_frames
-
-OUTRO_DURATION = 2.5  # seconds the closing "thank you" card is held for
-
 
 def _add_word_highlighted_scene(render_verse, surah_name_arabic, surah_name_text, size, show_translation, duration):
     """Renders one scene as a sequence of short ImageClips, switching the
@@ -111,10 +108,20 @@ def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, sh
 
     Returns (sub_clips, duration), exactly like _add_word_highlighted_scene()
     -- duration is frames[-1]["end"] - frames[0]["start"]."""
+    THEME = theme_mod.THEME
+    pointer_on = THEME["highlight_pointer_enabled"]
     sub_clips = []
 
     def emit(base_img, layout, highlight_idx, dur):
-        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, None)
+        # pointer rests on whichever word is highlighted in this segment --
+        # same box-derived position _add_word_highlighted_scene() uses, just
+        # without the glide-between-words animation (manual frames don't
+        # have a "next word" to glide toward within a single emit() call)
+        pointer_pos = None
+        if pointer_on and 0 <= highlight_idx < len(layout["word_boxes"]):
+            box = layout["word_boxes"][highlight_idx]
+            pointer_pos = {"x": box["cx"], "top": box["top"], "font_size": box["font_size"]}
+        frame_img = draw_dynamic_layer(base_img, layout, highlight_idx, pointer_pos)
         sub_clips.append(ImageClip(np.array(frame_img)).with_duration(dur))
 
     scene_start = frames[0]["start"]
@@ -166,7 +173,7 @@ def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, sh
 
 def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, output_path,
                  fade_duration=None, show_translation=True, timing_manifest=None, surah_name_text=None,
-                 outro_enabled=True):
+                 outro_enabled=None):
     THEME = theme_mod.THEME
     if fade_duration is None:
         fade_duration = THEME["fade_duration"]
@@ -252,17 +259,21 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
             cursor = scene_origin + scene_duration
             audio_clips.append(a_clip)
 
-    if outro_enabled:
-        print(f"  Outro: rendering closing card ({OUTRO_DURATION:.1f}s)…")
-        outro_frame = render_outro_frame(size)
-        outro_start = cursor
-        outro_clip = (
-            ImageClip(np.array(outro_frame)).with_duration(OUTRO_DURATION + fade_duration)
-            .with_start(outro_start - fade_duration)
-            .with_effects([vfx.CrossFadeIn(fade_duration)])
-        )
+    # outro_enabled=None (the default) defers to the theme's toggle, so the
+    # frame editor's "Outro screen" switch controls it by default; passing
+    # an explicit True/False (e.g. quran_video.py's --no-outro flag) still
+    # overrides the theme either way.
+    effective_outro = THEME["outro_enabled"] if outro_enabled is None else outro_enabled
+    if effective_outro and THEME["outro_duration"] > 0:
+        # plain background, no text -- crossfades in over the last ayah's tail
+        # exactly like one ayah crossfades into the next (see `overlap` above)
+        print(f"  Outro: rendering closing screen ({THEME['outro_duration']:.1f}s)…")
+        outro_img = render_background(size)
+        outro_clip = ImageClip(np.array(outro_img)).with_duration(THEME["outro_duration"] + fade_duration)
+        outro_clip = outro_clip.with_start(cursor - fade_duration)
+        outro_clip = outro_clip.with_effects([vfx.CrossFadeIn(fade_duration)])
         clips.append(outro_clip)
-        cursor = outro_start + OUTRO_DURATION
+        cursor = cursor + THEME["outro_duration"]
 
     video = CompositeVideoClip(clips, size=size).with_duration(cursor)
     audio = CompositeAudioClip(audio_clips).with_duration(cursor)

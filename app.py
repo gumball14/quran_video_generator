@@ -47,7 +47,8 @@ from quran_lib.quran_api import fetch_verses, Verse
 from quran_lib.audio import download_ayah_audio, split_basmala_audio
 from quran_lib.constants import CACHE_DIR
 from quran_lib.theme import load_theme
-from quran_lib.text_render import render_verse_frame
+from quran_lib.text_render import build_ayah_layout, draw_dynamic_layer
+from quran_lib import theme as theme_mod
 
 RECITERS = {
     "yasser_al_dossary": "Yasser Al-Dossary",
@@ -209,12 +210,6 @@ def api_preview_frame():
 
     show_translation = bool(data.get("show_translation", True))
     highlight_index = int(data.get("highlight_index", -1))
-    pointer_pos = data.get("pointer_pos")
-    if pointer_pos is not None:
-        try:
-            pointer_pos = (float(pointer_pos[0]), float(pointer_pos[1]))
-        except (TypeError, ValueError, IndexError):
-            return jsonify({"error": "pointer_pos must be [x, y]."}), 400
 
     verse = Verse(
         number=int(verse_data.get("number") or 1),
@@ -231,10 +226,23 @@ def api_preview_frame():
     try:
         with THEME_LOCK:
             load_theme(theme_path)
-            image, _word_boxes = render_verse_frame(
-                verse, surah_name_arabic, size, show_translation,
-                highlight_index, pointer_pos, surah_name_text=surah_name_text,
+            # Build the layout once so we know the highlighted word's box,
+            # then derive the pointer's position from it -- same as the
+            # video generator's automatic-pace scene does (see
+            # _add_word_highlighted_scene() in video_build.py). The pointer
+            # rests directly on the highlighted word; there's no gliding
+            # here since this is a single static preview frame, not a
+            # sequence of frames across an ayah's audio.
+            THEME = theme_mod.THEME
+            base_img, layout = build_ayah_layout(
+                verse, surah_name_arabic, size, show_translation, surah_name_text=surah_name_text,
             )
+            word_boxes = layout["word_boxes"]
+            pointer_pos = None
+            if THEME["highlight_pointer_enabled"] and 0 <= highlight_index < len(word_boxes):
+                box = word_boxes[highlight_index]
+                pointer_pos = {"x": box["cx"], "top": box["top"], "font_size": box["font_size"]}
+            image = draw_dynamic_layer(base_img, layout, highlight_index, pointer_pos)
             buf = BytesIO()
             image.save(buf, format="PNG")
             buf.seek(0)

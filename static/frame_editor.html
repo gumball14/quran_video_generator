@@ -878,6 +878,17 @@
         </div>
         <div class="font-hint" style="margin:10px 0 0;">Ken Burns is saved with the theme but not yet implemented by the video generator — it has no visible effect on the export yet.</div>
       </div>
+      <div class="card">
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Outro screen</div>
+          <label class="switch"><input type="checkbox" id="outroEnabled"><span class="switch-track"></span></label>
+        </div>
+        <div class="slider-row" id="outroDurationRow" style="display:none;">
+          <div class="slider-top"><div class="row-label">Outro duration</div><div class="slider-val" id="outroDurationVal">2.0s</div></div>
+          <input type="range" id="outroDuration" min="0.5" max="10" step="0.5" value="2.0">
+        </div>
+        <div class="font-hint" style="margin:10px 0 0;">Adds a plain background screen (same background as the rest of the video, no text) after the last ayah.</div>
+      </div>
     </div>
 
   </div>
@@ -927,7 +938,8 @@
         translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
       },
       highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerGap:1.0 },
-      fadeDuration:0.6, kenBurns:false
+      fadeDuration:0.6, kenBurns:false,
+      outroEnabled:false, outroDuration:2.0
     };
   }
 
@@ -988,6 +1000,8 @@
 
     s.fadeDuration = theme.fade_duration ?? s.fadeDuration;
     s.kenBurns = theme.ken_burns ?? s.kenBurns;
+    s.outroEnabled = theme.outro_enabled ?? s.outroEnabled;
+    s.outroDuration = theme.outro_duration ?? s.outroDuration;
     return s;
   }
 
@@ -1015,6 +1029,7 @@
       background_video: null,
       background_overlay_opacity: s.overlayOpacity,
       fade_duration: s.fadeDuration, ken_burns: s.kenBurns,
+      outro_enabled: s.outroEnabled, outro_duration: s.outroDuration,
       highlight_enabled: s.highlight.enabled, highlight_style: s.highlight.style,
       highlight_color: hexToRgb(s.highlight.color), highlight_bg_opacity: s.highlight.opacity,
       highlight_fallback_wps: s.highlight.pace,
@@ -1542,6 +1557,7 @@
   wireSlider('highlightPace', 'highlightPaceVal', v => state.highlight.pace = v, v => v.toFixed(1));
   wireSlider('highlightPointerGap', 'highlightPointerGapVal', v => state.highlight.pointerGap = v);
   wireSlider('fadeDuration', 'fadeDurationVal', v => state.fadeDuration = v, v => v.toFixed(2) + 's');
+  wireSlider('outroDuration', 'outroDurationVal', v => state.outroDuration = v, v => v.toFixed(1) + 's');
 
   // ---------- switches ----------
   el('showHeader').addEventListener('change', e => { state.showHeader = e.target.checked; render(); });
@@ -1563,6 +1579,11 @@
     state.highlight.pointer = e.target.checked;
     el('highlightPointerStyleField').style.display = e.target.checked ? 'block' : 'none';
     el('highlightPointerGapRow').style.display = e.target.checked ? 'block' : 'none';
+    render();
+  });
+  el('outroEnabled').addEventListener('change', e => {
+    state.outroEnabled = e.target.checked;
+    el('outroDurationRow').style.display = e.target.checked ? 'block' : 'none';
   });
 
   // ---------- image upload ----------
@@ -1709,6 +1730,9 @@
 
     el('fadeDuration').value = state.fadeDuration; el('fadeDurationVal').textContent = state.fadeDuration.toFixed(2) + 's';
     el('kenBurns').checked = state.kenBurns;
+    el('outroEnabled').checked = state.outroEnabled;
+    el('outroDurationRow').style.display = state.outroEnabled ? 'block' : 'none';
+    el('outroDuration').value = state.outroDuration; el('outroDurationVal').textContent = state.outroDuration.toFixed(1) + 's';
 
     el('previewMetaTitle').textContent = editingThemeName || new URLSearchParams(location.search).get('theme') || 'Custom theme';
   }

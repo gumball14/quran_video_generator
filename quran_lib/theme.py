@@ -90,6 +90,9 @@ DEFAULT_THEME = {
     "highlight_pointer_enabled": False,
     "highlight_pointer_style": "hand",
     "highlight_pointer_gap_mult": 1.0,
+
+    "outro_enabled": False,           # append a plain background screen (no text) after the last ayah
+    "outro_duration": 2.0,            # seconds the outro screen holds, before/into the closing fade
 }
 
 # Mutated in place by load_theme() -- render code reads from this dict

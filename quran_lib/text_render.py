@@ -368,6 +368,33 @@ def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, bor
     return img, draw
 
 
+def render_background(size) -> Image.Image:
+    """Renders just the theme's background (solid/gradient/image + overlay,
+    per THEME["background_style"]) with no text or other elements on top.
+    Shared by build_ayah_layout() (as the base every frame draws onto) and
+    by the outro scene (a plain background frame with nothing else on it)."""
+    THEME = theme_mod.THEME
+    w, h = size
+    if THEME["background_style"] == "solid":
+        img = Image.new("RGB", size, tuple(THEME["bg_solid"]))
+    elif THEME["background_style"] == "image" and THEME.get("background_image"):
+        bg = _cached_background_image(THEME["background_image"])
+        if bg is not None:
+            # cover-fit, centered -- matches the editor preview's canvas math
+            scale = max(w / bg.width, h / bg.height)
+            iw, ih = int(bg.width * scale), int(bg.height * scale)
+            bg = bg.resize((iw, ih), Image.LANCZOS)
+            img = Image.new("RGB", size)
+            img.paste(bg, ((w - iw) // 2, (h - ih) // 2))
+            overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
+            img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+        else:
+            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+    else:
+        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+    return img
+
+
 def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translation=True, surah_name_text=None):
     """Runs once per ayah: background, header, Arabic font-fitting/wrapping/
     word measurement, badge, and translation. Returns (base_image, layout)
@@ -389,23 +416,7 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
     w, h = size
 
     # --- background ---
-    if THEME["background_style"] == "solid":
-        img = Image.new("RGB", size, tuple(THEME["bg_solid"]))
-    elif THEME["background_style"] == "image" and THEME.get("background_image"):
-        bg = _cached_background_image(THEME["background_image"])
-        if bg is not None:
-            # cover-fit, centered -- matches the editor preview's canvas math
-            scale = max(w / bg.width, h / bg.height)
-            iw, ih = int(bg.width * scale), int(bg.height * scale)
-            bg = bg.resize((iw, ih), Image.LANCZOS)
-            img = Image.new("RGB", size)
-            img.paste(bg, ((w - iw) // 2, (h - ih) // 2))
-            overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
-            img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-        else:
-            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
-    else:
-        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+    img = render_background(size)
     draw = ImageDraw.Draw(img)
 
     # --- layout columns: side-by-side translation splits the width, text_align shifts within a column ---
