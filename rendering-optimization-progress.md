@@ -1,5 +1,9 @@
 # Rendering optimization — implementation progress
 
+**Status: Phases 1, 2, 3, 5 done and committed** (`eac9441`, `0cd8ab0`).
+Phase 4 (multiprocessing) and Phase 6 (speculative/optional) intentionally
+not implemented — see "Deferred" below.
+
 Tracking implementation of `rendering-optimization-plan.md` (phases 1, 2, 3, 5;
 phase 4 and 6 deferred as optional follow-ups — see notes at bottom).
 
