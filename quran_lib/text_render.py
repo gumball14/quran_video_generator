@@ -4,6 +4,7 @@ and the layout math (column width, translation_position, text_align) that
 mirrors the HTML editor's canvas preview. render_verse_frame() is the one
 entry point everything else (video_build.py) calls.
 """
+import math
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
@@ -50,6 +51,47 @@ def arabic_draw_args(text: str):
     if has_raqm():
         return text, {"direction": "rtl", "language": "ar"}
     return shape_arabic(text), {}
+
+
+_ROMAN_TABLE = [
+    (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+    (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+    (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+]
+
+
+def to_roman_numeral(n: int) -> str:
+    """Converts a positive integer to an uppercase Roman numeral string.
+    Roman numerals have no standard representation past 3999, so numbers
+    outside 1-3999 fall back to plain digits rather than rendering blank."""
+    if n <= 0 or n > 3999:
+        return str(n)
+    remainder = n
+    parts = []
+    for value, symbol in _ROMAN_TABLE:
+        count, remainder = divmod(remainder, value)
+        parts.append(symbol * count)
+    return "".join(parts)
+
+
+_ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+
+def to_arabic_indic_numeral(n: int) -> str:
+    """Converts a non-negative integer to Eastern Arabic-Indic digits
+    (e.g. 12 -> "١٢"), used by the badge's "arabic" numeral style."""
+    return "".join(_ARABIC_INDIC_DIGITS[int(d)] for d in str(n))
+
+
+def format_badge_number(n: int, numeral_style: str) -> str:
+    """Formats the ayah/verse number for the number badge according to
+    THEME["badge_numeral_style"]: "western" (plain digits, default),
+    "arabic" (Eastern Arabic-Indic digits), or "roman" (Roman numerals)."""
+    if numeral_style == "arabic":
+        return to_arabic_indic_numeral(n)
+    if numeral_style == "roman":
+        return to_roman_numeral(n)
+    return str(n)
 
 
 def wrap_arabic_lines(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: ImageDraw.ImageDraw):
@@ -158,8 +200,31 @@ def _badge_shape(style, cx, cy, half):
             (0.18, 0.90), (0.21, 0.67), (0.0, 0.5), (0.21, 0.33), (0.18, 0.10), (0.39, 0.18),
         ]
         return "polygon", [(cx - half + px * half * 2, cy - half + py * half * 2) for px, py in pts_pct]
+    if style == "star8":
+        # Eight-pointed star (the "Rub el Hizb" motif traditionally used to
+        # mark Quranic divisions) -- 16 vertices alternating outer/inner radius.
+        return "polygon", _star_polygon(cx, cy, half, spikes=8, inner_ratio=0.44)
+    if style == "scallop":
+        # Shallow scalloped medallion edge -- a calligraphic-manuscript-style
+        # frame, distinct from "flower"'s deeper 16-point petals.
+        return "polygon", _star_polygon(cx, cy, half, spikes=14, inner_ratio=0.88)
     # "ornament" (default) and any unrecognized style: soft rounded rect
     return "rounded_rect", ([cx - half, cy - half, cx + half, cy + half], half * 0.6)
+
+
+def _star_polygon(cx, cy, half, spikes, inner_ratio, rotation_deg=-90):
+    """Returns the vertex list for a `spikes`-pointed star (or shallow
+    scalloped edge, for a high inner_ratio) centered at (cx, cy), alternating
+    between the outer radius `half` and `half * inner_ratio`. Mirrors the
+    clip-path polygons used for the matching .style-star8/.style-scallop
+    swatches in frame_editor.html so the exported frame matches the editor."""
+    points = []
+    n = spikes * 2
+    for i in range(n):
+        r = half if i % 2 == 0 else half * inner_ratio
+        angle = math.radians(rotation_deg + i * (360 / n))
+        points.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
+    return points
 
 
 def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px):
@@ -349,14 +414,29 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             cursor -= wd_width + space_width
             global_idx += 1
 
-    # Verse number badge just under Arabic block (skip for the Basmala scene, number 0)
-    # Centered within the Arabic column (matches the editor: full-width when not in side mode)
+    # Verse number badge (skip for the Basmala scene, number 0). Where it sits
+    # is controlled by badge_position: "below_header" (right under the surah
+    # name), "below_arabic" (default -- just under the Arabic block, as
+    # before), or "bottom" (pinned near the bottom of the frame regardless of
+    # verse length). Centered within the Arabic column (matches the editor:
+    # full-width when not in side mode).
+    arabic_bottom_y = start_y + total_arabic_h + h * 0.015
+    badge_position = THEME.get("badge_position", "below_arabic")
+    if badge_position == "below_header":
+        badge_top_y = h * THEME["header_y_frac"] + h * THEME["header_size_frac"] * 1.6
+    else:
+        badge_top_y = arabic_bottom_y  # also used as the "bottom" fallback below
+
     badge_cx = arabic_col_left + arabic_col_width / 2
-    badge_y = start_y + total_arabic_h + h * 0.015
     if THEME["show_badge"] and verse.number > 0:
         badge_font_size = int(h * THEME["badge_size_frac"])
-        badge_font = ImageFont.truetype(str(theme_mod.ARABIC_FONT_REGULAR), badge_font_size)
-        badge_display = str(verse.number)  # plain digits -- no ayah-end ornament glyph
+        numeral_style = THEME.get("badge_numeral_style", "western")
+        badge_display = format_badge_number(verse.number, numeral_style)
+        # Roman numerals are Latin letters -- draw them in the Latin font;
+        # plain and Arabic-Indic digits both read fine in the Arabic font
+        # (as plain digits already did before this option existed).
+        badge_font_path = theme_mod.LATIN_FONT_REGULAR if numeral_style == "roman" else theme_mod.ARABIC_FONT_REGULAR
+        badge_font = ImageFont.truetype(str(badge_font_path), badge_font_size)
         bb = draw.textbbox((0, 0), badge_display, font=badge_font)
         text_w = bb[2] - bb[0]
         text_h = bb[3] - bb[1]
@@ -367,7 +447,10 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
         pad = badge_font_size * 0.7
         box_size = max(badge_font_size * 1.9, text_w + pad, text_h + pad)
         half = box_size / 2
-        badge_cy = badge_y + badge_font_size * 0.62
+        if badge_position == "bottom":
+            badge_cy = h - h * 0.06 - half
+        else:
+            badge_cy = badge_top_y + badge_font_size * 0.62
 
         style = THEME.get("badge_style", "ornament")
         border_width_val = THEME.get("badge_border_width", 0.15)
@@ -390,7 +473,13 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
                    font=badge_font, fill=tuple(THEME["badge_color"]))
         badge_bottom = badge_cy + half
     else:
-        badge_bottom = badge_y
+        badge_bottom = badge_top_y
+
+    # Translation ("below" mode) flows right under the badge only when the
+    # badge actually sits directly beneath the Arabic verse (the original,
+    # default arrangement); for "below_header"/"bottom" the badge is
+    # elsewhere on the frame, so translation flows under the verse instead.
+    translation_ref_bottom = badge_bottom if badge_position == "below_arabic" else arabic_bottom_y
 
     # Translation -- position/column/alignment follow translation_position + text_align
     if show_translation and THEME["show_translation"]:
@@ -411,7 +500,7 @@ def render_verse_frame(verse: Verse, surah_name_arabic: str, size, show_translat
             t_start_y = start_y - h * THEME["translation_gap_frac"] - total_t_h
         else:  # "below" (default)
             trans_col_left = margin
-            t_start_y = badge_bottom + h * THEME["translation_gap_frac"]
+            t_start_y = translation_ref_bottom + h * THEME["translation_gap_frac"]
 
         for i, line in enumerate(trans_lines):
             bbox = draw.textbbox((0, 0), line, font=trans_font)

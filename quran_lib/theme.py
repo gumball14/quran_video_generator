@@ -56,7 +56,9 @@ DEFAULT_THEME = {
     "show_badge": True,
     "show_translation": True,
     "badge_size_frac": 0.022,
-    "badge_style": "ornament",        # "ornament" | "circle" | "hexagon" | "diamond" | "square" | "ring" | "flower" | "none"
+    "badge_style": "ornament",        # "ornament" | "circle" | "hexagon" | "diamond" | "square" | "ring" | "flower" | "star8" | "scallop" | "none"
+    "badge_numeral_style": "western", # "western" (plain digits) | "arabic" (Eastern Arabic-Indic digits) | "roman" (Roman numerals)
+    "badge_position": "below_arabic", # "below_header" (right under the surah name) | "below_arabic" (default, under the verse) | "bottom" (pinned near the bottom of the frame)
     "badge_border_color": list(WHITE),
     "badge_border_width": 0.15,       # 0-1, same slider scale as the editor
     "badge_fill_enabled": True,

@@ -130,6 +130,12 @@
   .fc-badge.style-flower, .badge-style-swatch.style-flower{
     clip-path:polygon(50% 0%, 61% 18%, 82% 10%, 79% 33%, 100% 50%, 79% 67%, 82% 90%, 61% 82%, 50% 100%, 39% 82%, 18% 90%, 21% 67%, 0% 50%, 21% 33%, 18% 10%, 39% 18%);
   }
+  .fc-badge.style-star8, .badge-style-swatch.style-star8{
+    clip-path:polygon(50% 0%, 58.42% 29.67%, 85.36% 14.64%, 70.33% 41.58%, 100% 50%, 70.33% 58.42%, 85.36% 85.36%, 58.42% 70.33%, 50% 100%, 41.58% 70.33%, 14.64% 85.36%, 29.67% 58.42%, 0% 50%, 29.67% 41.58%, 14.64% 14.64%, 41.58% 29.67%);
+  }
+  .fc-badge.style-scallop, .badge-style-swatch.style-scallop{
+    clip-path:polygon(50% 0%, 59.79% 7.1%, 71.69% 4.95%, 77.43% 15.6%, 89.09% 18.83%, 89.64% 30.91%, 98.75% 38.87%, 94% 50%, 98.75% 61.13%, 89.64% 69.09%, 89.09% 81.17%, 77.43% 84.4%, 71.69% 95.05%, 59.79% 92.9%, 50% 100%, 40.21% 92.9%, 28.31% 95.05%, 22.57% 84.4%, 10.91% 81.17%, 10.36% 69.09%, 1.25% 61.13%, 6% 50%, 1.25% 38.87%, 10.36% 30.91%, 10.91% 18.83%, 22.57% 15.6%, 28.31% 4.95%, 40.21% 7.1%);
+  }
   .fc-badge.style-none{ background:transparent!important; border-color:transparent!important; outline:none!important; }
   .badge-style-swatch.style-none{ border:1.5px dashed var(--line); background:transparent; }
 
@@ -553,6 +559,14 @@
       <div class="card">
         <div class="card-title">Ayah number</div>
         <div class="field" style="margin-top:0;">
+          <div class="field-label">Number style</div>
+          <div class="segmented" id="badgeNumeralSeg">
+            <button class="active" data-value="western">Normal</button>
+            <button data-value="arabic">Arabic</button>
+            <button data-value="roman">Roman</button>
+          </div>
+        </div>
+        <div class="field">
           <div class="field-label">Number color</div>
           <div class="swatch-row">
             <div class="colorpick"><input type="color" id="badgeColor" value="#FFFFFF"></div>
@@ -563,8 +577,16 @@
           <div class="slider-top"><div class="row-label">Size</div><div class="slider-val" id="badgeSizeVal">2.3</div></div>
           <input type="range" id="badgeSize" min="1.2" max="4.5" step="0.1" value="2.3">
         </div>
+        <div class="field">
+          <div class="field-label">Position</div>
+          <div class="segmented" id="badgePositionSeg">
+            <button data-value="below_header">Below name</button>
+            <button class="active" data-value="below_arabic">Below verse</button>
+            <button data-value="bottom">Bottom of frame</button>
+          </div>
+        </div>
         <div class="slider-row">
-          <div class="slider-top"><div class="row-label">Position — distance below name</div><div class="slider-val" id="badgeGapVal">0.030</div></div>
+          <div class="slider-top"><div class="row-label">Gap — fine offset from anchor</div><div class="slider-val" id="badgeGapVal">0.030</div></div>
           <input type="range" id="badgeGap" min="0" max="0.12" step="0.005" value="0.03">
         </div>
       </div>
@@ -833,6 +855,7 @@
       align:'center', transPos:'below',
       margin:0.09,
       showHeader:true, headerScript:'arabic', showBadge:true, showTranslation:true, badgeStyle:'ornament',
+      badgeNumeralStyle:'western', badgePosition:'below_arabic',
       fonts:{ arabic:'Amiri', text:'Manrope' },
       text: JSON.parse(JSON.stringify(samples.long)),
       textStyle:{
@@ -868,6 +891,8 @@
     s.showBadge = theme.show_badge ?? s.showBadge;
     s.showTranslation = theme.show_translation ?? s.showTranslation;
     s.badgeStyle = theme.badge_style || s.badgeStyle;
+    s.badgeNumeralStyle = theme.badge_numeral_style || s.badgeNumeralStyle;
+    s.badgePosition = theme.badge_position || s.badgePosition;
 
     s.textStyle.header.color = rgbToHex(theme.header_color);
     if (theme.header_size_frac != null) s.textStyle.header.size = +(theme.header_size_frac * 100).toFixed(2);
@@ -927,6 +952,8 @@
       highlight_pointer_enabled: s.highlight.pointer, highlight_pointer_style: s.highlight.pointerStyle,
       highlight_pointer_gap_mult: s.highlight.pointerGap,
       badge_style: s.badgeStyle,
+      badge_numeral_style: s.badgeNumeralStyle,
+      badge_position: s.badgePosition,
       badge_border_color: hexToRgb(ts.badge.borderColor),
       badge_border_width: ts.badge.borderWidth,
       badge_fill_enabled: ts.badge.fillEnabled,
@@ -984,8 +1011,28 @@
     { value:'square', label:'Square' },
     { value:'ring', label:'Ring' },
     { value:'flower', label:'Flower' },
+    { value:'star8', label:'Star' },
+    { value:'scallop', label:'Medallion' },
     { value:'none', label:'None' }
   ];
+  const ROMAN_TABLE = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+  function toRomanNumeral(n){
+    if (n <= 0 || n > 3999) return String(n);
+    let result = '', remainder = n;
+    for (const [value, symbol] of ROMAN_TABLE){
+      while (remainder >= value){ result += symbol; remainder -= value; }
+    }
+    return result;
+  }
+  const ARABIC_INDIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+  function toArabicIndicNumeral(n){
+    return String(n).split('').map(d => ARABIC_INDIC_DIGITS[+d] ?? d).join('');
+  }
+  function formatBadgeNumber(n, numeralStyle){
+    if (numeralStyle === 'arabic') return toArabicIndicNumeral(n);
+    if (numeralStyle === 'roman') return toRomanNumeral(n);
+    return String(n);
+  }
   function hexToRgba(hex, alpha){
     const h = (hex || '#FFFFFF').replace('#','');
     const r = parseInt(h.substring(0,2),16) || 0;
@@ -1118,13 +1165,32 @@
       fcHeader.dir = 'rtl';
     }
 
-    // ---- ayah number badge (positioned relative to the name above it) ----
+    // ---- ayah number badge ----
+    // "below_header" keeps the badge in its original DOM position (right
+    // after the name); "below_arabic" (default) and "bottom" reorder it
+    // relative to the verse/translation block via flex `order` -- "bottom"
+    // additionally pins it near the bottom of the frame regardless of how
+    // tall the verse block is, since flex order alone can't do that.
     fcBadgeRow.style.display = state.showBadge ? 'flex' : 'none';
-    fcBadgeRow.style.marginTop = (ts.badge.gap * 100) + '%';
+    fcHeader.style.order = 0;
+    fcTextblock.style.order = 2;
+    if (state.badgePosition === 'bottom'){
+      fcBadgeRow.style.position = 'absolute';
+      fcBadgeRow.style.left = '0';
+      fcBadgeRow.style.right = '0';
+      fcBadgeRow.style.bottom = '6%';
+      fcBadgeRow.style.order = '';
+      fcBadgeRow.style.marginTop = '0';
+    } else {
+      fcBadgeRow.style.position = 'static';
+      fcBadgeRow.style.order = state.badgePosition === 'below_arabic' ? 3 : 1;
+      fcBadgeRow.style.marginTop = (ts.badge.gap * 100) + '%';
+    }
     fcBadge.className = 'fc-badge style-' + state.badgeStyle;
     fcBadgeNum.style.fontSize = ts.badge.size + 'cqw';
     fcBadgeNum.style.color = ts.badge.color;
-    fcBadgeNum.textContent = state.text.badge;
+    fcBadgeNum.style.fontFamily = state.badgeNumeralStyle === 'roman' ? textFontStack : arabicFontStack;
+    fcBadgeNum.textContent = formatBadgeNumber(parseInt(state.text.badge, 10) || 1, state.badgeNumeralStyle);
     fcBadge.style.setProperty('--badge-border-c', ts.badge.borderColor);
     fcBadge.style.setProperty('--badge-border-w', ts.badge.borderWidth + 'cqw');
     fcBadge.style.setProperty('--badge-fill', ts.badge.fillEnabled ? hexToRgba(ts.badge.fillColor, ts.badge.fillOpacity) : 'transparent');
@@ -1307,6 +1373,8 @@
   });
   wireSegmented('highlightPointerStyleSeg', v => state.highlight.pointerStyle = v);
   wireSegmented('headerScriptSeg', v => state.headerScript = v);
+  wireSegmented('badgeNumeralSeg', v => state.badgeNumeralStyle = v);
+  wireSegmented('badgePositionSeg', v => state.badgePosition = v);
   wireSegmented('bgStyleSeg', v => {
     state.bgStyle = v;
     el('bgGradientFields').style.display = v === 'gradient' ? 'block' : 'none';
@@ -1469,6 +1537,8 @@
     el('badgeColor').value = ts.badge.color; el('badgeColorHex').value = ts.badge.color;
     el('badgeSize').value = ts.badge.size; el('badgeSizeVal').textContent = ts.badge.size.toFixed(1);
     el('badgeGap').value = ts.badge.gap; el('badgeGapVal').textContent = ts.badge.gap.toFixed(3);
+    el('badgeNumeralSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.badgeNumeralStyle));
+    el('badgePositionSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.badgePosition));
     el('badgeBorderColor').value = ts.badge.borderColor; el('badgeBorderColorHex').value = ts.badge.borderColor;
     el('badgeBorderWidth').value = ts.badge.borderWidth; el('badgeBorderWidthVal').textContent = ts.badge.borderWidth.toFixed(2);
     el('badgeFillEnabled').checked = ts.badge.fillEnabled;
