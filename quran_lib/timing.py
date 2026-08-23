@@ -29,9 +29,14 @@ SCHEMA
 }
 
 Ayah number "0" is the Basmala scene (matches the number=0 convention
-used elsewhere for the split-off Bismillah). Keys are strings because
-that's what JSON object keys are -- get_ayah_frames() takes a normal int
-and does the str() conversion for you.
+used elsewhere for the split-off Bismillah). Its frame times share the
+SAME clock as ayah 1's own frames -- both are timed against ayah 1's one
+undivided audio file (see quran_lib.audio.detect_basmala_split()), not
+two separate clips -- so build_video() merges the "0" entry's frames in
+front of ayah 1's before rendering, and plays them both from a single
+audio subclip. Keys are strings because that's what JSON object keys
+are -- get_ayah_frames() takes a normal int and does the str() conversion
+for you.
 
 A manifest is entirely optional, and so is any single ayah within it:
 video_build.build_video() falls back to today's automatic pacing for any

@@ -69,6 +69,13 @@ NOTES
   Arabic text/translation and recitation audio are fetched live from
   alquran.cloud and everyayah.com, and the surah list in the browser
   is loaded live from alquran.cloud too.
+- For a handful of reciters, generating without a manual timing
+  manifest plays one continuous, unsplit per-surah recording (via
+  quranicaudio.com / mp3quran.net) instead of downloading and gluing
+  together one file per ayah, using per-ayah boundary timing data from
+  everyayah.com (courtesy of VerseByVerseQuran.com,
+  http://versebyversequran.com/site/license). Every other reciter is
+  unaffected and keeps downloading per-ayah audio as before.
 - You can still use quran_video.py directly from the command line if
   you'd rather script it — see the --help output for every flag
   (--surah, --ayah-start/--ayah-end, --reciter, --translation,

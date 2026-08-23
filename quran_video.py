@@ -39,7 +39,7 @@ split by concern:
     quran_lib/constants.py    - paths, reciter list, output settings
     quran_lib/theme.py        - theme schema + loading (matches the HTML editor's export)
     quran_lib/quran_api.py    - fetching verse text/translation
-    quran_lib/audio.py        - downloading + splitting recitation audio
+    quran_lib/audio.py        - downloading recitation audio + detecting Basmala timing
     quran_lib/text_render.py  - drawing each frame (Arabic shaping, layout, backgrounds)
     quran_lib/video_build.py  - assembling frames + audio into the final video
 """
@@ -67,6 +67,7 @@ from quran_lib.theme import load_theme
 from quran_lib.quran_api import fetch_verses
 from quran_lib.video_build import build_video
 from quran_lib.timing import load_timing_manifest, TimingManifestError
+from quran_lib.audio_sources import load_audio_source_manifest, AudioSourceManifestError
 
 
 def main():
@@ -91,6 +92,12 @@ def main():
                          help="Path to a timing manifest (see quran_lib/timing.py) giving explicit, "
                               "manually-set frame/word timings for one or more ayahs. Any ayah not "
                               "covered by it still uses the automatic pacing.")
+    parser.add_argument("--custom-audio", default=None,
+                         help="Path to an audio-source manifest (see quran_lib/audio_sources.py) "
+                              "pointing one or more ayahs at a user-uploaded recording (with an "
+                              "optional crop) instead of the everyayah.com download. Filenames in "
+                              "the manifest are resolved relative to the manifest file's own "
+                              "directory, so keep it alongside the audio files it references.")
     args = parser.parse_args()
 
     if args.theme:
@@ -105,6 +112,17 @@ def main():
         except TimingManifestError as e:
             print(f"Timing manifest error: {e}")
             sys.exit(1)
+
+    audio_source_manifest = None
+    custom_audio_dir = None
+    if args.custom_audio:
+        print(f"Loading custom-audio manifest from {args.custom_audio}…")
+        try:
+            audio_source_manifest = load_audio_source_manifest(Path(args.custom_audio))
+        except AudioSourceManifestError as e:
+            print(f"Custom-audio manifest error: {e}")
+            sys.exit(1)
+        custom_audio_dir = Path(args.custom_audio).resolve().parent
 
     size = (1080, 1920) if args.orientation == "vertical" else (1920, 1080)
 
@@ -121,6 +139,7 @@ def main():
         verses, surah_name_arabic, args.surah, args.reciter, size, output_path,
         show_translation=not args.no_translation, timing_manifest=timing_manifest,
         surah_name_text=surah_name, outro_enabled=not args.no_outro,
+        audio_source_manifest=audio_source_manifest, custom_audio_dir=custom_audio_dir,
     )
     print(f"\nDone! Video saved to: {output_path}")
 

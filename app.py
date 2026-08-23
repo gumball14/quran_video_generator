@@ -19,6 +19,7 @@ everyayah.com for audio) -- this Flask app just runs on localhost.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -35,11 +36,13 @@ OUTPUT_DIR = HERE / "output"          # matches quran_video.py's own default
 JOBS_DIR = HERE / "jobs"              # per-job temp files (e.g. uploaded theme.json)
 THEMES_DIR = HERE / "themes"          # user-saved custom themes, one JSON file per theme
 SESSIONS_DIR = HERE / "sessions"      # one JSON per video-creation session: full generation config + incomplete/complete status
+UPLOADS_DIR = HERE / "uploads"        # user-uploaded ayah audio (Phase 3), one subdir per session: uploads/<session_id>/<ayah>.<ext>
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(exist_ok=True)
 THEMES_DIR.mkdir(exist_ok=True)
 SESSIONS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 
 def _migrate_legacy_projects_dir():
@@ -68,10 +71,20 @@ def _migrate_legacy_projects_dir():
 _migrate_legacy_projects_dir()
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+# Phase 3 custom-audio uploads are the only large-file endpoint this app
+# has -- cap it here so one accidental multi-hour recording can't fill the
+# disk. Every other route only ever sends/receives small JSON payloads.
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25MB
+
+
+@app.errorhandler(413)
+def _handle_upload_too_large(e):
+    return jsonify({"error": "That file is too large (25MB max)."}), 413
+
 
 from quran_lib.quran_api import fetch_verses, Verse
-from quran_lib.audio import download_ayah_audio, split_basmala_audio
-from quran_lib.constants import CACHE_DIR, FONT_DIR
+from quran_lib.audio import download_ayah_audio, detect_basmala_split, get_audio_duration, get_custom_ayah_audio
+from quran_lib.constants import FONT_DIR
 from quran_lib.theme import load_theme
 from quran_lib.text_render import build_ayah_layout, draw_dynamic_layer
 from quran_lib import theme as theme_mod
@@ -87,6 +100,42 @@ RECITERS = {
     "hudhaifi": "Ali Al-Hudhaifi",
     "ayyub": "Muhammad Ayyub",
     "qatami": "Nasser Al-Qatami",
+
+    "shuraim": "Saud Al-Shuraim",
+    "minshawi": "Mohamed Al-Minshawi (Murattal)",
+    "minshawi_mujawwad": "Mohamed Al-Minshawi (Mujawwad)",
+    "hussary_mujawwad": "Mahmoud Al-Hussary (Mujawwad)",
+    "hussary_muallim": "Mahmoud Al-Hussary (Muallim, teaching pace)",
+    "basfar": "Abdullah Basfar",
+    "shatri": "Abu Bakr Al-Shatri",
+    "ajamy": "Ahmed Al-Ajmy",
+    "abdul_samad": "Abdul Samad",
+    "hani_rifai": "Hani Ar-Rifai",
+    "qahtani": "Khalid Al-Qahtani",
+    "jibreel": "Muhammad Jibreel",
+    "al_qasim": "Muhsin Al-Qasim",
+    "mustafa_ismail": "Mustafa Ismail",
+    "budair": "Salah Al-Budair",
+    "bukhatir": "Salah Bukhatir",
+    "tablawi": "Mohamed Al-Tablawi",
+    "matrood": "Abdullah Al-Matrood",
+    "juhaynee": "Abdullah Al-Juhaynee",
+    "neana": "Ahmed Neana",
+    "alaqimy": "Akram Al-Alaqimy",
+    "hajjaj": "Ali Hajjaj Al-Suesy",
+    "ali_jaber": "Ali Jaber",
+    "sowaid": "Ayman Sowaid",
+    "fares_abbad": "Fares Abbad",
+    "akhdar": "Ibrahim Al-Akhdar",
+    "abdulkareem": "Muhammad Abdul Kareem",
+    "nabil_rifai": "Nabil Ar-Rifai",
+    "sahl_yassin": "Sahl Yassin",
+    "yasser_salamah": "Yasser Salamah",
+    "aziz_alili": "Aziz Alili",
+    "tunaiji": "Khalifa Al-Tunaiji",
+    "al_banna": "Mahmoud Ali Al-Banna",
+    "mansoori": "Karim Mansoori",
+    "parhizgar": "Shahriar Parhizgar",
 }
 
 JOBS = {}          # job_id -> dict
@@ -105,6 +154,7 @@ SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 SESSION_FIELDS = (
     "surah", "ayahStart", "ayahEnd", "reciter", "orientation", "translation",
     "noTranslation", "noSplitBasmala", "noOutro", "theme", "themeName", "timing",
+    "customAudio",  # dict or None, an audio-source manifest (see quran_lib/audio_sources.py)
 )
 
 
@@ -266,13 +316,79 @@ def api_timing_text():
     })
 
 
+_AUDIO_MIMETYPES = {".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".ogg": "audio/ogg"}
+
+
+def _upload_dir_for(session_id):
+    return UPLOADS_DIR / session_id
+
+
+# Same charset as quran_lib/audio_sources.py's _SAFE_FILENAME_RE -- used here
+# to validate the optional `customFilename` param below (a plain filename
+# inside this session's upload dir, never a path) before touching disk with it.
+_SAFE_FILENAME_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def _resolve_ayah_audio(surah, ayah, reciter):
+    """Resolves which audio file the timing editor should read for one
+    ayah, and its mimetype. If `sessionId` (+ optional `cropStart`/
+    `cropEnd`, seconds) is present in the request AND that session has a
+    Phase-3 custom-audio upload for this ayah, that upload wins over the
+    reciter download -- cropped on the fly via get_custom_ayah_audio() if
+    crop bounds were given, exactly the same lazy/cached path
+    build_video() will use at generation time. Falls back to the normal
+    download_ayah_audio() pipeline otherwise, unchanged.
+
+    `customFilename`, if given, addresses the upload directly by name
+    instead of the default "<ayah>.<ext>" convention -- this is what lets
+    several ayahs share ONE uploaded file (e.g. a whole surah recorded in
+    one take that the user splits into ayahs themselves via different crop
+    windows on the SAME filename; see static/timing.html's "split" flow).
+    Falls back to the per-ayah glob when omitted, for backward
+    compatibility with the original one-upload-per-ayah flow.
+
+    Raises on download/ffprobe failure; callers turn that into a 502/400."""
+    session_id = request.args.get("sessionId", "")
+    if SESSION_ID_RE.match(session_id):
+        upload_dir = _upload_dir_for(session_id)
+        upload_path = None
+
+        custom_filename = request.args.get("customFilename", "")
+        if custom_filename and _SAFE_FILENAME_RE.match(custom_filename):
+            candidate = upload_dir / custom_filename
+            if candidate.is_file():
+                upload_path = candidate
+        elif upload_dir.is_dir():
+            # Exclude cached crop outputs (named "<ayah>.crop_...") from the
+            # source lookup -- only the original upload should be treated as
+            # the source of truth for what to (re-)crop from.
+            matches = [p for p in upload_dir.glob(f"{ayah}.*") if not p.name.startswith(f"{ayah}.crop_")]
+            if matches:
+                upload_path = matches[0]
+
+        if upload_path is not None:
+            crop_start = float(request.args.get("cropStart", 0.0) or 0.0)
+            crop_end_raw = request.args.get("cropEnd")
+            crop_end = float(crop_end_raw) if crop_end_raw not in (None, "") else None
+            audio_path = get_custom_ayah_audio(upload_path, crop_start, crop_end)
+            return audio_path, _AUDIO_MIMETYPES.get(audio_path.suffix.lower(), "audio/mpeg")
+
+    audio_path = download_ayah_audio(surah=surah, ayah=ayah, reciter_key=reciter)
+    return audio_path, "audio/mpeg"
+
+
 @app.route("/api/timing/audio")
 def api_timing_audio():
-    """Serve the ayah's recitation audio for the waveform editor. `part`
-    controls whether you get the raw undivided file, or -- for an ayah 1
-    that has the Bismillah prepended -- one half of the *exact same*
-    ffmpeg split the real generator uses (so timings set against this
-    audio line up perfectly with what build_video() will actually use)."""
+    """Serve the ayah's raw, undivided recitation audio for the waveform
+    editor -- always the whole file, never a physically split piece of it.
+    For an ayah 1 that has the Bismillah prepended, the editor uses
+    /api/timing/basmala-split to get the Bismillah/ayah boundary as a
+    timestamp within this same file and treats it as a frame divider, not a
+    reason to fetch a different audio resource.
+
+    A session with a Phase-3 custom-audio upload for this ayah (see
+    _resolve_ayah_audio()) is served instead of the reciter download --
+    pass sessionId (and cropStart/cropEnd once a crop is set) to opt in."""
     try:
         surah = int(request.args.get("surah"))
         ayah = int(request.args.get("ayah"))
@@ -283,26 +399,170 @@ def api_timing_audio():
     if reciter not in RECITERS:
         return jsonify({"error": "Unknown reciter."}), 400
 
-    part = request.args.get("part", "full")
-    if part not in ("full", "basmala", "ayah"):
-        return jsonify({"error": "part must be full, basmala, or ayah."}), 400
+    try:
+        audio_path, mimetype = _resolve_ayah_audio(surah, ayah, reciter)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": f"Couldn't load that ayah's audio: {e}"}), 502
+
+    return send_file(audio_path, mimetype=mimetype)
+
+
+@app.route("/api/timing/basmala-split")
+def api_timing_basmala_split():
+    """Detects -- but never cuts -- the Bismillah/ayah boundary in ayah 1's
+    audio, so the timing editor can offer it as a starting guess for where
+    the Bismillah frame ends and the ayah frame begins. Always reports a
+    timestamp within the single undivided audio file returned by
+    /api/timing/audio (including a Phase-3 custom upload, if one applies --
+    see _resolve_ayah_audio()); see detect_basmala_split()."""
+    try:
+        surah = int(request.args.get("surah"))
+        ayah = int(request.args.get("ayah"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "surah and ayah must be numbers."}), 400
+
+    reciter = request.args.get("reciter", "yasser_al_dossary")
+    if reciter not in RECITERS:
+        return jsonify({"error": "Unknown reciter."}), 400
 
     try:
-        audio_path = download_ayah_audio(surah=surah, ayah=ayah, reciter_key=reciter)
+        audio_path, _mimetype = _resolve_ayah_audio(surah, ayah, reciter)
     except Exception as e:  # noqa: BLE001
-        return jsonify({"error": f"Couldn't download that ayah's audio: {e}"}), 502
+        return jsonify({"error": f"Couldn't load that ayah's audio: {e}"}), 502
 
-    if part == "full":
-        return send_file(audio_path, mimetype="audio/mpeg")
+    return jsonify({"splitAt": detect_basmala_split(audio_path)})
 
-    basmala_path, ayah_path = split_basmala_audio(audio_path, CACHE_DIR / "split")
-    if not basmala_path or not ayah_path:
-        return jsonify({
-            "error": "Couldn't confidently detect the Bismillah/ayah boundary in this "
-                     "audio -- the real generator would fall back to showing them as one "
-                     "combined frame too. Use part=full and time it as a single frame."
-        }), 409
-    return send_file(basmala_path if part == "basmala" else ayah_path, mimetype="audio/mpeg")
+
+# Phase 3: custom audio upload. Extensions accepted here are the only ones
+# ffmpeg/moviepy already have to read elsewhere in this app, and the size
+# cap keeps a single accidental multi-hour recording from filling the disk
+# -- both are enforced before the file is even fully written (see
+# app.config["MAX_CONTENT_LENGTH"] near the top of this file and the
+# extension check below).
+_ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg"}
+
+
+def _save_uploaded_audio(dest_dir, stem, file):
+    """Shared save+validate logic for both the per-ayah and whole-range
+    upload endpoints below: extension check, save as "<stem>.<ext>" inside
+    dest_dir (clearing any other extension previously saved under the same
+    stem so a re-upload with a different container doesn't leave a stale
+    file behind), then ffprobe-validate via get_audio_duration() -- deleting
+    the file again on failure rather than leaving a dead upload on disk.
+    Returns (filename, duration). Raises ValueError(message) on a rejected
+    file; callers turn that into a 400."""
+    ext = Path(file.filename).suffix.lower()
+    if ext not in _ALLOWED_AUDIO_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported file type {ext or '(none)'!r}. "
+            f"Accepted: {', '.join(sorted(_ALLOWED_AUDIO_EXTENSIONS))}."
+        )
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for old in dest_dir.glob(f"{stem}.*"):
+        old.unlink(missing_ok=True)
+    dest_path = dest_dir / f"{stem}{ext}"
+    file.save(dest_path)
+
+    try:
+        duration = get_audio_duration(dest_path)
+    except Exception:  # noqa: BLE001 -- ffprobe rejected it, or it's not audio at all
+        dest_path.unlink(missing_ok=True)
+        raise ValueError("That file doesn't look like valid audio ffmpeg can read.")
+
+    return dest_path.name, duration
+
+
+@app.route("/api/timing/upload-audio", methods=["POST"])
+def api_timing_upload_audio():
+    """Accepts a user-recorded/uploaded ayah audio file, validates it's
+    something ffmpeg can actually decode, and stores it at
+    uploads/<session_id>/<ayah>.<ext> for the timing editor's waveform and
+    (eventually) the real generator to use instead of the everyayah.com
+    download -- see quran_lib/audio_sources.py for how a finished manifest
+    references this file by name."""
+    session_id = request.form.get("sessionId", "")
+    if not SESSION_ID_RE.match(session_id) or _load_session(session_id) is None:
+        return jsonify({"error": "Unknown or invalid sessionId."}), 400
+
+    try:
+        ayah = int(request.form.get("ayah"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "ayah must be a number."}), 400
+    if ayah < 0:
+        return jsonify({"error": "ayah must be >= 0 (0 = the Basmala scene)."}), 400
+
+    file = request.files.get("audio")
+    if file is None or not file.filename:
+        return jsonify({"error": "No audio file was uploaded."}), 400
+
+    try:
+        filename, duration = _save_uploaded_audio(_upload_dir_for(session_id), str(ayah), file)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify({"filename": filename, "duration": duration})
+
+
+@app.route("/api/timing/upload-audio", methods=["DELETE"])
+def api_timing_delete_upload_audio():
+    """Removes a previously uploaded ayah audio file, reverting that ayah
+    back to the reciter download. No-op (not an error) if nothing was
+    uploaded for it."""
+    session_id = request.args.get("sessionId", "")
+    if not SESSION_ID_RE.match(session_id):
+        return jsonify({"error": "Invalid sessionId."}), 400
+    try:
+        ayah = int(request.args.get("ayah"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "ayah must be a number."}), 400
+
+    dest_dir = _upload_dir_for(session_id)
+    for old in dest_dir.glob(f"{ayah}.*"):
+        old.unlink(missing_ok=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/timing/upload-range-audio", methods=["POST"])
+def api_timing_upload_range_audio():
+    """Accepts ONE continuous recording covering multiple ayahs (e.g. a
+    beautiful recitation downloaded from elsewhere that the user wants to
+    split into ayahs themselves), stored as uploads/<session_id>/range.<ext>
+    -- a single shared file that the frontend later slices per ayah via
+    different crop_start/crop_end windows on the SAME filename (see
+    static/timing.html's "split your recording" flow, and
+    _resolve_ayah_audio()'s `customFilename` param above). Same validation
+    as the per-ayah endpoint; only the fixed "range" stem differs, since
+    this upload isn't owned by any one ayah."""
+    session_id = request.form.get("sessionId", "")
+    if not SESSION_ID_RE.match(session_id) or _load_session(session_id) is None:
+        return jsonify({"error": "Unknown or invalid sessionId."}), 400
+
+    file = request.files.get("audio")
+    if file is None or not file.filename:
+        return jsonify({"error": "No audio file was uploaded."}), 400
+
+    try:
+        filename, duration = _save_uploaded_audio(_upload_dir_for(session_id), "range", file)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify({"filename": filename, "duration": duration})
+
+
+@app.route("/api/timing/upload-range-audio", methods=["DELETE"])
+def api_timing_delete_range_audio():
+    """Removes the whole-range upload. Does NOT by itself revert any ayah
+    that was assigned a slice of it -- the frontend clears its own
+    customAudioByRealAyah entries for the range when the user removes it
+    from the UI; this just deletes the underlying file."""
+    session_id = request.args.get("sessionId", "")
+    if not SESSION_ID_RE.match(session_id):
+        return jsonify({"error": "Invalid sessionId."}), 400
+    dest_dir = _upload_dir_for(session_id)
+    for old in dest_dir.glob("range.*"):
+        old.unlink(missing_ok=True)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/preview-frame", methods=["POST"])
@@ -530,6 +790,7 @@ def api_generate():
     no_outro = bool(field("noOutro"))
     theme = override_field("theme")  # dict or None, as exported by the Ayah Frame Studio editor
     timing = field("timing")  # dict or None, a timing manifest (see quran_lib/timing.py)
+    custom_audio = field("customAudio")  # dict or None, an audio-source manifest (see quran_lib/audio_sources.py)
     theme_name = override_field("themeName")  # display label only, for the library list
 
     if session is None:
@@ -552,6 +813,7 @@ def api_generate():
             "theme": theme,
             "themeName": theme_name,
             "timing": timing,
+            "customAudio": custom_audio,
         })
         session["updatedAt"] = time.time()
         _save_session(session)
@@ -587,6 +849,29 @@ def api_generate():
         timing_path = job_dir / "timing.json"
         timing_path.write_text(json.dumps(timing), encoding="utf-8")
         cmd += ["--timing", str(timing_path)]
+
+    if custom_audio and isinstance(custom_audio, dict) and custom_audio.get("ayahs"):
+        # Copy this session's referenced uploads into the job dir alongside
+        # the manifest -- quran_video.py resolves filenames relative to the
+        # manifest's own directory (see its --custom-audio help text), so
+        # the job needs its own self-contained copy rather than reaching
+        # back into uploads/<session_id>/ (which may later be cleaned up
+        # independently of any given job). A referenced file that's gone
+        # missing is silently skipped here; quran_video.py's own ffmpeg call
+        # will fail loudly on the missing file if that happens, same as any
+        # other bad manifest entry.
+        custom_audio_dest_dir = job_dir / "custom_audio"
+        custom_audio_dest_dir.mkdir(parents=True, exist_ok=True)
+        src_upload_dir = _upload_dir_for(session_id) if session_id else None
+        for entry in custom_audio["ayahs"].values():
+            filename = isinstance(entry, dict) and entry.get("filename")
+            if filename and src_upload_dir:
+                src = src_upload_dir / filename
+                if src.exists():
+                    shutil.copy2(src, custom_audio_dest_dir / filename)
+        custom_audio_path = custom_audio_dest_dir / "manifest.json"
+        custom_audio_path.write_text(json.dumps(custom_audio), encoding="utf-8")
+        cmd += ["--custom-audio", str(custom_audio_path)]
 
     range_bit = ""
     if ayah_start not in (None, "") and ayah_end not in (None, ""):
@@ -721,8 +1006,6 @@ def api_download(job_id):
 # --------------------------------------------------------------------------
 # Video library (list/delete/play finished videos)
 # --------------------------------------------------------------------------
-
-from quran_lib.audio import get_audio_duration
 
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 

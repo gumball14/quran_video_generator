@@ -105,6 +105,44 @@
   .clear-link:disabled{ opacity:.35; pointer-events:none; }
   .clear-link:active{ transform:scale(.96); }
 
+  /* ---------- range-audio banner (Phase 3.1: one recording, split into ayahs) ---------- */
+  .range-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:9px 12px; border-radius:13px; margin-bottom:10px; flex-wrap:wrap;
+    background:var(--surface-2);
+  }
+  .range-banner-text{ font-size:11px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:7px; min-width:0; }
+  .range-banner-text svg{ width:13px; height:13px; color:var(--gold-soft); flex-shrink:0; }
+  .range-banner-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .range-link-btn{
+    border:none; background:none; cursor:pointer; padding:2px 0;
+    font-size:10.5px; font-weight:800; color:var(--gold-soft); letter-spacing:.2px;
+  }
+  .range-link-btn.danger{ color:var(--danger); }
+
+  /* ---------- audio source (Phase 3: custom upload + crop) ---------- */
+  .audio-source-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-bottom:10px; flex-wrap:wrap;
+  }
+  .audio-source-label{ display:flex; align-items:center; gap:7px; min-width:0; }
+  .audio-source-label svg{ width:13px; height:13px; color:var(--ink-mute); flex-shrink:0; }
+  .audio-source-text{ font-size:11.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .audio-source-actions{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .as-btn{
+    border:none; cursor:pointer; border-radius:9px; padding:6px 10px;
+    font-size:10.5px; font-weight:800; letter-spacing:.2px;
+    background:var(--surface-2); color:var(--ink);
+    display:flex; align-items:center; gap:5px;
+    transition:transform .1s ease, background .12s ease, opacity .12s ease;
+  }
+  .as-btn svg{ width:11px; height:11px; }
+  .as-btn:active{ transform:scale(.95); }
+  .as-btn:disabled{ opacity:.4; pointer-events:none; }
+  .as-btn.danger{ color:var(--danger); }
+  .as-status{ font-size:10.5px; font-weight:700; color:var(--ink-mute); }
+  .as-status.error{ color:var(--danger); }
+
   /* ---------- waveform ---------- */
   .wave-card{
     margin-top:4px; padding:12px 12px 10px; border-radius:16px;
@@ -356,6 +394,58 @@
   }
   .gen-btn.show{ display:inline-flex; align-items:center; }
 
+  /* ---------- crop modal (Phase 3) ---------- */
+  .crop-overlay{
+    position:fixed; inset:0; background:rgba(20,24,58,.5); z-index:70;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .crop-overlay.open{ display:flex; }
+  .crop-sheet{
+    width:100%; max-width:480px; background:var(--bg);
+    border-radius:22px 22px 0 0; padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+  }
+  .crop-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16.5px; margin-bottom:4px; }
+  .crop-hint{ font-size:11.5px; color:var(--ink-mute); line-height:1.5; margin-bottom:14px; }
+  .crop-track{
+    position:relative; height:52px; border-radius:10px; overflow:hidden;
+    background:var(--surface-2);
+  }
+  .crop-bars{ position:absolute; inset:0; display:flex; align-items:center; gap:2px; padding:0 4px; }
+  .crop-bar{ flex:1; border-radius:2px; background:rgba(20,24,58,.18); }
+  .crop-mask{ position:absolute; top:0; bottom:0; background:rgba(20,24,58,.45); pointer-events:none; }
+  .crop-handle{
+    position:absolute; top:0; bottom:0; width:14px; margin-left:-7px;
+    display:flex; align-items:center; justify-content:center; cursor:ew-resize; touch-action:none;
+  }
+  .crop-handle::before{ content:""; width:3px; height:100%; background:var(--gold); border-radius:2px; }
+  .crop-handle::after{
+    content:""; position:absolute; width:16px; height:16px; border-radius:50%;
+    background:var(--gold); box-shadow:0 0 0 3px var(--bg);
+  }
+  .crop-times{ display:flex; justify-content:space-between; margin-top:8px; font-size:11px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .crop-actions{ display:flex; gap:10px; margin-top:16px; }
+  .crop-cancel-btn, .crop-apply-btn{
+    flex:1; height:48px; border-radius:14px; border:none; cursor:pointer;
+    font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;
+    transition:transform .12s ease;
+  }
+  .crop-cancel-btn{ background:var(--surface-2); color:var(--ink); }
+  .crop-apply-btn{ background:var(--ink); color:#F6F1E4; }
+  .crop-cancel-btn:active, .crop-apply-btn:active{ transform:scale(.97); }
+  .crop-apply-btn:disabled{ opacity:.4; pointer-events:none; }
+  .crop-loading{ text-align:center; color:var(--ink-mute); font-size:12px; font-weight:700; padding:20px 0; }
+
+  /* ---------- split modal (Phase 3.1) -- reuses .crop-* styles, plus: ---------- */
+  .split-handle::before{ background:var(--success); }
+  .split-handle::after{ background:var(--success); }
+  .split-seg-labels{ position:relative; height:16px; margin-top:2px; }
+  .split-seg-label{
+    position:absolute; top:0; transform:translateX(-50%);
+    font-size:9.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
+  }
+  .split-hint-row{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .split-hint-row .as-btn{ background:var(--surface-2); }
+
 </style>
 </head>
 <body>
@@ -377,6 +467,35 @@
   <div class="body">
 
     <div class="wave-card">
+      <div class="range-banner" id="rangeBanner" style="display:none;">
+        <div class="range-banner-text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg>
+          <span id="rangeBannerText">One recording, split into ayahs</span>
+        </div>
+        <div class="range-banner-actions">
+          <button class="range-link-btn" id="rangeEditBtn">Edit splits</button>
+          <button class="range-link-btn danger" id="rangeRemoveBtn">Remove</button>
+        </div>
+      </div>
+      <div class="range-banner" id="rangeBannerOffer" style="display:none;">
+        <div class="range-banner-text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>
+          <span>Got one recording for this whole range?</span>
+        </div>
+        <div class="range-banner-actions">
+          <button class="range-link-btn" id="rangeUploadBtn">Upload &amp; split</button>
+        </div>
+      </div>
+
+      <div class="audio-source-row" id="audioSourceRow">
+        <div class="audio-source-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span class="audio-source-text" id="audioSourceText">Reciter</span>
+        </div>
+        <div class="audio-source-actions" id="audioSourceActions"></div>
+      </div>
+      <div class="as-status" id="audioSourceStatus" style="display:none;"></div>
+
       <div class="wave-track" id="waveTrack">
         <div class="wave-bars" id="waveBars"></div>
         <div id="waveMarkers"></div>
@@ -474,6 +593,37 @@
   <button class="gen-btn" id="genBackBtn">Back to timing</button>
 </div>
 
+<div class="crop-overlay" id="cropOverlay">
+  <div class="crop-sheet">
+    <div class="crop-title">Crop your recording</div>
+    <div class="crop-hint">Drag the handles to trim the start/end. Word markers for this ayah will be cleared if you already placed any, since they're timed against this window.</div>
+    <div id="cropBody">
+      <div class="crop-loading">Loading your recording…</div>
+    </div>
+    <div class="crop-actions">
+      <button class="crop-cancel-btn" id="cropCancelBtn">Cancel</button>
+      <button class="crop-apply-btn" id="cropApplyBtn" disabled>Apply crop</button>
+    </div>
+  </div>
+</div>
+
+<div class="crop-overlay" id="splitOverlay">
+  <div class="crop-sheet">
+    <div class="crop-title">Split your recording</div>
+    <div class="crop-hint" id="splitHint">Drag each handle to where the next ayah begins. Ayahs whose word markers were already placed will be cleared, since they'd be timed against the old boundaries.</div>
+    <div id="splitBody">
+      <div class="crop-loading">Loading your recording…</div>
+    </div>
+    <div class="crop-actions">
+      <button class="crop-cancel-btn" id="splitCancelBtn">Cancel</button>
+      <button class="crop-apply-btn" id="splitApplyBtn" disabled>Apply splits</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="audioUploadInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" style="display:none;">
+<input type="file" id="rangeUploadInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" style="display:none;">
+
 <audio id="ayahAudio" preload="auto"></audio>
 
 <script>
@@ -501,6 +651,22 @@
   let lastPreviewIdx = undefined;
   let ayahStates = [];      // per-ayah snapshot: null (untouched), or { markerList, markIdCounter, complete }
 
+  // ============ PHASE 3: custom audio upload + crop ============
+  // Keyed by REAL ayah number (not entry index) since a Bismillah/ayah-1
+  // pair shares one underlying file/upload -- see quran_lib/audio_sources.py.
+  // { filename, duration (of the RAW upload), cropStart, cropEnd (null = to
+  // the end of the file) }.
+  let customAudioByRealAyah = {};
+  let reciterNames = {};   // filled from /api/reciters, for the "Reciter: X" label
+
+  // ============ PHASE 3.1: one recording, split into ayahs ============
+  // { filename, duration } for uploads/<session_id>/range.<ext> -- the raw
+  // whole-range file itself. Which ayah gets which slice of it lives in
+  // customAudioByRealAyah (same shape as any other custom-audio entry,
+  // just with several ayahs sharing this one filename under different
+  // crop windows) -- see openSplitModal()/applySplits() below.
+  let rangeAudioInfo = null;
+
   const wordChipsEl = document.getElementById('wordChips');
   const waveBarsEl = document.getElementById('waveBars');
   const waveMarkersEl = document.getElementById('waveMarkers');
@@ -527,6 +693,42 @@
 
   function currentAyah(){ return ayahs[ayahIndex]; }
 
+  // Every entry sharing this real ayah number (a Bismillah/ayah-1 pair
+  // shares one underlying file) must be re-fetched after its audio source
+  // changes -- clears the cached blob/buffer/duration so ensureLoaded()
+  // does real work again, and drops any markers timed against the old audio.
+  //
+  // If this ayah currently has a Bismillah/ayah split pair (only ever
+  // possible for realAyah 1, always the first two entries), collapse it
+  // into one "full" entry: rangeStart/rangeEnd were computed against the
+  // ORIGINAL reciter audio's detected silence gap, and there's no reliable
+  // way to re-detect a Bismillah pause in an arbitrary user recording, so
+  // treating the whole upload as one frame is the only choice that can't
+  // silently play/mark the wrong slice of the new audio. This is a one-way
+  // simplification for the editor's word-marking UI only -- removing the
+  // upload later does NOT restore the split (the ayah stays a single "full"
+  // entry); this has no effect on generation itself unless that ayah was
+  // actually hand-marked, since automatic pacing re-detects the Bismillah
+  // split fresh at render time regardless of what the editor shows.
+  function invalidateEntriesForRealAyah(realAyah){
+    const indices = ayahs.map((_, i) => i).filter(i => ayahs[i].realAyah === realAyah);
+    if (indices.length > 1){
+      const removeIdx = indices[0], keepIdx = indices[1];
+      Object.assign(ayahs[keepIdx], { part: 'full', rangeStart: 0, rangeEnd: null, label: `Ayah ${realAyah}` });
+      ayahs.splice(removeIdx, 1);
+      ayahStates.splice(removeIdx, 1);
+      if (ayahIndex > removeIdx) ayahIndex -= 1;
+    }
+    ayahs.forEach((entry, i) => {
+      if (entry.realAyah !== realAyah) return;
+      entry.loaded = false;
+      entry.audioBlob = null;
+      entry.audioBuffer = null;
+      entry.duration = undefined;
+      ayahStates[i] = null;
+    });
+  }
+
   // ============ BUILD AYAH LIST (real surah/range from the draft) ============
   async function fetchText(surah, ayah){
     const res = await fetch(`/api/timing/text?surah=${surah}&ayah=${ayah}&translation=${encodeURIComponent(draft.translation || 'en.sahih')}`);
@@ -535,32 +737,65 @@
     return data;
   }
 
-  function audioUrl(realAyah, part){
-    return `/api/timing/audio?surah=${draft.surah}&ayah=${realAyah}&reciter=${draft.reciterKey}&part=${part}`;
+  // Phase 3: sessionId is always passed so the backend can serve a
+  // per-ayah custom upload instead of the reciter download when one
+  // exists (see app.py's _resolve_ayah_audio()) -- harmless when there is
+  // no upload for this ayah, it just falls back to the reciter as before.
+  // customFilename is always passed too once a custom source exists,
+  // addressing the upload directly by name instead of relying on the
+  // "<ayah>.<ext>" naming convention -- this is what lets several ayahs
+  // share ONE uploaded "range" file, each with its own crop window (see
+  // the "split your recording" flow below). cropStart/cropEnd
+  // (raw-upload-relative seconds) are only added once a crop has actually
+  // been committed for this ayah.
+  function audioSourceParams(realAyah){
+    let extra = `&sessionId=${encodeURIComponent(sessionId)}`;
+    const custom = customAudioByRealAyah[realAyah];
+    if (custom){
+      extra += `&customFilename=${encodeURIComponent(custom.filename)}`;
+      if (custom.cropStart > 0 || custom.cropEnd != null){
+        extra += `&cropStart=${custom.cropStart}`;
+        if (custom.cropEnd != null) extra += `&cropEnd=${custom.cropEnd}`;
+      }
+    }
+    return extra;
+  }
+
+  function audioUrl(realAyah){
+    return `/api/timing/audio?surah=${draft.surah}&ayah=${realAyah}&reciter=${draft.reciterKey}${audioSourceParams(realAyah)}`;
+  }
+
+  // Detects (never cuts) the Bismillah/ayah boundary in ayah 1's audio, as a
+  // timestamp within that one undivided file -- see detect_basmala_split()
+  // in quran_lib/audio.py. Returns null if no confident boundary was found.
+  async function fetchBasmalaSplit(surah, ayah){
+    const res = await fetch(`/api/timing/basmala-split?surah=${surah}&ayah=${ayah}&reciter=${encodeURIComponent(draft.reciterKey)}${audioSourceParams(ayah)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.splitAt === 'number' ? data.splitAt : null;
   }
 
   async function buildAyahSkeleton(){
     const entries = [];
     if (draft.from === 1){
       const textData = await fetchText(draft.surah, 1);
-      if (textData.basmalaArabic){
-        const probe = await fetch(audioUrl(1, 'basmala'));
-        if (probe.ok){
-          const basmalaBlob = await probe.blob();
-          entries.push({ ayahNumber: 0, realAyah: 1, part: 'basmala', textData, audioBlob: basmalaBlob, label: 'Bismillah', loaded: false });
-          entries.push({ ayahNumber: 1, realAyah: 1, part: 'ayah', textData, label: 'Ayah 1', loaded: false });
-        } else {
-          entries.push({ ayahNumber: 1, realAyah: 1, part: 'full', textData, label: 'Ayah 1', loaded: false });
-        }
+      const splitAt = textData.basmalaArabic ? await fetchBasmalaSplit(draft.surah, 1) : null;
+      if (splitAt != null){
+        // Bismillah and ayah 1 are two frames of the SAME audio file, not two
+        // clips -- fetch it once and give both entries the same blob, each
+        // scoped to its own [rangeStart, rangeEnd] window of it.
+        const fullBlob = await (await fetch(audioUrl(1))).blob();
+        entries.push({ ayahNumber: 0, realAyah: 1, part: 'basmala', textData, audioBlob: fullBlob, rangeStart: 0, rangeEnd: splitAt, label: 'Bismillah', loaded: false });
+        entries.push({ ayahNumber: 1, realAyah: 1, part: 'ayah', textData, audioBlob: fullBlob, rangeStart: splitAt, rangeEnd: null, label: 'Ayah 1', loaded: false });
       } else {
-        entries.push({ ayahNumber: 1, realAyah: 1, part: 'full', textData, label: 'Ayah 1', loaded: false });
+        entries.push({ ayahNumber: 1, realAyah: 1, part: 'full', textData, rangeStart: 0, rangeEnd: null, label: 'Ayah 1', loaded: false });
       }
       for (let n = 2; n <= draft.to; n++){
-        entries.push({ ayahNumber: n, realAyah: n, part: 'full', label: `Ayah ${n}`, loaded: false });
+        entries.push({ ayahNumber: n, realAyah: n, part: 'full', rangeStart: 0, rangeEnd: null, label: `Ayah ${n}`, loaded: false });
       }
     } else {
       for (let n = draft.from; n <= draft.to; n++){
-        entries.push({ ayahNumber: n, realAyah: n, part: 'full', label: `Ayah ${n}`, loaded: false });
+        entries.push({ ayahNumber: n, realAyah: n, part: 'full', rangeStart: 0, rangeEnd: null, label: `Ayah ${n}`, loaded: false });
       }
     }
     return entries;
@@ -574,7 +809,7 @@
 
     let blob = entry.audioBlob;
     if (!blob){
-      const res = await fetch(audioUrl(entry.realAyah, entry.part));
+      const res = await fetch(audioUrl(entry.realAyah));
       if (!res.ok){
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || `Couldn't fetch audio for ${entry.label}.`);
@@ -589,21 +824,29 @@
   }
 
   // ============ WAVEFORM (real, decoded from the ayah's actual audio) ============
-  function buildBarsFromBuffer(audioBuffer, n){
+  // startSec/endSec scope the drawn waveform to one frame's window of a
+  // shared audio buffer (e.g. just the Bismillah portion, or just the ayah
+  // portion) -- the buffer itself is always the one undivided file's full
+  // decode, never a separately-decoded split clip.
+  function buildBarsFromBuffer(audioBuffer, n, startSec = 0, endSec = null, targetEl = waveBarsEl, barClass = 'wave-bar'){
     const data = audioBuffer.getChannelData(0);
-    const step = Math.floor(data.length / n) || 1;
+    const sr = audioBuffer.sampleRate;
+    const startSample = Math.max(0, Math.floor(startSec * sr));
+    const endSample = Math.min(data.length, endSec == null ? data.length : Math.floor(endSec * sr));
+    const rangeLen = Math.max(1, endSample - startSample);
+    const step = Math.floor(rangeLen / n) || 1;
     let bars = '';
     for (let i = 0; i < n; i++){
       let min = 1.0, max = -1.0;
       for (let j = 0; j < step; j++){
-        const v = data[i * step + j] || 0;
+        const v = data[startSample + i * step + j] || 0;
         if (v < min) min = v;
         if (v > max) max = v;
       }
       const h = Math.max(6, Math.round((max - min) * 100));
-      bars += `<div class="wave-bar" style="height:${h}%"></div>`;
+      bars += `<div class="${barClass}" style="height:${h}%"></div>`;
     }
-    waveBarsEl.innerHTML = bars;
+    targetEl.innerHTML = bars;
   }
 
   // ============ LOADING AN AYAH ============
@@ -638,6 +881,8 @@
     progressPill.textContent = `Ayah ${ayahIndex + 1}/${ayahs.length}`;
     prevBtn.disabled = ayahIndex === 0;
     renderDots();
+    renderAudioSourceRow();
+    renderRangeBanner();
 
     wordCardLabel.textContent = entry.ayahNumber === 0 ? 'Bismillah' : `Word by word — ayah ${entry.ayahNumber}`;
     wordChipsEl.innerHTML = '<div class="word-card-loading">Loading recitation…</div>';
@@ -659,7 +904,15 @@
         audioEl.addEventListener('loadedmetadata', resolve, { once: true });
         audioEl.addEventListener('error', () => reject(new Error('Audio failed to load.')), { once: true });
       });
-      entry.duration = audioEl.duration;
+      // entry.duration is this FRAME's own length -- for a Bismillah/ayah
+      // pair sharing one file, that's just its [rangeStart, rangeEnd)
+      // window, not the whole file's duration. Seek to rangeStart so
+      // playback/markers for this frame start at its own beginning, not the
+      // absolute start of the underlying shared file.
+      const rangeStart = entry.rangeStart || 0;
+      const rangeEnd = entry.rangeEnd != null ? entry.rangeEnd : audioEl.duration;
+      entry.duration = rangeEnd - rangeStart;
+      audioEl.currentTime = rangeStart;
 
       if (!entry.audioBuffer){
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -672,7 +925,8 @@
 
     setControlsEnabled(true);
     totalTimeEl.textContent = `${entry.duration.toFixed(1)}s`;
-    buildBarsFromBuffer(entry.audioBuffer, entry.words.length > 12 ? 72 : 46);
+    renderAudioSourceRow();  // re-render now that entry.duration is known (the earlier call above ran before it was set)
+    buildBarsFromBuffer(entry.audioBuffer, entry.words.length > 12 ? 72 : 46, entry.rangeStart || 0, entry.rangeEnd);
     updatePreviewAvailability();
 
     renderChips();
@@ -685,6 +939,431 @@
 
     renderMarkPanel();
   }
+
+  // ============ PHASE 3: audio source row (upload / crop / remove) ============
+  const audioSourceText = document.getElementById('audioSourceText');
+  const audioSourceActions = document.getElementById('audioSourceActions');
+  const audioSourceStatus = document.getElementById('audioSourceStatus');
+  const audioUploadInput = document.getElementById('audioUploadInput');
+
+  function showAudioSourceStatus(message, isError){
+    audioSourceStatus.textContent = message;
+    audioSourceStatus.style.display = message ? 'block' : 'none';
+    audioSourceStatus.classList.toggle('error', !!isError);
+  }
+
+  function renderAudioSourceRow(){
+    const entry = currentAyah();
+    const custom = customAudioByRealAyah[entry.realAyah];
+    showAudioSourceStatus('', false);
+
+    if (custom){
+      const cropped = custom.cropStart > 0 || custom.cropEnd != null;
+      const shownDuration = entry.duration != null ? entry.duration : custom.duration;
+      const fromRange = rangeAudioInfo && custom.filename === rangeAudioInfo.filename;
+      const sourceLabel = fromRange ? 'From full recording' : 'Your recording';
+      audioSourceText.textContent = `${sourceLabel} — ${shownDuration.toFixed(1)}s${cropped ? ' (cropped)' : ''}`;
+      audioSourceActions.innerHTML = `
+        <button class="as-btn" id="asCropBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg>
+          Crop
+        </button>
+        <button class="as-btn danger" id="asRemoveBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+          Remove
+        </button>
+      `;
+      document.getElementById('asCropBtn').addEventListener('click', () => openCropModal(entry.realAyah));
+      document.getElementById('asRemoveBtn').addEventListener('click', () => removeCustomAudio(entry.realAyah));
+    } else {
+      const reciterLabel = reciterNames[draft.reciterKey] || draft.reciterKey;
+      audioSourceText.textContent = `Reciter — ${reciterLabel}`;
+      audioSourceActions.innerHTML = `
+        <button class="as-btn" id="asUploadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>
+          Use my own audio
+        </button>
+      `;
+      document.getElementById('asUploadBtn').addEventListener('click', () => {
+        audioUploadInput.dataset.realAyah = String(entry.realAyah);
+        audioUploadInput.click();
+      });
+    }
+  }
+
+  audioUploadInput.addEventListener('change', async () => {
+    const file = audioUploadInput.files[0];
+    const realAyah = Number(audioUploadInput.dataset.realAyah);
+    audioUploadInput.value = '';
+    if (!file || !realAyah) return;
+
+    showAudioSourceStatus('Uploading…', false);
+    try {
+      const form = new FormData();
+      form.append('sessionId', sessionId);
+      form.append('ayah', String(realAyah));
+      form.append('audio', file);
+      const res = await fetch('/api/timing/upload-audio', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't upload that file.");
+
+      customAudioByRealAyah[realAyah] = { filename: data.filename, duration: data.duration, cropStart: 0, cropEnd: null };
+      invalidateEntriesForRealAyah(realAyah);
+      showAudioSourceStatus('', false);
+      // loadAyah() must run BEFORE persistSession(): it's what actually
+      // resets the in-memory markerList/markIdCounter to match the null
+      // ayahStates entry invalidateEntriesForRealAyah() just wrote --
+      // persisting first would re-save the stale (pre-invalidation) marker
+      // list straight back over that reset via saveCurrentAyahState().
+      if (currentAyah().realAyah === realAyah) await loadAyah();
+      else renderAudioSourceRow();
+      persistSession();
+    } catch (e) {
+      showAudioSourceStatus(e.message, true);
+    }
+  });
+
+  async function removeCustomAudio(realAyah){
+    if (!confirm('Remove your uploaded audio and use the reciter recording instead? Any word markers for this ayah will be cleared.')) return;
+    showAudioSourceStatus('Removing…', false);
+    try {
+      await fetch(`/api/timing/upload-audio?sessionId=${encodeURIComponent(sessionId)}&ayah=${realAyah}`, { method: 'DELETE' });
+    } catch (e) { /* best-effort -- fall through and clear local state regardless */ }
+    delete customAudioByRealAyah[realAyah];
+    invalidateEntriesForRealAyah(realAyah);
+    if (currentAyah().realAyah === realAyah) await loadAyah();
+    else renderAudioSourceRow();
+    persistSession();
+  }
+
+  // ============ PHASE 3: crop modal ============
+  const cropOverlay = document.getElementById('cropOverlay');
+  const cropBody = document.getElementById('cropBody');
+  const cropApplyBtn = document.getElementById('cropApplyBtn');
+  const cropCancelBtn = document.getElementById('cropCancelBtn');
+  const CROP_MIN_WINDOW = 0.2;  // seconds -- smallest allowed crop window
+
+  let cropState = null;  // { realAyah, rawDuration, rawBuffer, start, end }
+
+  function cropPctFromTime(t){ return (t / cropState.rawDuration) * 100; }
+
+  function renderCropUI(){
+    const trackEl = document.getElementById('cropTrack');
+    const startMask = document.getElementById('cropMaskStart');
+    const endMask = document.getElementById('cropMaskEnd');
+    const startHandle = document.getElementById('cropHandleStart');
+    const endHandle = document.getElementById('cropHandleEnd');
+    const startPct = cropPctFromTime(cropState.start);
+    const endPct = cropPctFromTime(cropState.end);
+    startMask.style.left = '0%';
+    startMask.style.width = startPct + '%';
+    endMask.style.left = endPct + '%';
+    endMask.style.width = (100 - endPct) + '%';
+    startHandle.style.left = startPct + '%';
+    endHandle.style.left = endPct + '%';
+    document.getElementById('cropStartLabel').textContent = cropState.start.toFixed(2) + 's';
+    document.getElementById('cropEndLabel').textContent = cropState.end.toFixed(2) + 's';
+    cropApplyBtn.disabled = false;
+  }
+
+  function attachCropDrag(handleEl, which){
+    handleEl.addEventListener('pointerdown', (e) => {
+      handleEl.setPointerCapture(e.pointerId);
+      const trackEl = document.getElementById('cropTrack');
+      const onMove = (ev) => {
+        const rect = trackEl.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+        const t = pct * cropState.rawDuration;
+        if (which === 'start'){
+          cropState.start = Math.max(0, Math.min(t, cropState.end - CROP_MIN_WINDOW));
+        } else {
+          cropState.end = Math.min(cropState.rawDuration, Math.max(t, cropState.start + CROP_MIN_WINDOW));
+        }
+        renderCropUI();
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+  }
+
+  async function openCropModal(realAyah){
+    cropOverlay.classList.add('open');
+    cropApplyBtn.disabled = true;
+    cropBody.innerHTML = '<div class="crop-loading">Loading your recording…</div>';
+
+    try {
+      // The RAW upload, never a crop window -- this modal is where the crop
+      // window itself gets (re-)defined, so it always starts from the full
+      // file regardless of any previously-committed crop.
+      const res = await fetch(`/api/timing/audio?surah=${draft.surah}&ayah=${realAyah}&reciter=${draft.reciterKey}&sessionId=${encodeURIComponent(sessionId)}`);
+      if (!res.ok) throw new Error("Couldn't load your recording.");
+      const blob = await res.blob();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const rawBuffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+
+      const existing = customAudioByRealAyah[realAyah];
+      cropState = {
+        realAyah,
+        rawDuration: rawBuffer.duration,
+        start: existing && existing.cropStart ? existing.cropStart : 0,
+        end: existing && existing.cropEnd != null ? existing.cropEnd : rawBuffer.duration,
+      };
+
+      cropBody.innerHTML = `
+        <div class="crop-track" id="cropTrack">
+          <div class="crop-bars" id="cropBars"></div>
+          <div class="crop-mask" id="cropMaskStart"></div>
+          <div class="crop-mask" id="cropMaskEnd"></div>
+          <div class="crop-handle" id="cropHandleStart"></div>
+          <div class="crop-handle" id="cropHandleEnd"></div>
+        </div>
+        <div class="crop-times">
+          <span id="cropStartLabel">0.00s</span>
+          <span id="cropEndLabel">0.00s</span>
+        </div>
+      `;
+      buildBarsFromBuffer(rawBuffer, 60, 0, rawBuffer.duration, document.getElementById('cropBars'), 'crop-bar');
+      attachCropDrag(document.getElementById('cropHandleStart'), 'start');
+      attachCropDrag(document.getElementById('cropHandleEnd'), 'end');
+      renderCropUI();
+    } catch (e) {
+      cropBody.innerHTML = `<div class="crop-loading">${e.message}</div>`;
+    }
+  }
+
+  function closeCropModal(){
+    cropOverlay.classList.remove('open');
+    cropState = null;
+  }
+
+  cropCancelBtn.addEventListener('click', closeCropModal);
+
+  cropApplyBtn.addEventListener('click', async () => {
+    if (!cropState) return;
+    const { realAyah, start, end } = cropState;
+    const existing = customAudioByRealAyah[realAyah];
+    customAudioByRealAyah[realAyah] = {
+      filename: existing.filename,
+      duration: existing.duration,
+      cropStart: start,
+      cropEnd: end >= cropState.rawDuration - 0.01 ? null : end,
+    };
+    invalidateEntriesForRealAyah(realAyah);
+    closeCropModal();
+    // See the upload handler's comment: loadAyah() must run before
+    // persistSession() so it doesn't re-save the pre-crop marker list.
+    if (currentAyah().realAyah === realAyah) await loadAyah();
+    else renderAudioSourceRow();
+    persistSession();
+  });
+
+  // ============ PHASE 3.1: one recording, split into ayahs ============
+  const rangeUploadInput = document.getElementById('rangeUploadInput');
+  const rangeUploadBtn = document.getElementById('rangeUploadBtn');
+  const rangeEditBtn = document.getElementById('rangeEditBtn');
+  const rangeRemoveBtn = document.getElementById('rangeRemoveBtn');
+
+  function renderRangeBanner(){
+    const numAyahs = draft.to - draft.from + 1;
+    const offerEl = document.getElementById('rangeBannerOffer');
+    const bannerEl = document.getElementById('rangeBanner');
+    if (numAyahs < 2){
+      // Splitting only makes sense across more than one ayah -- a
+      // single-ayah range is exactly what the per-ayah upload already does.
+      offerEl.style.display = 'none';
+      bannerEl.style.display = 'none';
+      return;
+    }
+    if (rangeAudioInfo){
+      offerEl.style.display = 'none';
+      bannerEl.style.display = 'flex';
+      document.getElementById('rangeBannerText').textContent =
+        `Full recording (${rangeAudioInfo.duration.toFixed(1)}s), split into ${numAyahs} ayahs`;
+    } else {
+      offerEl.style.display = 'flex';
+      bannerEl.style.display = 'none';
+    }
+  }
+
+  rangeUploadBtn.addEventListener('click', () => rangeUploadInput.click());
+
+  rangeUploadInput.addEventListener('change', async () => {
+    const file = rangeUploadInput.files[0];
+    rangeUploadInput.value = '';
+    if (!file) return;
+
+    showAudioSourceStatus('Uploading your recording…', false);
+    try {
+      const form = new FormData();
+      form.append('sessionId', sessionId);
+      form.append('audio', file);
+      const res = await fetch('/api/timing/upload-range-audio', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't upload that file.");
+      rangeAudioInfo = { filename: data.filename, duration: data.duration };
+      showAudioSourceStatus('', false);
+      renderRangeBanner();
+      await openSplitModal();
+    } catch (e) {
+      showAudioSourceStatus(e.message, true);
+    }
+  });
+
+  rangeEditBtn.addEventListener('click', () => openSplitModal());
+
+  rangeRemoveBtn.addEventListener('click', async () => {
+    if (!confirm('Remove this recording? Every ayah currently using a slice of it will revert to the reciter recording, and any of their word markers will be cleared.')) return;
+    showAudioSourceStatus('Removing…', false);
+    try {
+      await fetch(`/api/timing/upload-range-audio?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+    } catch (e) { /* best-effort -- fall through and clear local state regardless */ }
+
+    const filename = rangeAudioInfo && rangeAudioInfo.filename;
+    rangeAudioInfo = null;
+    for (let a = draft.from; a <= draft.to; a++){
+      if (customAudioByRealAyah[a] && customAudioByRealAyah[a].filename === filename){
+        delete customAudioByRealAyah[a];
+        invalidateEntriesForRealAyah(a);
+      }
+    }
+    showAudioSourceStatus('', false);
+    renderRangeBanner();
+    await loadAyah();
+    persistSession();
+  });
+
+  // ---- split modal ----
+  const splitOverlay = document.getElementById('splitOverlay');
+  const splitBody = document.getElementById('splitBody');
+  const splitApplyBtn = document.getElementById('splitApplyBtn');
+  const splitCancelBtn = document.getElementById('splitCancelBtn');
+  const SPLIT_MIN_SEGMENT = 0.3;  // seconds -- smallest allowed ayah slice
+
+  // splitPoints[i] is the boundary time BEFORE ayah (draft.from + i);
+  // splitPoints[0] = 0, splitPoints[numAyahs] = rawDuration. So ayah
+  // (draft.from + i)'s window is [splitPoints[i], splitPoints[i+1]).
+  let splitState = null;  // { rawDuration, points: [...] }
+
+  function renderSplitUI(){
+    const numAyahs = draft.to - draft.from + 1;
+    const trackEl = document.getElementById('splitTrack');
+    document.querySelectorAll('.split-handle').forEach((h, i) => {
+      h.style.left = (splitState.points[i + 1] / splitState.rawDuration * 100) + '%';
+    });
+    const labelsEl = document.getElementById('splitSegLabels');
+    labelsEl.innerHTML = '';
+    for (let i = 0; i < numAyahs; i++){
+      const mid = (splitState.points[i] + splitState.points[i + 1]) / 2;
+      const pct = (mid / splitState.rawDuration) * 100;
+      const span = document.createElement('span');
+      span.className = 'split-seg-label';
+      span.style.left = pct + '%';
+      span.textContent = `Ayah ${draft.from + i}`;
+      labelsEl.appendChild(span);
+    }
+    splitApplyBtn.disabled = false;
+  }
+
+  function attachSplitDrag(handleEl, pointIndex){
+    handleEl.addEventListener('pointerdown', (e) => {
+      handleEl.setPointerCapture(e.pointerId);
+      const trackEl = document.getElementById('splitTrack');
+      const onMove = (ev) => {
+        const rect = trackEl.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+        const t = pct * splitState.rawDuration;
+        const lo = splitState.points[pointIndex - 1] + SPLIT_MIN_SEGMENT;
+        const hi = splitState.points[pointIndex + 1] - SPLIT_MIN_SEGMENT;
+        splitState.points[pointIndex] = Math.max(lo, Math.min(t, hi));
+        renderSplitUI();
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+  }
+
+  async function openSplitModal(){
+    if (!rangeAudioInfo) return;
+    splitOverlay.classList.add('open');
+    splitApplyBtn.disabled = true;
+    splitBody.innerHTML = '<div class="crop-loading">Loading your recording…</div>';
+
+    try {
+      const res = await fetch(`/api/timing/audio?surah=${draft.surah}&ayah=${draft.from}&reciter=${draft.reciterKey}&sessionId=${encodeURIComponent(sessionId)}&customFilename=${encodeURIComponent(rangeAudioInfo.filename)}`);
+      if (!res.ok) throw new Error("Couldn't load your recording.");
+      const blob = await res.blob();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const rawBuffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+
+      const numAyahs = draft.to - draft.from + 1;
+      const rawDuration = rawBuffer.duration;
+      const points = [0];
+      for (let i = 1; i < numAyahs; i++){
+        const ayahNum = draft.from + i;
+        const existing = customAudioByRealAyah[ayahNum];
+        if (existing && existing.filename === rangeAudioInfo.filename){
+          points.push(existing.cropStart || 0);
+        } else {
+          points.push(rawDuration * i / numAyahs);
+        }
+      }
+      points.push(rawDuration);
+      splitState = { rawDuration, points };
+
+      let handlesHtml = '';
+      for (let i = 1; i < numAyahs; i++) handlesHtml += `<div class="crop-handle split-handle" data-point="${i}"></div>`;
+
+      splitBody.innerHTML = `
+        <div class="crop-track" id="splitTrack">
+          <div class="crop-bars" id="splitBars"></div>
+          ${handlesHtml}
+        </div>
+        <div class="split-seg-labels" id="splitSegLabels"></div>
+      `;
+      buildBarsFromBuffer(rawBuffer, 70, 0, rawDuration, document.getElementById('splitBars'), 'crop-bar');
+      document.querySelectorAll('.split-handle').forEach((h) => attachSplitDrag(h, Number(h.dataset.point)));
+      renderSplitUI();
+    } catch (e) {
+      splitBody.innerHTML = `<div class="crop-loading">${e.message}</div>`;
+    }
+  }
+
+  function closeSplitModal(){
+    splitOverlay.classList.remove('open');
+    splitState = null;
+  }
+
+  splitCancelBtn.addEventListener('click', closeSplitModal);
+
+  splitApplyBtn.addEventListener('click', async () => {
+    if (!splitState) return;
+    const numAyahs = draft.to - draft.from + 1;
+    for (let i = 0; i < numAyahs; i++){
+      const ayahNum = draft.from + i;
+      customAudioByRealAyah[ayahNum] = {
+        filename: rangeAudioInfo.filename,
+        duration: rangeAudioInfo.duration,
+        cropStart: splitState.points[i],
+        cropEnd: i === numAyahs - 1 ? null : splitState.points[i + 1],
+      };
+      invalidateEntriesForRealAyah(ayahNum);
+    }
+    closeSplitModal();
+    renderRangeBanner();
+    // loadAyah() first, same reasoning as the per-ayah crop handler: it
+    // resets markerList from the (now-null) ayahStates entry before
+    // persistSession() would otherwise re-save the stale one.
+    await loadAyah();
+    persistSession();
+  });
 
   function renderDots(){
     ayahDotsEl.innerHTML = ayahs.map((_, i) => {
@@ -721,7 +1400,7 @@
   function persistSession(){
     saveCurrentAyahState();
     localStorage.setItem(SESSION_KEY, JSON.stringify({
-      key: sessionKeyFor(draft), ayahIndex, ayahStates,
+      key: sessionKeyFor(draft), ayahIndex, ayahStates, customAudioByRealAyah, rangeAudioInfo,
     }));
   }
 
@@ -1037,7 +1716,7 @@
   function seekTo(t){
     const entry = currentAyah();
     const clamped = Math.max(0, Math.min(t, entry.duration));
-    audioEl.currentTime = clamped;
+    audioEl.currentTime = clamped + (entry.rangeStart || 0);
     elapsed = clamped;
     renderPlayhead();
   }
@@ -1055,7 +1734,19 @@
   }
   function tick(){
     if (!playing) return;
-    elapsed = audioEl.currentTime;
+    const entry = currentAyah();
+    const rangeStart = entry.rangeStart || 0;
+    // A Bismillah frame's rangeEnd sits mid-file (the rest of the file is
+    // the ayah that follows in the same recitation) -- stop there instead
+    // of letting playback run on into the next frame's audio.
+    if (entry.rangeEnd != null && audioEl.currentTime >= entry.rangeEnd){
+      elapsed = entry.duration;
+      renderPlayhead();
+      stopPlayback();
+      if (previewMode) exitPreview();
+      return;
+    }
+    elapsed = audioEl.currentTime - rangeStart;
     renderPlayhead();
     rafId = requestAnimationFrame(tick);
   }
@@ -1142,14 +1833,39 @@
     ayahStates.forEach((state, i) => {
       if (!state || !state.complete || !state.markerList.length) return;
       const entry = ayahs[i];
+      // Marker times are recorded phase-relative (0 at this frame's own
+      // start, elapsed/seekTo handle the translation to/from the shared
+      // audio element's absolute time -- see loadAyah()/seekTo()/tick()).
+      // The manifest needs them shifted back to rangeStart-relative-to-the-
+      // undivided-file ("absolute") values: when this ayah is a Bismillah
+      // paired with an ayah frame off the same file (see
+      // detect_basmala_split()), both frames' times must share one clock so
+      // build_video() can play them from a single audio subclip instead of
+      // a split file.
+      const rangeStart = entry.rangeStart || 0;
       const sortedMarks = [...state.markerList].sort((a, b) => a.time - b.time);
       const highlightWords = sortedMarks.map((m, j) => ({
         index: m.wordIndex,
-        start: m.time,
-        end: j + 1 < sortedMarks.length ? sortedMarks[j + 1].time : entry.duration,
+        start: rangeStart + m.time,
+        end: rangeStart + (j + 1 < sortedMarks.length ? sortedMarks[j + 1].time : entry.duration),
       }));
       manifest.ayahs[String(entry.ayahNumber)] = {
-        frames: [{ start: 0, end: entry.duration, text: entry.words.join(' '), highlight_words: highlightWords }],
+        frames: [{ start: rangeStart, end: rangeStart + entry.duration, text: entry.words.join(' '), highlight_words: highlightWords }],
+      };
+    });
+    return manifest;
+  }
+
+  // Phase 3: {"ayahs": {"<realAyah>": {"filename", "crop_start", "crop_end"}}}
+  // -- see quran_lib/audio_sources.py. Only ayahs actually replaced with a
+  // custom upload are included; everything else keeps using the reciter.
+  function buildCustomAudioManifest(){
+    const manifest = { ayahs: {} };
+    Object.entries(customAudioByRealAyah).forEach(([realAyah, custom]) => {
+      manifest.ayahs[realAyah] = {
+        filename: custom.filename,
+        crop_start: custom.cropStart || 0,
+        crop_end: custom.cropEnd,
       };
     });
     return manifest;
@@ -1172,6 +1888,7 @@
     genLog.textContent = '';
 
     const manifest = buildManifest();
+    const customAudioManifest = buildCustomAudioManifest();
     const payload = {
       sessionId: draft.id,
       surah: draft.surah,
@@ -1183,6 +1900,7 @@
       theme: draft.theme || undefined,
       themeName: draft.themeLabel || undefined,
       timing: Object.keys(manifest.ayahs).length ? manifest : undefined,
+      customAudio: Object.keys(customAudioManifest.ayahs).length ? customAudioManifest : undefined,
     };
 
     let jobId;
@@ -1261,6 +1979,21 @@
       // Incomplete draft (skipped straight here without finishing new_video.html) -- go finish it there.
       location.href = `/new_video.html?sessionId=${encodeURIComponent(sessionId)}`;
       return;
+    }
+
+    try {
+      const res = await fetch('/api/reciters');
+      if (res.ok) reciterNames = await res.json();
+    } catch (e) { /* non-fatal -- falls back to showing the raw reciter key */ }
+
+    // Loaded BEFORE buildAyahSkeleton() so a previously-uploaded/cropped
+    // ayah's audio (if any) is what gets fetched on the very first load,
+    // not the reciter's -- audioUrl()/fetchBasmalaSplit() both read
+    // customAudioByRealAyah via audioSourceParams().
+    const preSkeletonSaved = loadSavedSession();
+    if (preSkeletonSaved){
+      customAudioByRealAyah = preSkeletonSaved.customAudioByRealAyah || {};
+      rangeAudioInfo = preSkeletonSaved.rangeAudioInfo || null;
     }
 
     try {
