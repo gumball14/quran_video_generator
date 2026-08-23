@@ -104,6 +104,16 @@
   .clear-link svg{ width:11px; height:11px; }
   .clear-link:disabled{ opacity:.35; pointer-events:none; }
   .clear-link:active{ transform:scale(.96); }
+  .section-head-left{ display:flex; align-items:center; gap:14px; }
+  .undo-redo-group{ display:flex; align-items:center; gap:6px; }
+  .undoredo-btn{
+    width:26px; height:26px; border-radius:8px; border:none; flex-shrink:0;
+    background:var(--surface-2); color:var(--ink-mute); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:background .12s ease, transform .1s ease;
+  }
+  .undoredo-btn svg{ width:13px; height:13px; }
+  .undoredo-btn:disabled{ opacity:.35; pointer-events:none; }
+  .undoredo-btn:active{ transform:scale(.9); background:var(--line); }
 
   /* ---------- range-audio banner (Phase 3.1: one recording, split into ayahs) ---------- */
   .range-banner{
@@ -540,10 +550,20 @@
 
     <div class="section-head">
       <div class="section-head-actions">
-        <button class="markers-link" id="markersToggleBtn" disabled>
-          <span id="markersToggleLabel">Markers</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
+        <div class="section-head-left">
+          <button class="markers-link" id="markersToggleBtn" disabled>
+            <span id="markersToggleLabel">Markers</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="undo-redo-group">
+            <button class="undoredo-btn" id="undoBtn" disabled aria-label="Undo last marker change">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12H9"/></svg>
+            </button>
+            <button class="undoredo-btn" id="redoBtn" disabled aria-label="Redo marker change">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h5"/></svg>
+            </button>
+          </div>
+        </div>
         <button class="clear-link" id="clearAllBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
           Clear all
@@ -682,6 +702,57 @@
   const playIcon = document.getElementById('playIcon');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const markersToggleBtn = document.getElementById('markersToggleBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  let undoStack = [];
+  let redoStack = [];
+
+  function snapshotMarkerState(){
+    return {
+      markerList: markerList.map(m => ({ ...m })),
+      markIdCounter,
+      selectedMarkerId
+    };
+  }
+
+  function restoreMarkerState(snap){
+    markerList = snap.markerList.map(m => ({ ...m }));
+    markIdCounter = snap.markIdCounter;
+    selectedMarkerId = snap.selectedMarkerId;
+    updateNextButtonState();
+    updatePreviewAvailability();
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+    persistSession();
+  }
+
+  function updateUndoRedoButtons(){
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  function pushUndoSnapshot(){
+    undoStack.push(snapshotMarkerState());
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function undo(){
+    if (!undoStack.length) return;
+    redoStack.push(snapshotMarkerState());
+    const snap = undoStack.pop();
+    restoreMarkerState(snap);
+    updateUndoRedoButtons();
+  }
+
+  function redo(){
+    if (!redoStack.length) return;
+    undoStack.push(snapshotMarkerState());
+    const snap = redoStack.pop();
+    restoreMarkerState(snap);
+    updateUndoRedoButtons();
+  }
   const markersToggleLabel = document.getElementById('markersToggleLabel');
   const speedDownBtn = document.getElementById('speedDownBtn');
   const speedUpBtn = document.getElementById('speedUpBtn');
@@ -869,6 +940,9 @@
       markIdCounter = 0;
     }
     selectedMarkerId = null;
+    undoStack = [];
+    redoStack = [];
+    updateUndoRedoButtons();
     panelOpen = false;
     elapsed = 0;
     playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
@@ -1593,6 +1667,7 @@
   }
 
   function addMarker(i, time){
+    pushUndoSnapshot();
     const entry = currentAyah();
     const t = Math.max(0, Math.min(time, entry.duration));
     const id = ++markIdCounter;
@@ -1616,6 +1691,7 @@
   function unmarkMarker(id){
     const idx = markerList.findIndex(m => m.id === id);
     if (idx === -1) return;
+    pushUndoSnapshot();
     markerList.splice(idx, 1);
     selectedMarkerId = null;
     updateNextButtonState();
@@ -1629,6 +1705,7 @@
   function nudgeMarker(id, delta){
     const m = markerList.find(mk => mk.id === id);
     if (!m) return;
+    pushUndoSnapshot();
     const entry = currentAyah();
     m.time = Math.max(0, Math.min(m.time + delta, entry.duration));
     seekTo(m.time);
@@ -1685,7 +1762,9 @@
   previewBtn.addEventListener('click', () => previewMode ? exitPreview() : enterPreview());
 
   function clearAllMarks(){
+    if (!markerList.length) return;
     if (previewMode) exitPreview();
+    pushUndoSnapshot();
     markerList = [];
     markIdCounter = 0;
     selectedMarkerId = null;
@@ -1799,6 +1878,14 @@
   });
 
   clearAllBtn.addEventListener('click', clearAllMarks);
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key.toLowerCase() !== 'z') return;
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  });
   markersToggleBtn.addEventListener('click', () => { panelOpen = !panelOpen; renderMarkPanel(); });
 
   document.getElementById('skipBtn').addEventListener('click', goNext);

@@ -469,6 +469,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </div>
+  <div class="sheet-search-wrap">
+    <input type="text" class="sheet-search" id="surahSearchInput" placeholder="Search surahs…" autocomplete="off">
+  </div>
   <div class="sheet-list" id="surahSheetList"></div>
   <div class="sheet-foot">
     <button class="sheet-select-btn" id="surahSheetSelect">Select</button>
@@ -609,9 +612,17 @@
     loadPreview();
   }
 
-  function renderSurahSheetList(pickedNum){
+  function renderSurahSheetList(pickedNum, query){
     const listEl = document.getElementById('surahSheetList');
-    listEl.innerHTML = surahs.map(s => `
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? surahs.filter(s => s.en.toLowerCase().includes(q) || s.ar.includes(q) || String(s.n) === q)
+      : surahs;
+    if (!filtered.length){
+      listEl.innerHTML = `<div class="sheet-row-sub" style="padding:14px 10px;">No surahs found</div>`;
+      return;
+    }
+    listEl.innerHTML = filtered.map(s => `
       <button class="sheet-row ${s.n === pickedNum ? 'picked' : ''}" data-n="${s.n}">
         <div class="sheet-row-num">${s.n}</div>
         <div class="sheet-row-text">
@@ -625,16 +636,21 @@
   }
 
   let surahPick = state.surah.n;
+  const surahSearchInput = document.getElementById('surahSearchInput');
   surahBtn.addEventListener('click', () => {
     surahPick = state.surah.n;
+    surahSearchInput.value = '';
     renderSurahSheetList(surahPick);
     openSheet('surah');
+  });
+  surahSearchInput.addEventListener('input', () => {
+    renderSurahSheetList(surahPick, surahSearchInput.value);
   });
   document.getElementById('surahSheetList').addEventListener('click', (e) => {
     const row = e.target.closest('.sheet-row');
     if (!row) return;
     surahPick = Number(row.dataset.n);
-    renderSurahSheetList(surahPick);
+    renderSurahSheetList(surahPick, surahSearchInput.value);
   });
   document.getElementById('surahSheetSelect').addEventListener('click', () => {
     state.surah = surahs.find(s => s.n === surahPick);
