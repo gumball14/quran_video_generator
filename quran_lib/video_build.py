@@ -377,13 +377,19 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                     render_verse.translation, verse.number,
                 )
                 # only the marked window of audio plays -- anything before the first frame
-                # or after the last one (e.g. unmarked lead-in/trailing silence) is trimmed
-                raw_audio_clip = AudioFileClip(str(scene_audio_path))
-                a_clip = (
-                    raw_audio_clip
-                    .subclipped(manual_start, min(manual_end, raw_audio_clip.duration))
-                    .with_start(scene_origin)
+                # or after the last one (e.g. unmarked lead-in/trailing silence) is trimmed.
+                # Cut with get_custom_ayah_audio's ffmpeg-direct crop into a real WAV file,
+                # not moviepy's in-memory AudioFileClip.subclipped() on the still-compressed
+                # (mp3) source -- that only seeks mp3 audio approximately, same as the
+                # problem get_trimmed_ayah_audio/get_custom_ayah_audio/
+                # get_surah_audio_for_subclipping already exist to avoid on every other
+                # audio path in this module. Landing mid-frame at manual_start/manual_end
+                # left an audible blip/delay right at the cut, i.e. exactly at a manually
+                # timed frame or ayah boundary.
+                cropped_audio_path = get_custom_ayah_audio(
+                    scene_audio_path, manual_start, min(manual_end, duration)
                 )
+                a_clip = AudioFileClip(str(cropped_audio_path)).with_start(scene_origin)
             elif custom_audio_path is not None:
                 # Custom audio with no manual word-timing for this ayah --
                 # automatic per-word highlight pacing (same rendering as the
