@@ -1560,8 +1560,30 @@
   wireColor('translationColor', 'translationColorHex', v => state.textStyle.translation.color = v);
 
   // ---------- sliders ----------
+  // Native <input type="range"> jumps its value the instant a touch lands
+  // ANYWHERE on the track, not just the thumb -- on Android that means
+  // scrolling the sheet and grazing a slider mid-scroll silently changes it.
+  // Fix: on touchstart, only let the browser's native drag begin if the
+  // touch actually landed near the thumb; otherwise preventDefault so the
+  // touch falls through as an ordinary page scroll instead of a value jump.
+  const THUMB_HIT_RADIUS = 22; // px, a bit larger than the 19px thumb for a forgiving hit target
+  function isTouchNearThumb(input, clientX){
+    const rect = input.getBoundingClientRect();
+    const min = parseFloat(input.min), max = parseFloat(input.max);
+    const val = parseFloat(input.value);
+    const pct = max > min ? (val - min) / (max - min) : 0;
+    // input has 20px height / full-width track per CSS; thumb travels the
+    // full element width (no inset padding), so this mirrors the browser's
+    // own thumb placement closely enough for a hit-test.
+    const thumbX = rect.left + pct * rect.width;
+    return Math.abs(clientX - thumbX) <= THUMB_HIT_RADIUS;
+  }
   function wireSlider(id, valId, apply, fmt){
     const input = el(id), out = el(valId);
+    input.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      if (!touch || !isTouchNearThumb(input, touch.clientX)) e.preventDefault();
+    }, { passive: false });
     input.addEventListener('input', () => {
       const v = parseFloat(input.value);
       out.textContent = fmt ? fmt(v) : v.toFixed(2);

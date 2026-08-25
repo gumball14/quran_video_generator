@@ -147,6 +147,16 @@
     font-size:11.5px; font-style:italic; color:var(--ink-mute); margin-top:6px; line-height:1.5;
   }
 
+  /* ---------- orientation toggle ---------- */
+  .segmented{ display:flex; background:var(--surface-2); border-radius:12px; padding:3px; gap:2px; }
+  .segmented button{
+    flex:1; border:none; background:none; cursor:pointer; padding:11px 4px; border-radius:9px;
+    font-size:12.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
+    transition:background .15s ease, color .15s ease;
+  }
+  .segmented button.active{ background:var(--surface); color:var(--ink); box-shadow:0 2px 5px rgba(20,24,58,.08); }
+  .segmented button:active{ transform:scale(.97); }
+
   /* ---------- theme row ---------- */
   .opt-row{
     display:flex; gap:10px; overflow-x:auto; padding:2px 2px 6px; scrollbar-width:none;
@@ -435,6 +445,26 @@
     </div>
 
     <div class="section">
+      <div class="section-label">Translation</div>
+      <button class="select-btn" id="translationBtn">
+        <div class="select-glyph" id="translationGlyph">EN</div>
+        <div class="select-text">
+          <div class="select-title" id="translationTitle">Loading…</div>
+          <div class="select-sub" id="translationSub"></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Orientation</div>
+      <div class="segmented" id="orientationSeg">
+        <button class="active" data-value="vertical">Vertical</button>
+        <button data-value="horizontal">Horizontal</button>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-label">Style</div>
       <div class="opt-row" id="themeRow">
         <div id="themeCards" style="display:contents"></div>
@@ -473,9 +503,6 @@
     <input type="text" class="sheet-search" id="surahSearchInput" placeholder="Search surahs…" autocomplete="off">
   </div>
   <div class="sheet-list" id="surahSheetList"></div>
-  <div class="sheet-foot">
-    <button class="sheet-select-btn" id="surahSheetSelect">Select</button>
-  </div>
 </div>
 
 <!-- Reciter bottom sheet -->
@@ -493,9 +520,24 @@
   </div>
   <div class="sheet-list" id="reciterSheetList"></div>
   <div class="sheet-foot">
-    <button class="sheet-select-btn" id="reciterSheetSelect">Select</button>
     <button class="sheet-manage-btn" id="manageCustomAudioBtn">Manage custom audio</button>
   </div>
+</div>
+
+<!-- Translation bottom sheet -->
+<div class="sheet-backdrop" id="translationBackdrop"></div>
+<div class="sheet" id="translationSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Select translation</div>
+    <button class="sheet-close" id="translationSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-search-wrap">
+    <input type="text" class="sheet-search" id="translationSearchInput" placeholder="Search translations…" autocomplete="off">
+  </div>
+  <div class="sheet-list" id="translationSheetList"></div>
 </div>
 
 <!-- Confirmation dialog (delete style, etc.) -->
@@ -544,7 +586,8 @@
         ayahStart: state.from,
         ayahEnd: state.to,
         reciter: state.reciter ? state.reciter.key : null,
-        translation: 'en.sahih',
+        translation: state.translation,
+        orientation: state.orientation,
         theme: state.themeObject,
         themeName: state.themeLabel,
       }),
@@ -558,6 +601,8 @@
     to: 7,
     previewAyah: 1,   // which ayah the Preview card is currently showing; starts at "From" but can be browsed independently
     reciter: null,
+    translation: 'en.sahih',  // edition identifier (see /api/translations); this default always exists so the Preview card and a fresh session work before the picker's list has loaded
+    orientation: 'vertical',  // 'vertical' | 'horizontal' -- actual export orientation, sent through to /api/generate on the timing screen
     themeKey: null,     // 'preset:<name>' or 'saved:<id>', or null (= default look)
     themeLabel: null,   // display name string, or null
     themeObject: null,  // resolved theme.py-shaped object, or null
@@ -581,7 +626,7 @@
     updatePreviewNav();
     verseEn.textContent = 'Loading…';
     try {
-      const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.previewAyah}&translation=en.sahih`);
+      const res = await fetch(`/api/timing/text?surah=${state.surah.n}&ayah=${state.previewAyah}&translation=${encodeURIComponent(state.translation)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'fetch failed');
       // Show exactly what the generated video's frame will render for this ayah --
@@ -646,20 +691,36 @@
   surahSearchInput.addEventListener('input', () => {
     renderSurahSheetList(surahPick, surahSearchInput.value);
   });
-  document.getElementById('surahSheetList').addEventListener('click', (e) => {
+  document.getElementById('surahSheetList').addEventListener('click', async (e) => {
     const row = e.target.closest('.sheet-row');
     if (!row) return;
     surahPick = Number(row.dataset.n);
-    renderSurahSheetList(surahPick, surahSearchInput.value);
-  });
-  document.getElementById('surahSheetSelect').addEventListener('click', () => {
     state.surah = surahs.find(s => s.n === surahPick);
     state.from = 1;
-    state.to = Math.min(state.surah.ayahs, 7);
+    state.to = state.surah.ayahs;
     updateSurahDisplay();
     updateRangeDisplay();
     closeSheet('surah');
     saveSessionState();
+
+    // The reciter was verified gapless for the PREVIOUS surah -- a new
+    // surah has its own continuous-recording download and timing data, so
+    // that verification doesn't carry over automatically. Re-check silently
+    // and only bother the user if it actually broke.
+    if (state.reciter){
+      const result = await verifyReciterGapless(state.reciter.key, state.surah.n);
+      if (!result.gapless){
+        await showAlert({
+          title: "Reciter not supported for this surah",
+          message: (result.reason || "This reciter doesn't have a gapless recording for this surah.")
+            + " Please pick a different reciter.",
+        });
+        state.reciter = null;
+        updateReciterDisplay();
+        updateContinueBtn();
+        saveSessionState();
+      }
+    }
   });
 
   // ============ AYAH RANGE STEPPERS + DIRECT INPUT ============
@@ -684,6 +745,14 @@
   document.getElementById('fromPlus').addEventListener('click', () => { if (state.from < state.to){ state.from++; state.previewAyah = state.from; updateRangeDisplay(); loadPreview(); saveSessionState(); } });
   document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); saveSessionState(); } });
   document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); saveSessionState(); } });
+
+  document.getElementById('orientationSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    state.orientation = btn.dataset.value;
+    document.querySelectorAll('#orientationSeg button').forEach(b => b.classList.toggle('active', b === btn));
+    saveSessionState();
+  });
 
   function commitFromValue(){
     let n = parseInt(fromValue.value, 10);
@@ -716,9 +785,32 @@
 
   // ============ RECITER SELECT ============
   const reciterBtn = document.getElementById('reciterBtn');
+  let gaplessReciterKeys = new Set(); // filled from /api/reciters/gapless -- reciters with a continuous-recording source CONFIGURED at all; only used to pick a sensible default, never to gate a selection (see verifyReciterGapless)
+  let reciterVerifying = false;
+
+  // The authoritative check: actually asks the backend to download/cross-check
+  // THIS reciter's continuous recording for THIS surah (see
+  // /api/reciters/verify-gapless in app.py) rather than trusting the static
+  // candidate list above -- a reciter can be a structural candidate and still
+  // fail for a given surah (network hiccup, mismatched timing data).
+  async function verifyReciterGapless(reciterKey, surahNumber){
+    try {
+      const res = await fetch(`/api/reciters/verify-gapless?reciter=${encodeURIComponent(reciterKey)}&surah=${surahNumber}`);
+      const data = await res.json();
+      if (!res.ok) return { gapless: false, reason: data.error || "Couldn't verify this reciter." };
+      return data;
+    } catch (e) {
+      return { gapless: false, reason: "Couldn't reach the server to verify this reciter." };
+    }
+  }
 
   function updateReciterDisplay(){
-    if (!state.reciter) return;
+    if (!state.reciter){
+      document.getElementById('reciterTitle').textContent = 'Select a reciter';
+      document.getElementById('reciterSub').textContent = '';
+      document.getElementById('reciterGlyph').textContent = '?';
+      return;
+    }
     document.getElementById('reciterTitle').textContent = state.reciter.name;
     document.getElementById('reciterSub').textContent = 'Recitation';
     document.getElementById('reciterGlyph').textContent = state.reciter.name[0];
@@ -754,20 +846,117 @@
   reciterSearchInput.addEventListener('input', () => {
     renderReciterSheetList(reciterPick, reciterSearchInput.value);
   });
-  document.getElementById('reciterSheetList').addEventListener('click', (e) => {
+  document.getElementById('reciterSheetList').addEventListener('click', async (e) => {
     const row = e.target.closest('.sheet-row');
-    if (!row) return;
-    reciterPick = row.dataset.key;
-    renderReciterSheetList(reciterPick, reciterSearchInput.value);
-  });
-  document.getElementById('manageCustomAudioBtn').addEventListener('click', () => {
-    window.location.href = 'custom_audio.html';
-  });
-  document.getElementById('reciterSheetSelect').addEventListener('click', () => {
+    if (!row || reciterVerifying) return;
+    const key = row.dataset.key;
+    const titleEl = row.querySelector('.sheet-row-title');
+    const originalTitle = titleEl.textContent;
+
+    reciterVerifying = true;
+    titleEl.textContent = `${originalTitle} — checking…`;
+    const result = await verifyReciterGapless(key, state.surah.n);
+    titleEl.textContent = originalTitle;
+    reciterVerifying = false;
+
+    if (!result.gapless){
+      await showAlert({
+        title: "Reciter not supported",
+        message: result.reason || "This reciter doesn't have a gapless recording for this surah. Please pick a different reciter.",
+      });
+      return;
+    }
+    reciterPick = key;
     state.reciter = reciters.find(r => r.key === reciterPick);
     updateReciterDisplay();
+    updateContinueBtn();
     closeSheet('reciter');
     saveSessionState();
+  });
+  document.getElementById('manageCustomAudioBtn').addEventListener('click', () => {
+    saveSessionState();
+    window.location.href = `/custom_audio.html?sessionId=${encodeURIComponent(sessionId)}`;
+  });
+
+  // ============ TRANSLATION SELECT ============
+  const translationBtn = document.getElementById('translationBtn');
+  let translations = []; // [{identifier, language, name, englishName}], filled from /api/translations
+
+  // ISO 639-1 language code -> a representative country flag emoji, used in
+  // place of the old 2-letter language-code text in the translation glyph
+  // and sheet-row avatars. Falls back to a globe for anything not mapped.
+  const LANG_FLAGS = {
+    ar:'🇸🇦', en:'🇬🇧', ur:'🇵🇰', fr:'🇫🇷', es:'🇪🇸', de:'🇩🇪', id:'🇮🇩', tr:'🇹🇷',
+    ru:'🇷🇺', zh:'🇨🇳', bn:'🇧🇩', ml:'🇮🇳', ta:'🇮🇳', sw:'🇹🇿', fa:'🇮🇷', hi:'🇮🇳',
+    it:'🇮🇹', pt:'🇵🇹', nl:'🇳🇱', ja:'🇯🇵', ko:'🇰🇷', th:'🇹🇭', vi:'🇻🇳', ha:'🇳🇬',
+    so:'🇸🇴', bs:'🇧🇦', sq:'🇦🇱', az:'🇦🇿', uz:'🇺🇿', tg:'🇹🇯', ku:'🇮🇶', sd:'🇵🇰',
+    ps:'🇦🇫', am:'🇪🇹', kn:'🇮🇳', te:'🇮🇳', mr:'🇮🇳', pl:'🇵🇱', sv:'🇸🇪', no:'🇳🇴',
+    da:'🇩🇰', fi:'🇫🇮', cs:'🇨🇿', ro:'🇷🇴', hu:'🇭🇺', el:'🇬🇷', he:'🇮🇱', ms:'🇲🇾',
+    fil:'🇵🇭', tl:'🇵🇭', si:'🇱🇰', my:'🇲🇲', km:'🇰🇭', ne:'🇳🇵', uk:'🇺🇦', bg:'🇧🇬',
+    sr:'🇷🇸', hr:'🇭🇷', sk:'🇸🇰', sl:'🇸🇮', et:'🇪🇪', lv:'🇱🇻', lt:'🇱🇹',
+  };
+  function langToFlag(lang){
+    return LANG_FLAGS[(lang || '').toLowerCase()] || '🌐';
+  }
+
+  function updateTranslationDisplay(){
+    const entry = translations.find(t => t.identifier === state.translation);
+    if (!entry){
+      // List hasn't loaded yet (or this session's saved identifier isn't in
+      // it) -- still show the raw identifier rather than a blank/misleading
+      // label, since state.translation itself is always a real value.
+      document.getElementById('translationTitle').textContent = state.translation;
+      document.getElementById('translationSub').textContent = '';
+      document.getElementById('translationGlyph').textContent = '🌐';
+      return;
+    }
+    document.getElementById('translationTitle').textContent = entry.englishName;
+    document.getElementById('translationSub').textContent = `${entry.name} · ${entry.language.toUpperCase()}`;
+    document.getElementById('translationGlyph').textContent = langToFlag(entry.language);
+  }
+
+  function renderTranslationSheetList(pickedId, query){
+    const listEl = document.getElementById('translationSheetList');
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? translations.filter(t => t.englishName.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.language.toLowerCase().includes(q))
+      : translations;
+    if (!filtered.length){
+      listEl.innerHTML = `<div class="sheet-row-sub" style="padding:14px 10px;">No translations found</div>`;
+      return;
+    }
+    listEl.innerHTML = filtered.map(t => `
+      <button class="sheet-row ${t.identifier === pickedId ? 'picked' : ''}" data-id="${t.identifier}">
+        <div class="sheet-row-avatar">${langToFlag(t.language)}</div>
+        <div class="sheet-row-text">
+          <div class="sheet-row-title">${t.englishName}</div>
+          <div class="sheet-row-sub">${t.name} · ${t.language.toUpperCase()}</div>
+        </div>
+        <div class="sheet-row-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      </button>
+    `).join('');
+  }
+
+  let translationPick = null;
+  const translationSearchInput = document.getElementById('translationSearchInput');
+  translationBtn.addEventListener('click', () => {
+    translationPick = state.translation;
+    translationSearchInput.value = '';
+    renderTranslationSheetList(translationPick);
+    openSheet('translation');
+  });
+  translationSearchInput.addEventListener('input', () => {
+    renderTranslationSheetList(translationPick, translationSearchInput.value);
+  });
+  document.getElementById('translationSheetList').addEventListener('click', (e) => {
+    const row = e.target.closest('.sheet-row');
+    if (!row) return;
+    translationPick = row.dataset.id;
+    state.translation = translationPick;
+    updateTranslationDisplay();
+    closeSheet('translation');
+    saveSessionState();
+    loadPreview();  // the Preview card should reflect the newly picked translation
   });
 
   // ============ BOTTOM SHEET HELPERS ============
@@ -779,7 +968,7 @@
     document.getElementById(`${key}Backdrop`).classList.remove('open');
     document.getElementById(`${key}Sheet`).classList.remove('open');
   }
-  ['surah', 'reciter'].forEach(key => {
+  ['surah', 'reciter', 'translation'].forEach(key => {
     document.getElementById(`${key}Backdrop`).addEventListener('click', () => closeSheet(key));
     document.getElementById(`${key}SheetClose`).addEventListener('click', () => closeSheet(key));
   });
@@ -812,6 +1001,41 @@
       cancelBtn.addEventListener('click', onCancel);
       dangerBtn.addEventListener('click', onConfirm);
       backdrop.addEventListener('click', onCancel);
+      backdrop.classList.add('open');
+      modal.classList.add('open');
+    });
+  }
+
+  // Single-button variant of showConfirm() above, reusing the same modal
+  // markup with the Cancel button hidden -- for messages that just need
+  // acknowledging, not a yes/no choice.
+  function showAlert({ title, message, okLabel = 'OK' }){
+    const backdrop = document.getElementById('confirmBackdrop');
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const dangerBtn = document.getElementById('confirmDangerBtn');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    cancelBtn.style.display = 'none';
+    dangerBtn.textContent = okLabel;
+    dangerBtn.classList.remove('confirm-danger');
+
+    return new Promise(resolve => {
+      function close(){
+        backdrop.classList.remove('open');
+        modal.classList.remove('open');
+        dangerBtn.removeEventListener('click', onOk);
+        backdrop.removeEventListener('click', onOk);
+        cancelBtn.style.display = '';
+        dangerBtn.classList.add('confirm-danger');
+        resolve();
+      }
+      function onOk(){ close(); }
+      dangerBtn.addEventListener('click', onOk);
+      backdrop.addEventListener('click', onOk);
       backdrop.classList.add('open');
       modal.classList.add('open');
     });
@@ -979,10 +1203,13 @@
 
   function updateContinueBtn(){
     const hasTheme = !!state.themeKey;
-    continueBtn.disabled = !hasTheme;
-    continueHint.textContent = hasTheme
-      ? "You'll sync recitation timing on the next step"
-      : 'Pick a style above to continue';
+    const hasReciter = !!state.reciter;
+    continueBtn.disabled = !hasTheme || !hasReciter;
+    continueHint.textContent = !hasReciter
+      ? 'Pick a reciter above to continue'
+      : hasTheme
+        ? "You'll sync recitation timing on the next step"
+        : 'Pick a style above to continue';
   }
 
   continueBtn.addEventListener('click', () => {
@@ -1004,6 +1231,12 @@
         state.to = session.ayahEnd;
       }
     }
+    // Set before updateSurahDisplay() (which triggers the first
+    // loadPreview()) so that preview fetch already uses the restored
+    // translation instead of the default, then corrected right after.
+    if (session.translation) state.translation = session.translation;
+    if (session.orientation === 'horizontal' || session.orientation === 'vertical') state.orientation = session.orientation;
+    document.querySelectorAll('#orientationSeg button').forEach(b => b.classList.toggle('active', b.dataset.value === state.orientation));
 
     updateSurahDisplay();
     updateRangeDisplay();
@@ -1021,9 +1254,30 @@
     } catch (e) {
       reciters = [{ key: 'yasser_al_dossary', name: 'Yasser Al-Dossary' }];
     }
+    try {
+      const gaplessKeys = await fetch('/api/reciters/gapless').then(r => r.json());
+      gaplessReciterKeys = new Set(gaplessKeys);
+    } catch (e) {
+      gaplessReciterKeys = new Set(['yasser_al_dossary']);
+    }
+    // A session saved before this restriction existed may still point at a
+    // non-gapless reciter -- don't silently swap it out from under an
+    // in-progress video, only steer NEW picks (via the sheet's click
+    // handler above) away from non-gapless reciters.
     const restoredReciter = session.reciter ? reciters.find(r => r.key === session.reciter) : null;
-    state.reciter = restoredReciter || reciters[0];
+    state.reciter = restoredReciter
+      || reciters.find(r => gaplessReciterKeys.has(r.key))
+      || reciters[0];
     updateReciterDisplay();
+    updateContinueBtn();
+
+    try {
+      translations = await fetch('/api/translations').then(r => r.json());
+      if (!Array.isArray(translations)) translations = [];
+    } catch (e) {
+      translations = [];
+    }
+    updateTranslationDisplay();
 
     await consumeCustomThemeIfJustSaved();
   }

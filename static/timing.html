@@ -115,21 +115,6 @@
   .undoredo-btn:disabled{ opacity:.35; pointer-events:none; }
   .undoredo-btn:active{ transform:scale(.9); background:var(--line); }
 
-  /* ---------- range-audio banner (Phase 3.1: one recording, split into ayahs) ---------- */
-  .range-banner{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:9px 12px; border-radius:13px; margin-bottom:10px; flex-wrap:wrap;
-    background:var(--surface-2);
-  }
-  .range-banner-text{ font-size:11px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:7px; min-width:0; }
-  .range-banner-text svg{ width:13px; height:13px; color:var(--gold-soft); flex-shrink:0; }
-  .range-banner-actions{ display:flex; gap:6px; flex-shrink:0; }
-  .range-link-btn{
-    border:none; background:none; cursor:pointer; padding:2px 0;
-    font-size:10.5px; font-weight:800; color:var(--gold-soft); letter-spacing:.2px;
-  }
-  .range-link-btn.danger{ color:var(--danger); }
-
   /* ---------- audio source (Phase 3: custom upload + crop) ---------- */
   .audio-source-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -191,7 +176,6 @@
   .transport{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
   /* when the mark panel is open, hide the transport controls to give word-card more room */
   body.mark-panel-open .transport{ display:none; }
-  body.mark-panel-open .speed-card{ margin-top:5px; padding-top:6px; }
   body.mark-panel-open .wave-card{ padding-bottom:8px; }
   .t-btn{
     width:34px; height:34px; border-radius:50%; flex-shrink:0;
@@ -209,26 +193,10 @@
   .t-play:active{ background:#0c0f28; }
   .t-btn:disabled{ opacity:.4; pointer-events:none; }
 
-  /* ---------- speed control ---------- */
-  .speed-card{
-    margin-top:8px; padding-top:9px; border-top:1px solid var(--line-soft);
-    display:flex; align-items:center; justify-content:space-between;
-  }
-  .speed-label{ font-size:11px; font-weight:800; color:var(--ink-mute); display:flex; align-items:center; gap:6px; }
-  .speed-label svg{ width:12px; height:12px; }
-  .speed-stepper{ display:flex; align-items:center; gap:2px; }
-  .speed-step{
-    width:26px; height:26px; border-radius:8px; border:none; cursor:pointer;
-    background:var(--surface-2); color:var(--ink);
-    display:flex; align-items:center; justify-content:center;
-    transition:transform .1s ease, background .12s ease;
-  }
-  .speed-step svg{ width:11px; height:11px; }
-  .speed-step:active{ transform:scale(.9); background:var(--line); }
-  .speed-step:disabled{ opacity:.35; pointer-events:none; }
-  .speed-value{
-    font-size:12px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
-    min-width:40px; text-align:center;
+  /* ---------- speed control (merged into the transport row) ---------- */
+  .t-speed{
+    width:auto; border-radius:17px; padding:0 12px;
+    font-size:11px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
   }
 
   /* ---------- ayah word chips ---------- */
@@ -445,16 +413,6 @@
   .crop-apply-btn:disabled{ opacity:.4; pointer-events:none; }
   .crop-loading{ text-align:center; color:var(--ink-mute); font-size:12px; font-weight:700; padding:20px 0; }
 
-  /* ---------- split modal (Phase 3.1) -- reuses .crop-* styles, plus: ---------- */
-  .split-handle::before{ background:var(--success); }
-  .split-handle::after{ background:var(--success); }
-  .split-seg-labels{ position:relative; height:16px; margin-top:2px; }
-  .split-seg-label{
-    position:absolute; top:0; transform:translateX(-50%);
-    font-size:9.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
-  }
-  .split-hint-row{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
-  .split-hint-row .as-btn{ background:var(--surface-2); }
 
 </style>
 </head>
@@ -477,26 +435,6 @@
   <div class="body">
 
     <div class="wave-card">
-      <div class="range-banner" id="rangeBanner" style="display:none;">
-        <div class="range-banner-text">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg>
-          <span id="rangeBannerText">One recording, split into ayahs</span>
-        </div>
-        <div class="range-banner-actions">
-          <button class="range-link-btn" id="rangeEditBtn">Edit splits</button>
-          <button class="range-link-btn danger" id="rangeRemoveBtn">Remove</button>
-        </div>
-      </div>
-      <div class="range-banner" id="rangeBannerOffer" style="display:none;">
-        <div class="range-banner-text">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>
-          <span>Got one recording for this whole range?</span>
-        </div>
-        <div class="range-banner-actions">
-          <button class="range-link-btn" id="rangeUploadBtn">Upload &amp; split</button>
-        </div>
-      </div>
-
       <div class="audio-source-row" id="audioSourceRow">
         <div class="audio-source-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -529,22 +467,7 @@
         <button class="t-btn" id="fwdBtn" aria-label="Forward quarter second">
           <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
-      </div>
-
-      <div class="speed-card">
-        <div class="speed-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
-          Speed
-        </div>
-        <div class="speed-stepper">
-          <button class="speed-step" id="speedDownBtn" aria-label="Decrease playback speed">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
-          </button>
-          <div class="speed-value" id="speedValue">1.0×</div>
-          <button class="speed-step" id="speedUpBtn" aria-label="Increase playback speed">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
-        </div>
+        <button class="t-btn t-speed" id="speedBtn" aria-label="Playback speed">1.0×</button>
       </div>
     </div>
 
@@ -627,30 +550,20 @@
   </div>
 </div>
 
-<div class="crop-overlay" id="splitOverlay">
-  <div class="crop-sheet">
-    <div class="crop-title">Split your recording</div>
-    <div class="crop-hint" id="splitHint">Drag each handle to where the next ayah begins. Ayahs whose word markers were already placed will be cleared, since they'd be timed against the old boundaries.</div>
-    <div id="splitBody">
-      <div class="crop-loading">Loading your recording…</div>
-    </div>
-    <div class="crop-actions">
-      <button class="crop-cancel-btn" id="splitCancelBtn">Cancel</button>
-      <button class="crop-apply-btn" id="splitApplyBtn" disabled>Apply splits</button>
-    </div>
-  </div>
-</div>
-
-<input type="file" id="audioUploadInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" style="display:none;">
-<input type="file" id="rangeUploadInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" style="display:none;">
-
 <audio id="ayahAudio" preload="auto"></audio>
 
 <script>
   // ============ SESSION (server-side video-creation project; see sessions-refactor-progress.md) ============
   const sessionId = new URLSearchParams(location.search).get('sessionId');
   if (!sessionId){ location.href = '/new_video.html'; throw new Error('no sessionId'); }
-  document.getElementById('backBtnTop').setAttribute('onclick', `location.href='/new_video.html?sessionId=${encodeURIComponent(sessionId)}'`);
+  // Reopening a completed session's word timing (see the "Edit word timing"
+  // entry point on the library card): surah/ayah-range/reciter/audio stay
+  // locked server-side (see app.py's /api/generate "locked" handling) --
+  // this flag only changes what the EDITOR shows/allows, the backend is
+  // the actual enforcement.
+  const editOnlyMode = new URLSearchParams(location.search).get('editTiming') === '1';
+  document.getElementById('backBtnTop').setAttribute('onclick',
+    editOnlyMode ? "location.href='/'" : `location.href='/new_video.html?sessionId=${encodeURIComponent(sessionId)}'`);
 
   let draft = null;  // populated in init() from GET /api/sessions/<id>; shaped like the old localStorage draft for minimal diff below
 
@@ -684,7 +597,9 @@
   // whole-range file itself. Which ayah gets which slice of it lives in
   // customAudioByRealAyah (same shape as any other custom-audio entry,
   // just with several ayahs sharing this one filename under different
-  // crop windows) -- see openSplitModal()/applySplits() below.
+  // crop windows). Set up via custom_audio.html (reached from the reciter
+  // selector on new_video.html) -- this screen only reads it to label
+  // audio that already came from a split range recording.
   let rangeAudioInfo = null;
 
   const wordChipsEl = document.getElementById('wordChips');
@@ -754,9 +669,7 @@
     updateUndoRedoButtons();
   }
   const markersToggleLabel = document.getElementById('markersToggleLabel');
-  const speedDownBtn = document.getElementById('speedDownBtn');
-  const speedUpBtn = document.getElementById('speedUpBtn');
-  const speedValue = document.getElementById('speedValue');
+  const speedBtn = document.getElementById('speedBtn');
   const previewBtn = document.getElementById('previewBtn');
   const previewBtnIcon = document.getElementById('previewBtnIcon');
   const previewBtnLabel = document.getElementById('previewBtnLabel');
@@ -922,7 +835,7 @@
 
   // ============ LOADING AN AYAH ============
   function setControlsEnabled(enabled){
-    document.querySelectorAll('.transport .t-btn, .speed-step, #previewBtn').forEach(b => b.disabled = !enabled || b.disabled === 'force');
+    document.querySelectorAll('.transport .t-btn, #previewBtn').forEach(b => b.disabled = !enabled || b.disabled === 'force');
   }
 
   async function loadAyah(){
@@ -956,7 +869,6 @@
     prevBtn.disabled = ayahIndex === 0;
     renderDots();
     renderAudioSourceRow();
-    renderRangeBanner();
 
     wordCardLabel.textContent = entry.ayahNumber === 0 ? 'Bismillah' : `Word by word — ayah ${entry.ayahNumber}`;
     wordChipsEl.innerHTML = '<div class="word-card-loading">Loading recitation…</div>';
@@ -1018,7 +930,6 @@
   const audioSourceText = document.getElementById('audioSourceText');
   const audioSourceActions = document.getElementById('audioSourceActions');
   const audioSourceStatus = document.getElementById('audioSourceStatus');
-  const audioUploadInput = document.getElementById('audioUploadInput');
 
   function showAudioSourceStatus(message, isError){
     audioSourceStatus.textContent = message;
@@ -1030,6 +941,21 @@
     const entry = currentAyah();
     const custom = customAudioByRealAyah[entry.realAyah];
     showAudioSourceStatus('', false);
+
+    if (editOnlyMode){
+      // Audio can't be changed once a video is complete -- only the word
+      // timing marked against it. Show what's playing, no actions.
+      if (custom){
+        const cropped = custom.cropStart > 0 || custom.cropEnd != null;
+        const shownDuration = entry.duration;
+        audioSourceText.textContent = `Your recording${shownDuration != null ? ` — ${shownDuration.toFixed(1)}s` : ''}${cropped ? ' (cropped)' : ''}`;
+      } else {
+        const reciterLabel = reciterNames[draft.reciterKey] || draft.reciterKey;
+        audioSourceText.textContent = `Reciter — ${reciterLabel}`;
+      }
+      audioSourceActions.innerHTML = '';
+      return;
+    }
 
     if (custom){
       const cropped = custom.cropStart > 0 || custom.cropEnd != null;
@@ -1052,50 +978,9 @@
     } else {
       const reciterLabel = reciterNames[draft.reciterKey] || draft.reciterKey;
       audioSourceText.textContent = `Reciter — ${reciterLabel}`;
-      audioSourceActions.innerHTML = `
-        <button class="as-btn" id="asUploadBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>
-          Use my own audio
-        </button>
-      `;
-      document.getElementById('asUploadBtn').addEventListener('click', () => {
-        audioUploadInput.dataset.realAyah = String(entry.realAyah);
-        audioUploadInput.click();
-      });
+      audioSourceActions.innerHTML = '';
     }
   }
-
-  audioUploadInput.addEventListener('change', async () => {
-    const file = audioUploadInput.files[0];
-    const realAyah = Number(audioUploadInput.dataset.realAyah);
-    audioUploadInput.value = '';
-    if (!file || !realAyah) return;
-
-    showAudioSourceStatus('Uploading…', false);
-    try {
-      const form = new FormData();
-      form.append('sessionId', sessionId);
-      form.append('ayah', String(realAyah));
-      form.append('audio', file);
-      const res = await fetch('/api/timing/upload-audio', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't upload that file.");
-
-      customAudioByRealAyah[realAyah] = { filename: data.filename, duration: data.duration, cropStart: 0, cropEnd: null };
-      invalidateEntriesForRealAyah(realAyah);
-      showAudioSourceStatus('', false);
-      // loadAyah() must run BEFORE persistSession(): it's what actually
-      // resets the in-memory markerList/markIdCounter to match the null
-      // ayahStates entry invalidateEntriesForRealAyah() just wrote --
-      // persisting first would re-save the stale (pre-invalidation) marker
-      // list straight back over that reset via saveCurrentAyahState().
-      if (currentAyah().realAyah === realAyah) await loadAyah();
-      else renderAudioSourceRow();
-      persistSession();
-    } catch (e) {
-      showAudioSourceStatus(e.message, true);
-    }
-  });
 
   async function removeCustomAudio(realAyah){
     if (!confirm('Remove your uploaded audio and use the reciter recording instead? Any word markers for this ayah will be cleared.')) return;
@@ -1235,210 +1120,6 @@
     persistSession();
   });
 
-  // ============ PHASE 3.1: one recording, split into ayahs ============
-  const rangeUploadInput = document.getElementById('rangeUploadInput');
-  const rangeUploadBtn = document.getElementById('rangeUploadBtn');
-  const rangeEditBtn = document.getElementById('rangeEditBtn');
-  const rangeRemoveBtn = document.getElementById('rangeRemoveBtn');
-
-  function renderRangeBanner(){
-    const numAyahs = draft.to - draft.from + 1;
-    const offerEl = document.getElementById('rangeBannerOffer');
-    const bannerEl = document.getElementById('rangeBanner');
-    if (numAyahs < 2){
-      // Splitting only makes sense across more than one ayah -- a
-      // single-ayah range is exactly what the per-ayah upload already does.
-      offerEl.style.display = 'none';
-      bannerEl.style.display = 'none';
-      return;
-    }
-    if (rangeAudioInfo){
-      offerEl.style.display = 'none';
-      bannerEl.style.display = 'flex';
-      document.getElementById('rangeBannerText').textContent =
-        `Full recording (${rangeAudioInfo.duration.toFixed(1)}s), split into ${numAyahs} ayahs`;
-    } else {
-      offerEl.style.display = 'flex';
-      bannerEl.style.display = 'none';
-    }
-  }
-
-  rangeUploadBtn.addEventListener('click', () => rangeUploadInput.click());
-
-  rangeUploadInput.addEventListener('change', async () => {
-    const file = rangeUploadInput.files[0];
-    rangeUploadInput.value = '';
-    if (!file) return;
-
-    showAudioSourceStatus('Uploading your recording…', false);
-    try {
-      const form = new FormData();
-      form.append('sessionId', sessionId);
-      form.append('audio', file);
-      const res = await fetch('/api/timing/upload-range-audio', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't upload that file.");
-      rangeAudioInfo = { filename: data.filename, duration: data.duration };
-      showAudioSourceStatus('', false);
-      renderRangeBanner();
-      await openSplitModal();
-    } catch (e) {
-      showAudioSourceStatus(e.message, true);
-    }
-  });
-
-  rangeEditBtn.addEventListener('click', () => openSplitModal());
-
-  rangeRemoveBtn.addEventListener('click', async () => {
-    if (!confirm('Remove this recording? Every ayah currently using a slice of it will revert to the reciter recording, and any of their word markers will be cleared.')) return;
-    showAudioSourceStatus('Removing…', false);
-    try {
-      await fetch(`/api/timing/upload-range-audio?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
-    } catch (e) { /* best-effort -- fall through and clear local state regardless */ }
-
-    const filename = rangeAudioInfo && rangeAudioInfo.filename;
-    rangeAudioInfo = null;
-    for (let a = draft.from; a <= draft.to; a++){
-      if (customAudioByRealAyah[a] && customAudioByRealAyah[a].filename === filename){
-        delete customAudioByRealAyah[a];
-        invalidateEntriesForRealAyah(a);
-      }
-    }
-    showAudioSourceStatus('', false);
-    renderRangeBanner();
-    await loadAyah();
-    persistSession();
-  });
-
-  // ---- split modal ----
-  const splitOverlay = document.getElementById('splitOverlay');
-  const splitBody = document.getElementById('splitBody');
-  const splitApplyBtn = document.getElementById('splitApplyBtn');
-  const splitCancelBtn = document.getElementById('splitCancelBtn');
-  const SPLIT_MIN_SEGMENT = 0.3;  // seconds -- smallest allowed ayah slice
-
-  // splitPoints[i] is the boundary time BEFORE ayah (draft.from + i);
-  // splitPoints[0] = 0, splitPoints[numAyahs] = rawDuration. So ayah
-  // (draft.from + i)'s window is [splitPoints[i], splitPoints[i+1]).
-  let splitState = null;  // { rawDuration, points: [...] }
-
-  function renderSplitUI(){
-    const numAyahs = draft.to - draft.from + 1;
-    const trackEl = document.getElementById('splitTrack');
-    document.querySelectorAll('.split-handle').forEach((h, i) => {
-      h.style.left = (splitState.points[i + 1] / splitState.rawDuration * 100) + '%';
-    });
-    const labelsEl = document.getElementById('splitSegLabels');
-    labelsEl.innerHTML = '';
-    for (let i = 0; i < numAyahs; i++){
-      const mid = (splitState.points[i] + splitState.points[i + 1]) / 2;
-      const pct = (mid / splitState.rawDuration) * 100;
-      const span = document.createElement('span');
-      span.className = 'split-seg-label';
-      span.style.left = pct + '%';
-      span.textContent = `Ayah ${draft.from + i}`;
-      labelsEl.appendChild(span);
-    }
-    splitApplyBtn.disabled = false;
-  }
-
-  function attachSplitDrag(handleEl, pointIndex){
-    handleEl.addEventListener('pointerdown', (e) => {
-      handleEl.setPointerCapture(e.pointerId);
-      const trackEl = document.getElementById('splitTrack');
-      const onMove = (ev) => {
-        const rect = trackEl.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-        const t = pct * splitState.rawDuration;
-        const lo = splitState.points[pointIndex - 1] + SPLIT_MIN_SEGMENT;
-        const hi = splitState.points[pointIndex + 1] - SPLIT_MIN_SEGMENT;
-        splitState.points[pointIndex] = Math.max(lo, Math.min(t, hi));
-        renderSplitUI();
-      };
-      const onUp = () => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-      };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-    });
-  }
-
-  async function openSplitModal(){
-    if (!rangeAudioInfo) return;
-    splitOverlay.classList.add('open');
-    splitApplyBtn.disabled = true;
-    splitBody.innerHTML = '<div class="crop-loading">Loading your recording…</div>';
-
-    try {
-      const res = await fetch(`/api/timing/audio?surah=${draft.surah}&ayah=${draft.from}&reciter=${draft.reciterKey}&sessionId=${encodeURIComponent(sessionId)}&customFilename=${encodeURIComponent(rangeAudioInfo.filename)}`);
-      if (!res.ok) throw new Error("Couldn't load your recording.");
-      const blob = await res.blob();
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const rawBuffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-
-      const numAyahs = draft.to - draft.from + 1;
-      const rawDuration = rawBuffer.duration;
-      const points = [0];
-      for (let i = 1; i < numAyahs; i++){
-        const ayahNum = draft.from + i;
-        const existing = customAudioByRealAyah[ayahNum];
-        if (existing && existing.filename === rangeAudioInfo.filename){
-          points.push(existing.cropStart || 0);
-        } else {
-          points.push(rawDuration * i / numAyahs);
-        }
-      }
-      points.push(rawDuration);
-      splitState = { rawDuration, points };
-
-      let handlesHtml = '';
-      for (let i = 1; i < numAyahs; i++) handlesHtml += `<div class="crop-handle split-handle" data-point="${i}"></div>`;
-
-      splitBody.innerHTML = `
-        <div class="crop-track" id="splitTrack">
-          <div class="crop-bars" id="splitBars"></div>
-          ${handlesHtml}
-        </div>
-        <div class="split-seg-labels" id="splitSegLabels"></div>
-      `;
-      buildBarsFromBuffer(rawBuffer, 70, 0, rawDuration, document.getElementById('splitBars'), 'crop-bar');
-      document.querySelectorAll('.split-handle').forEach((h) => attachSplitDrag(h, Number(h.dataset.point)));
-      renderSplitUI();
-    } catch (e) {
-      splitBody.innerHTML = `<div class="crop-loading">${e.message}</div>`;
-    }
-  }
-
-  function closeSplitModal(){
-    splitOverlay.classList.remove('open');
-    splitState = null;
-  }
-
-  splitCancelBtn.addEventListener('click', closeSplitModal);
-
-  splitApplyBtn.addEventListener('click', async () => {
-    if (!splitState) return;
-    const numAyahs = draft.to - draft.from + 1;
-    for (let i = 0; i < numAyahs; i++){
-      const ayahNum = draft.from + i;
-      customAudioByRealAyah[ayahNum] = {
-        filename: rangeAudioInfo.filename,
-        duration: rangeAudioInfo.duration,
-        cropStart: splitState.points[i],
-        cropEnd: i === numAyahs - 1 ? null : splitState.points[i + 1],
-      };
-      invalidateEntriesForRealAyah(ayahNum);
-    }
-    closeSplitModal();
-    renderRangeBanner();
-    // loadAyah() first, same reasoning as the per-ayah crop handler: it
-    // resets markerList from the (now-null) ayahStates entry before
-    // persistSession() would otherwise re-save the stale one.
-    await loadAyah();
-    persistSession();
-  });
-
   function renderDots(){
     ayahDotsEl.innerHTML = ayahs.map((_, i) => {
       let cls = 'ayah-dot';
@@ -1533,16 +1214,21 @@
     updateWordChipsOverflow();
   }
 
-  function getPreviewCurrentWordIndex(t){
-    let currentWordIndex = null;
+  function getPreviewCurrentMarker(t){
+    let current = null;
     let bestTime = -Infinity;
     for (const m of markerList){
       if (m.time <= t && m.time > bestTime){
         bestTime = m.time;
-        currentWordIndex = m.wordIndex;
+        current = m;
       }
     }
-    return currentWordIndex;
+    return current;
+  }
+
+  function getPreviewCurrentWordIndex(t){
+    const m = getPreviewCurrentMarker(t);
+    return m ? m.wordIndex : null;
   }
 
   function updatePreviewHighlight(){
@@ -1567,7 +1253,11 @@
     if (!markerList.length) return;
     const pos = markerList.findIndex(m => m.id === selectedMarkerId);
     if (pos === -1){
-      selectedMarkerId = dir > 0 ? markerList[0].id : markerList[markerList.length - 1].id;
+      // Nothing selected yet -- pick a marked word to start from, in time
+      // order (not creation order) so "next"/"prev" land somewhere
+      // predictable regardless of the order the marks were placed in.
+      const sortedByTime = [...markerList].sort((a, b) => a.time - b.time);
+      selectedMarkerId = dir > 0 ? sortedByTime[0].id : sortedByTime[sortedByTime.length - 1].id;
     } else {
       const next = (pos + dir + markerList.length) % markerList.length;
       selectedMarkerId = markerList[next].id;
@@ -1726,6 +1416,16 @@
 
   function enterPreview(){
     if (previewBtn.disabled) return;
+
+    // Start from the mark *before* the currently selected word, if any, so
+    // preview plays into the selected word rather than jumping straight to
+    // it. If there's no earlier mark (selected word is the first one) or
+    // nothing is selected, fall back to the earliest-timed mark.
+    const sortedByTime = [...markerList].sort((a, b) => a.time - b.time);
+    const selectedPos = sortedByTime.findIndex(m => m.id === selectedMarkerId);
+    const startMarker = selectedPos > 0 ? sortedByTime[selectedPos - 1] : sortedByTime[0];
+    const startTime = startMarker?.time ?? 0;
+
     previewMode = true;
     selectedMarkerId = null;
     lastPreviewIdx = undefined;
@@ -1741,7 +1441,7 @@
     renderChips();
     renderWaveMarkers();
 
-    seekTo(0);
+    seekTo(startTime);
     startPlayback();
   }
 
@@ -1854,19 +1554,19 @@
     seekTo(pct * entry.duration);
   });
 
-  // ---------- speed ----------
-  const SPEED_MIN = 0.5, SPEED_MAX = 1.5, SPEED_STEP = 0.05;
+  // ---------- speed (single button on the transport row, cycles presets) ----------
+  const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5];
   function setSpeed(v){
-    speed = Math.round(Math.max(SPEED_MIN, Math.min(SPEED_MAX, v)) * 20) / 20;
+    speed = v;
     let label = speed.toFixed(2).replace(/0$/, '');
     if (speed === 1) label = '1.0';
-    speedValue.textContent = label + '×';
-    speedDownBtn.disabled = speed <= SPEED_MIN;
-    speedUpBtn.disabled = speed >= SPEED_MAX;
+    speedBtn.textContent = label + '×';
     audioEl.playbackRate = speed;
   }
-  speedDownBtn.addEventListener('click', () => setSpeed(speed - SPEED_STEP));
-  speedUpBtn.addEventListener('click', () => setSpeed(speed + SPEED_STEP));
+  speedBtn.addEventListener('click', () => {
+    const idx = SPEED_PRESETS.indexOf(speed);
+    setSpeed(SPEED_PRESETS[(idx + 1) % SPEED_PRESETS.length]);
+  });
   setSpeed(speed);
 
   // ---------- word chip interaction ----------
@@ -1875,6 +1575,31 @@
     const chip = e.target.closest('.word-chip');
     if (!chip) return;
     addMarker(Number(chip.dataset.i), elapsed);
+  });
+
+  // Clicking anywhere outside the word card and the mark panel (blank
+  // space, transport, waveform, etc.) clears the current word selection.
+  // Clicks on a word chip or inside the mark panel manage selection
+  // themselves and are left alone.
+  // Note: this uses composedPath() rather than e.target.closest(), because
+  // clicking mpPrevBtn/mpNextBtn (or unmark/nudge) re-renders markPanel's
+  // innerHTML *during* the same click's bubble phase -- by the time this
+  // listener runs, the clicked button has already been detached from the
+  // DOM, so closest('#markPanel') on it would (wrongly) find no ancestor
+  // and immediately clear the selection this same click just set.
+  // composedPath() reflects the path at dispatch time, before that
+  // re-render happened, so it still correctly reports the click as
+  // "inside" the panel.
+  document.addEventListener('click', (e) => {
+    if (!selectedMarkerId) return;
+    const path = e.composedPath();
+    if (path.some(el => el.classList && el.classList.contains('word-chip'))) return;
+    if (path.includes(markPanelEl)) return;
+    if (path.includes(markersToggleBtn)) return;
+    selectedMarkerId = null;
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
   });
 
   clearAllBtn.addEventListener('click', clearAllMarks);
@@ -1886,7 +1611,15 @@
     e.preventDefault();
     if (e.shiftKey) redo(); else undo();
   });
-  markersToggleBtn.addEventListener('click', () => { panelOpen = !panelOpen; renderMarkPanel(); });
+  markersToggleBtn.addEventListener('click', () => {
+    if (!panelOpen && previewMode) {
+      const marker = getPreviewCurrentMarker(elapsed);
+      if (marker) selectedMarkerId = marker.id;
+      exitPreview();
+    }
+    panelOpen = !panelOpen;
+    renderMarkPanel();
+  });
 
   document.getElementById('skipBtn').addEventListener('click', goNext);
   nextBtn.addEventListener('click', goNext);
@@ -1913,6 +1646,28 @@
     }
   }
   function goPrev(){ goToAyah(ayahIndex - 1); }
+
+  // Inverse of buildManifest(), for reopening a completed session's word
+  // timing (editOnlyMode): rebuilds each ayah's markerList from the
+  // manifest's absolute highlight_words times, shifted back to this
+  // frame's own phase-relative clock (rangeStart is 0 for every entry
+  // except the Bismillah/ayah-1 split pair). Only understands the single-
+  // frame-per-ayah shape this editor itself ever produces (see
+  // buildManifest()) -- a hand-authored manifest with combined/split frame
+  // text wouldn't round-trip through here, but this editor never created
+  // one of those to begin with, so that's not a regression.
+  function hydrateAyahStatesFromManifest(manifest){
+    const manifestAyahs = (manifest && manifest.ayahs) || {};
+    ayahs.forEach((entry, i) => {
+      const stored = manifestAyahs[String(entry.ayahNumber)];
+      const highlightWords = stored && Array.isArray(stored.frames) && stored.frames[0]
+        ? (stored.frames[0].highlight_words || []) : [];
+      if (!highlightWords.length) return;
+      const rangeStart = entry.rangeStart || 0;
+      const markerList = highlightWords.map((hw, j) => ({ id: j + 1, wordIndex: hw.index, time: hw.start - rangeStart }));
+      ayahStates[i] = { markerList, markIdCounter: markerList.length, complete: true };
+    });
+  }
 
   // ============ MANIFEST + GENERATE ============
   function buildManifest(){
@@ -1983,7 +1738,7 @@
       ayahEnd: draft.to,
       reciter: draft.reciterKey,
       translation: draft.translation,
-      orientation: 'vertical',
+      orientation: draft.orientation || 'vertical',
       theme: draft.theme || undefined,
       themeName: draft.themeLabel || undefined,
       timing: Object.keys(manifest.ayahs).length ? manifest : undefined,
@@ -2045,10 +1800,11 @@
     const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
     if (!res.ok){ location.href = '/new_video.html'; return; }
     const session = await res.json();
-    if (session.status === 'complete'){
-      // Shouldn't be reachable from the UI (completed sessions can't be
-      // re-edited), but guard anyway rather than letting this page run with
-      // a locked session's config.
+    if (session.status === 'complete' && !editOnlyMode){
+      // Shouldn't be reachable from the UI outside the "Edit word timing"
+      // entry point (completed sessions otherwise can't be re-edited), but
+      // guard anyway rather than letting this page run with a locked
+      // session's config.
       location.href = '/';
       return;
     }
@@ -2059,6 +1815,7 @@
       to: session.ayahEnd,
       reciterKey: session.reciter,
       translation: session.translation || 'en.sahih',
+      orientation: session.orientation === 'horizontal' ? 'horizontal' : 'vertical',
       theme: session.theme,
       themeLabel: session.themeName,
     };
@@ -2081,6 +1838,16 @@
     if (preSkeletonSaved){
       customAudioByRealAyah = preSkeletonSaved.customAudioByRealAyah || {};
       rangeAudioInfo = preSkeletonSaved.rangeAudioInfo || null;
+    } else if (editOnlyMode && session.customAudio && session.customAudio.ayahs){
+      // Reopening a completed session's own audio choices (read-only in
+      // this mode -- see renderAudioSourceRow()) so the
+      // editor plays back the SAME audio the finished video used, not the
+      // plain reciter download.
+      Object.entries(session.customAudio.ayahs).forEach(([realAyah, custom]) => {
+        customAudioByRealAyah[realAyah] = {
+          filename: custom.filename, cropStart: custom.crop_start || 0, cropEnd: custom.crop_end != null ? custom.crop_end : null,
+        };
+      });
     }
 
     try {
@@ -2095,6 +1862,8 @@
     if (saved && Array.isArray(saved.ayahStates) && saved.ayahStates.length === ayahs.length){
       ayahStates = saved.ayahStates;
       ayahIndex = Math.max(0, Math.min(saved.ayahIndex || 0, ayahs.length - 1));
+    } else if (editOnlyMode && session.timing){
+      hydrateAyahStatesFromManifest(session.timing);
     }
 
     await loadAyah();
