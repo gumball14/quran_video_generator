@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Reel — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="/quran-data.js"></script>
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --fb:#1877F2;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a{ font-family:inherit; }
+
+  .screen{
+    height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    max-width:480px; margin:0 auto;
+    padding:20px 20px 32px;
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+    overflow:hidden;
+  }
+
+  .topbar{ width:100%; display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-shrink:0; }
+  .topbar-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+    text-decoration:none;
+  }
+  .topbar-btn:active{ transform:scale(.93); }
+  .topbar-btn svg{ width:16px; height:16px; }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; flex:1; min-width:0; }
+
+  /* ---------- topbar overflow menu ---------- */
+  .menu-wrap{ position:relative; flex-shrink:0; }
+  .menu-dropdown{
+    position:absolute; top:44px; right:0; z-index:30; min-width:180px;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 12px 28px -12px rgba(20,24,58,.3); padding:6px;
+    opacity:0; transform:translateY(-4px) scale(.97); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  .menu-dropdown.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .menu-item{
+    width:100%; display:flex; align-items:center; gap:10px; padding:10px 10px; border-radius:9px;
+    border:none; background:none; cursor:pointer; text-align:left; font-size:13px; font-weight:700; color:var(--ink);
+  }
+  .menu-item:active{ background:var(--surface-2); }
+  .menu-item svg{ width:15px; height:15px; flex-shrink:0; color:var(--ink-mute); }
+  .menu-item.danger{ color:#B23B3B; }
+  .menu-item.danger svg{ color:#B23B3B; }
+
+  /* min-height:0 + overflow-y:auto is a safety net: the player below claims
+     space via flex:1 first, and if the info card still doesn't fit after
+     the player has shrunk as far as it can, this scrolls instead of
+     clipping -- same layout used on video_ready.html for the same reason. */
+  #content{
+    width:100%; min-height:0; flex:1;
+    display:flex; flex-direction:column; align-items:center;
+    overflow-y:auto;
+  }
+
+  /* ---------- custom video player (same pattern as video_ready.html) ---------- */
+  /* flex:1 (a "weight", like Compose's Modifier.weight) instead of a fixed/
+     max height -- the player takes whatever vertical space is left after
+     the info card below claims its own, so it shrinks on short viewports
+     instead of pushing that card off-screen. */
+  .player{
+    position:relative; width:100%; max-width:320px; border-radius:20px; overflow:hidden;
+    background:#000; box-shadow:0 20px 44px -20px rgba(20,24,58,.45);
+    border:1px solid var(--line); touch-action:none; margin-bottom:18px;
+    flex:1; min-height:0;
+  }
+  .player video{ width:100%; height:100%; display:block; object-fit:contain; background:#000; }
+  .player-tap{ position:absolute; inset:0; cursor:pointer; }
+  .player-center-btn{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:56px; height:56px; border-radius:50%;
+    background:rgba(20,24,58,.5); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    pointer-events:none; opacity:1; transition:opacity .18s ease;
+  }
+  .player-center-btn svg{ width:22px; height:22px; }
+  .player.playing .player-center-btn{ opacity:0; }
+  .player-bottom{
+    position:absolute; left:0; right:0; bottom:0; padding:22px 10px 10px;
+    background:linear-gradient(to top, rgba(0,0,0,.55), transparent);
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .player-progress{ position:relative; height:14px; display:flex; align-items:center; cursor:pointer; }
+  .player-progress::before{
+    content:""; position:absolute; left:0; right:0; height:3px; border-radius:3px; background:rgba(255,255,255,.3);
+  }
+  .player-progress-fill{
+    position:absolute; left:0; height:3px; border-radius:3px; background:var(--gold); width:0%; pointer-events:none;
+  }
+  .player-progress-thumb{
+    position:absolute; width:11px; height:11px; border-radius:50%; background:var(--gold);
+    top:50%; transform:translate(-50%,-50%); left:0%; box-shadow:0 0 0 3px rgba(255,255,255,.25); pointer-events:none;
+  }
+  .player-time{ font-size:10.5px; font-weight:700; color:rgba(255,255,255,.85); font-variant-numeric:tabular-nums; }
+
+  /* ---------- reel info ---------- */
+  .info-card{
+    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    box-shadow:0 2px 6px rgba(20,24,58,.05); padding:16px; margin-bottom:14px;
+    flex-shrink:0;
+  }
+  .info-page{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .info-avatar{
+    width:34px; height:34px; border-radius:50%; color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .info-avatar svg{ width:16px; height:16px; }
+  .info-page-name{ font-weight:800; font-size:13.5px; }
+  .info-page-time{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+
+  .info-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; margin-bottom:8px; }
+  .info-caption{ font-size:12.5px; color:var(--ink-mute); line-height:1.6; white-space:pre-wrap; margin-bottom:14px; }
+
+  .info-stats{ display:flex; gap:18px; padding-top:12px; border-top:1px solid var(--line); }
+  .info-stat{ display:flex; align-items:center; gap:6px; }
+  .info-stat svg{ width:15px; height:15px; color:var(--ink-mute); }
+  .info-stat-value{ font-weight:800; font-size:13px; }
+  .info-stat-label{ font-size:10px; color:var(--ink-mute); font-weight:600; }
+
+  .open-fb-btn{
+    width:100%; height:50px; border-radius:14px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink-mute); font-weight:800; font-size:12.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    flex-shrink:0; text-decoration:none;
+  }
+  .open-fb-btn svg{ width:14px; height:14px; }
+
+  .not-found{ color:var(--ink-mute); font-size:13px; font-weight:600; text-align:center; margin-top:40px; }
+
+  /* ---------- confirm dialog + caption editor (shared backdrop pattern) ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.45); backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none; transition:opacity .18s ease; z-index:40;
+  }
+  .modal-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .confirm-modal{
+    position:fixed; left:50%; top:50%; z-index:41;
+    width:calc(100% - 64px); max-width:320px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:22px 20px 18px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.92);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .confirm-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  .confirm-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; text-align:center; }
+  .confirm-message{ font-size:12.5px; color:var(--ink-mute); text-align:center; line-height:1.5; margin-top:7px; }
+  .confirm-actions{ display:flex; gap:9px; margin-top:18px; }
+  .confirm-btn{
+    flex:1; height:44px; border-radius:13px; border:none; cursor:pointer; font-weight:800; font-size:12.5px;
+  }
+  .confirm-btn:active{ transform:scale(.97); }
+  .confirm-cancel{ background:var(--surface-2); color:var(--ink); }
+  .confirm-danger{ background:#B4453A; color:#FFFDF6; }
+
+  .caption-modal{
+    position:fixed; left:50%; top:50%; z-index:41;
+    width:calc(100% - 48px); max-width:360px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:20px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.94);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .caption-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  .caption-modal-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; margin-bottom:12px; }
+  .caption-modal-input{
+    width:100%; min-height:120px; border-radius:14px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); font-family:inherit; font-size:13.5px; line-height:1.55;
+    padding:12px; resize:none; outline:none;
+  }
+  .caption-modal-actions{ display:flex; gap:9px; margin-top:14px; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="topbar">
+    <a class="topbar-btn" id="backBtn" href="/facebook_reels.html" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="topbar-title">Reel</div>
+    <div class="menu-wrap">
+      <button class="topbar-btn" id="menuBtn" aria-label="More options" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+      </button>
+      <div class="menu-dropdown" id="menuDropdown">
+        <button class="menu-item" id="editCaptionBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-4l12-12 4 4-12 12H4z"/><path d="M13 6l4 4"/></svg>
+          Edit caption
+        </button>
+        <button class="menu-item danger" id="deletePostBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
+          Delete post
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop"></div>
+
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-title">Delete this post?</div>
+  <div class="confirm-message">This removes it from Facebook. The video stays in your library. This can't be undone.</div>
+  <div class="confirm-actions">
+    <button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancel</button>
+    <button class="confirm-btn confirm-danger" id="confirmDeleteBtn">Delete</button>
+  </div>
+</div>
+
+<div class="caption-modal" id="captionModal">
+  <div class="caption-modal-title">Edit caption</div>
+  <textarea class="caption-modal-input" id="captionModalInput" maxlength="2000"></textarea>
+  <div class="caption-modal-actions">
+    <button class="confirm-btn confirm-cancel" id="captionCancelBtn">Cancel</button>
+    <button class="confirm-btn confirm-danger" id="captionSaveBtn" style="background:var(--ink);">Save</button>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const videoId = params.get('id');
+  const referrer = params.get('from'); // optional: where to send "back" (defaults to the reels library)
+  if (referrer) document.getElementById('backBtn').href = referrer;
+
+  const contentEl = document.getElementById('content');
+
+  const AVATAR_COLORS = ['#1877F2', '#AD8226', '#2F8F6A', '#B23B3B', '#6C5CE7'];
+  function hashString(s){
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function colorFor(id){ return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length]; }
+  function formatCount(n){
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+  function fmtDate(ms){
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function formatTime(t){
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function initPlayer(){
+    const playerEl = document.getElementById('player');
+    const video = document.getElementById('reelVideo');
+    const tapEl = document.getElementById('playerTap');
+    const progressTrack = document.getElementById('progressTrack');
+    const progressFill = document.getElementById('progressFill');
+    const progressThumb = document.getElementById('progressThumb');
+    const timeLabel = document.getElementById('timeLabel');
+
+    function updateProgress(){
+      const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
+      progressFill.style.width = pct + '%';
+      progressThumb.style.left = pct + '%';
+      timeLabel.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+    }
+    function togglePlay(){
+      if (video.ended){ video.currentTime = 0; }
+      if (video.paused) video.play().catch(() => {}); else video.pause();
+    }
+    tapEl.addEventListener('click', togglePlay);
+    video.addEventListener('play', () => playerEl.classList.add('playing'));
+    video.addEventListener('pause', () => playerEl.classList.remove('playing'));
+    video.addEventListener('ended', () => playerEl.classList.remove('playing'));
+    video.addEventListener('timeupdate', updateProgress);
+    video.addEventListener('loadedmetadata', updateProgress);
+
+    let seeking = false;
+    function seekFromEvent(e){
+      const rect = progressTrack.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const pct = Math.min(1, Math.max(0, x / rect.width));
+      if (video.duration) video.currentTime = pct * video.duration;
+      updateProgress();
+    }
+    progressTrack.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      seeking = true;
+      progressTrack.setPointerCapture(e.pointerId);
+      seekFromEvent(e);
+    });
+    progressTrack.addEventListener('pointermove', (e) => { if (seeking) seekFromEvent(e); });
+    progressTrack.addEventListener('pointerup', (e) => { seeking = false; progressTrack.releasePointerCapture(e.pointerId); });
+  }
+
+  function titleOf(v){
+    const s = (window.SURAHS || []).find(x => x.n === v.surah);
+    const name = s ? s.en : (v.surah != null ? `Surah ${v.surah}` : 'Untitled');
+    const range = (v.ayahStart != null && v.ayahEnd != null)
+      ? (v.ayahStart === v.ayahEnd ? `Ayah ${v.ayahStart}` : `Ayahs ${v.ayahStart}–${v.ayahEnd}`)
+      : '';
+    return range ? `${name} · ${range}` : name;
+  }
+
+  function renderNotFound(message){
+    document.getElementById('menuBtn').style.display = 'none';
+    contentEl.innerHTML = `<div class="not-found">${message || "This reel isn't available anymore."}</div>`;
+  }
+
+  let currentVideo = null;
+  let currentPost = null;
+  let currentTitle = '';
+
+  function playerHtml(v){
+    return `
+      <div class="player" id="player">
+        <video id="reelVideo" src="/output/${encodeURIComponent(v.file)}" playsinline webkit-playsinline></video>
+        <div class="player-tap" id="playerTap"></div>
+        <div class="player-center-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="player-bottom">
+          <div class="player-progress" id="progressTrack">
+            <div class="player-progress-fill" id="progressFill"></div>
+            <div class="player-progress-thumb" id="progressThumb"></div>
+          </div>
+          <div class="player-time" id="timeLabel">0:00 / 0:00</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // A video that exists in the library but hasn't been posted to Facebook
+  // yet (reached here from post_facebook_progress.html's uploads grid) --
+  // no Page/caption/stats to show, just a way to post it.
+  function renderUnposted(v){
+    currentVideo = v;
+    currentPost = null;
+    currentTitle = titleOf(v);
+    contentEl.innerHTML = `
+      ${playerHtml(v)}
+      <div class="info-card">
+        <div class="info-title">${currentTitle}</div>
+        <div class="info-caption">Not posted to Facebook yet.</div>
+      </div>
+      <button class="open-fb-btn" id="postNowBtn" style="opacity:1;color:var(--fb);cursor:pointer;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>
+        Post to Facebook
+      </button>
+    `;
+    initPlayer();
+    document.getElementById('menuBtn').style.display = 'none';
+    document.getElementById('postNowBtn').addEventListener('click', () => {
+      const from = encodeURIComponent(location.pathname + location.search);
+      location.href = `/post_facebook.html?videoId=${encodeURIComponent(v.id)}&from=${from}`;
+    });
+  }
+
+  function render(v, post){
+    currentVideo = v;
+    currentPost = post;
+    const title = titleOf(v);
+    currentTitle = title;
+    const stats = post.stats || {};
+    const statRows = [];
+    if (stats.views != null) statRows.push(`<div class="info-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><div><div class="info-stat-value">${formatCount(stats.views)}</div><div class="info-stat-label">Views</div></div></div>`);
+    if (stats.likes != null) statRows.push(`<div class="info-stat"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.35-9.5-8.5C.7 9 2 5.5 5.5 5c2-.3 3.6.7 4.5 2.2C10.9 5.7 12.5 4.7 14.5 5c3.5.5 4.8 4 3 7.5C19 16.65 12 21 12 21z"/></svg><div><div class="info-stat-value">${formatCount(stats.likes)}</div><div class="info-stat-label">Likes</div></div></div>`);
+
+    contentEl.innerHTML = `
+      ${playerHtml(v)}
+
+      <div class="info-card">
+        <div class="info-page">
+          <div class="info-avatar" style="background:${post.pagePicture ? 'transparent' : colorFor(post.pageId)}">
+            ${post.pagePicture ? `<img src="${post.pagePicture}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>'}
+          </div>
+          <div>
+            <div class="info-page-name">${post.pageName}</div>
+            <div class="info-page-time">${fmtDate(post.postedAt * 1000)}</div>
+          </div>
+        </div>
+        <div class="info-title">${title}</div>
+        <div class="info-caption" id="captionText">${post.caption || ''}</div>
+        ${statRows.length ? `<div class="info-stats">${statRows.join('')}</div>` : ''}
+      </div>
+
+      <a class="open-fb-btn" id="openFbLink" href="${post.permalink || '#'}" target="_blank" rel="noopener"${post.permalink ? '' : ' style="opacity:.5;pointer-events:none;"'}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+        ${post.permalink ? 'Open on Facebook' : 'Open on Facebook — link pending'}
+      </a>
+    `;
+    initPlayer();
+    document.getElementById('menuBtn').style.display = 'flex';
+  }
+
+  // ---------- overflow menu ----------
+  const menuBtn = document.getElementById('menuBtn');
+  const menuDropdown = document.getElementById('menuDropdown');
+
+  function closeMenu(){ menuDropdown.classList.remove('open'); }
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuDropdown.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!menuDropdown.contains(e.target) && e.target !== menuBtn) closeMenu();
+  });
+
+  // ---------- delete confirmation ----------
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const confirmModal = document.getElementById('confirmModal');
+  const captionModal = document.getElementById('captionModal');
+
+  function closeModals(){
+    modalBackdrop.classList.remove('open');
+    confirmModal.classList.remove('open');
+    captionModal.classList.remove('open');
+  }
+  modalBackdrop.addEventListener('click', closeModals);
+
+  document.getElementById('deletePostBtn').addEventListener('click', () => {
+    closeMenu();
+    modalBackdrop.classList.add('open');
+    confirmModal.classList.add('open');
+  });
+  document.getElementById('confirmCancelBtn').addEventListener('click', closeModals);
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!currentVideo || !currentPost) return;
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+    try {
+      const res = await fetch(`/api/facebook/posts/${encodeURIComponent(currentVideo.id)}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((json && json.error) || 'Delete failed.');
+      location.href = referrer || '/facebook_reels.html';
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+      closeModals();
+      showToast(e.message || "Couldn't delete this post.");
+    }
+  });
+
+  // ---------- caption editor (dialog, not a separate screen) ----------
+  const captionModalInput = document.getElementById('captionModalInput');
+  document.getElementById('editCaptionBtn').addEventListener('click', () => {
+    closeMenu();
+    if (!currentPost) return;
+    captionModalInput.value = currentPost.caption || '';
+    modalBackdrop.classList.add('open');
+    captionModal.classList.add('open');
+    captionModalInput.focus();
+  });
+  document.getElementById('captionCancelBtn').addEventListener('click', closeModals);
+  document.getElementById('captionSaveBtn').addEventListener('click', async () => {
+    if (!currentVideo || !currentPost) return;
+    const btn = document.getElementById('captionSaveBtn');
+    const newCaption = captionModalInput.value;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      const res = await fetch(`/api/facebook/posts/${encodeURIComponent(currentVideo.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption: newCaption }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((json && json.error) || 'Save failed.');
+      currentPost.caption = newCaption;
+      const captionEl = document.getElementById('captionText');
+      if (captionEl) captionEl.textContent = newCaption;
+      closeModals();
+    } catch (e) {
+      showToast(e.message || "Couldn't save the caption.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save';
+    }
+  });
+
+  // ---------- minimal inline error toast (no toast markup existed before) ----------
+  function showToast(message){
+    let el = document.getElementById('errorToast');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'errorToast';
+      el.style.cssText = 'position:fixed;left:20px;right:20px;bottom:24px;max-width:440px;margin:0 auto;background:#B23B3B;color:#fff;font-size:12.5px;font-weight:700;padding:12px 16px;border-radius:12px;box-shadow:0 12px 28px -12px rgba(20,24,58,.35);z-index:50;text-align:center;';
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.style.display = 'block';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => { el.style.display = 'none'; }, 3500);
+  }
+
+  (async function init(){
+    if (!videoId){ renderNotFound(); return; }
+    try {
+      const videos = await fetch('/api/videos').then(r => r.json());
+      const v = Array.isArray(videos) ? videos.find(x => x.id === videoId) : null;
+      if (!v){ renderNotFound(); return; }
+
+      const postRes = await fetch(`/api/facebook/posts/${encodeURIComponent(videoId)}`);
+      if (postRes.status === 404){ renderUnposted(v); return; }
+      const post = await postRes.json();
+      if (!postRes.ok){ renderNotFound(post.error); return; }
+      render(v, post);
+    } catch (e) {
+      renderNotFound();
+    }
+  })();
+</script>
+
+</body>
+</html>

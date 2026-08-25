@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Choose a style — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a, input{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding-top:env(safe-area-inset-top,0px);
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px;
+  }
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    cursor:pointer;
+  }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:active{ transform:scale(.94); }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; }
+  .topbar-spacer{ width:38px; }
+
+  .body{ flex:1; overflow-y:auto; padding:6px 20px 26px; }
+
+  .section{ margin-top:22px; }
+  .section:first-child{ margin-top:6px; }
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--ink-mute); margin-bottom:10px; padding:0 2px;
+  }
+
+  .context-banner{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; border-radius:14px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+  .context-banner-glyph{
+    width:32px; height:32px; border-radius:10px; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; font-size:13px; color:#FFFDF6;
+  }
+  .context-banner-text{ flex:1; min-width:0; }
+  .context-banner-title{ font-size:13px; font-weight:800; }
+  .context-banner-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+
+  /* ---------- theme grid (ported from new_video.html) ---------- */
+  .opt-row{
+    display:flex; flex-wrap:wrap; gap:12px;
+  }
+  .theme-card{
+    width:calc(33.333% - 8px); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+  }
+  .theme-swatch{
+    width:100%; aspect-ratio:70/104; border-radius:13px;
+    border:1.5px solid var(--line); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .theme-card.selected .theme-swatch{ border-color:var(--ink); transform:scale(.97); }
+  .theme-swatch::after{
+    content:""; position:absolute; inset:5px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
+    pointer-events:none;
+  }
+  .theme-swatch .glyph{ font-family:'Amiri', serif; font-weight:700; font-size:13px; }
+  .theme-check{
+    position:absolute; top:6px; right:6px; width:17px; height:17px; border-radius:50%;
+    background:var(--ink); display:none; align-items:center; justify-content:center;
+  }
+  .theme-card.selected .theme-check{ display:flex; }
+  .theme-check svg{ width:8px; height:8px; }
+  .theme-name{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
+  .theme-card.selected .theme-name{ color:var(--ink); }
+
+  .theme-delete{
+    position:absolute; top:6px; left:6px; width:17px; height:17px; border-radius:50%;
+    background:rgba(20,24,58,.55); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .theme-delete svg{ width:8px; height:8px; }
+  .theme-delete:active{ transform:scale(.9); }
+
+  .theme-add{
+    width:calc(33.333% - 8px); display:flex; flex-direction:column; align-items:center; gap:7px;
+    cursor:pointer; border:none; background:none; padding:0;
+  }
+  .theme-add-swatch{
+    width:100%; aspect-ratio:70/104; border-radius:13px;
+    border:1.5px dashed var(--line); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .theme-add:active .theme-add-swatch{ transform:scale(.96); }
+  .theme-add-swatch svg{ width:18px; height:18px; }
+  .theme-add-label{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
+
+  /* ---------- sticky footer ---------- */
+  .footbar{
+    padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+    background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
+    border-top:1px solid var(--line-soft);
+  }
+  .generate-btn{
+    width:100%; height:54px; border-radius:16px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:14.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .generate-btn:active{ transform:scale(.97); }
+  .generate-btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .generate-btn:disabled:active{ transform:none; }
+  .generate-btn svg{ width:14px; height:14px; }
+  .save-later-btn{
+    width:100%; height:48px; border-radius:15px; margin-top:9px;
+    border:1.5px solid var(--line-soft); cursor:pointer; background:transparent;
+    color:var(--ink); font-weight:800; font-size:12.5px;
+  }
+  .save-later-btn:active{ transform:scale(.98); }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <button class="icon-btn" aria-label="Back" id="backBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">Choose a style</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="body">
+
+    <div class="section">
+      <div class="context-banner">
+        <div class="context-banner-glyph" id="ctxGlyph">?</div>
+        <div class="context-banner-text">
+          <div class="context-banner-title" id="ctxTitle">Loading…</div>
+          <div class="context-banner-sub" id="ctxSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Style</div>
+      <div class="opt-row" id="themeRow">
+        <div id="themeCards" style="display:contents"></div>
+        <button class="theme-add" id="themeAddBtn">
+          <div class="theme-add-swatch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="theme-add-label">Add<br>theme</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footbar">
+    <button class="generate-btn" id="generateBtn" disabled>
+      Generate video
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <button class="save-later-btn" id="saveLaterBtn">Save &amp; finish later</button>
+  </div>
+
+</div>
+
+<script src="/quran-data.js"></script>
+<script>
+  const sessionId = new URLSearchParams(location.search).get('sessionId');
+  if (!sessionId){ location.href = '/'; }
+
+  let session = null;
+  let savedThemes = []; // [{id, name, theme}], fetched from /api/themes
+  let themeKey = null;  // 'preset:<name>' or 'saved:<id>'
+  let themeLabel = null;
+  let themeObject = null;
+
+  function getHiddenPresets(){
+    try { return JSON.parse(localStorage.getItem('afs_hidden_presets') || '[]'); }
+    catch (e) { return []; }
+  }
+  function hidePreset(name){
+    const hidden = getHiddenPresets();
+    if (!hidden.includes(name)){
+      hidden.push(name);
+      localStorage.setItem('afs_hidden_presets', JSON.stringify(hidden));
+    }
+  }
+
+  function themeEntries(){
+    const hidden = getHiddenPresets();
+    const presets = Object.keys(window.THEME_PRESETS || {})
+      .filter(name => !hidden.includes(name))
+      .map(name => ({ key: 'preset:' + name, name, theme: window.THEME_PRESETS[name] }));
+    const saved = savedThemes.map(t => ({ key: 'saved:' + t.id, name: t.name, theme: t.theme, id: t.id }));
+    return presets.concat(saved);
+  }
+
+  function swatchStyle(theme){
+    const top = (theme.background_style === 'solid' ? theme.bg_solid : theme.bg_top) || [10, 20, 35];
+    const bottom = theme.background_style === 'solid' ? theme.bg_solid : (theme.bg_bottom || top);
+    return `background:linear-gradient(160deg, rgb(${top.join(',')}), rgb(${bottom.join(',')}))`;
+  }
+  function glyphColor(theme){
+    const c = theme.arabic_color || [240, 240, 235];
+    return `color:rgb(${c.join(',')})`;
+  }
+
+  const themeCardsEl = document.getElementById('themeCards');
+  const themeAddBtn = document.getElementById('themeAddBtn');
+  const generateBtn = document.getElementById('generateBtn');
+
+  function renderThemeCards(){
+    themeCardsEl.innerHTML = themeEntries().map(entry => `
+      <div class="theme-card" data-key="${entry.key}">
+        <div class="theme-swatch" style="${swatchStyle(entry.theme)}">
+          <button class="theme-delete" data-key="${entry.key}" aria-label="Delete theme"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div class="glyph" style="${glyphColor(entry.theme)}">ﷲ</div>
+        </div>
+        <div class="theme-name">${entry.name}</div>
+      </div>
+    `).join('');
+    themeCardsEl.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.key === themeKey);
+      card.addEventListener('click', () => {
+        const isSame = themeKey === card.dataset.key;
+        selectTheme(isSame ? null : card.dataset.key);
+      });
+    });
+    themeCardsEl.querySelectorAll('.theme-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.key;
+        if (key.startsWith('preset:')){
+          const name = key.slice('preset:'.length);
+          if (!confirm(`Remove "${name}" from your styles list? You can bring it back by clearing your browser data.`)) return;
+          hidePreset(name);
+          if (themeKey === key) selectTheme(null);
+          renderThemeCards();
+          return;
+        }
+        const id = key.slice('saved:'.length);
+        const entry = savedThemes.find(t => t.id === id);
+        if (!confirm(`Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`)) return;
+        try { await fetch(`/api/themes/${id}`, { method: 'DELETE' }); } catch (err) { /* best-effort */ }
+        savedThemes = savedThemes.filter(t => t.id !== id);
+        if (themeKey === key) selectTheme(null);
+        renderThemeCards();
+      });
+    });
+  }
+
+  async function loadSavedThemes(){
+    try { savedThemes = await fetch('/api/themes').then(r => r.json()); }
+    catch (e) { savedThemes = []; }
+    renderThemeCards();
+  }
+
+  function selectTheme(key){
+    const entry = key ? themeEntries().find(t => t.key === key) : null;
+    themeKey = entry ? entry.key : null;
+    themeLabel = entry ? entry.name : null;
+    themeObject = entry ? entry.theme : null;
+    themeCardsEl.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.key === themeKey));
+    generateBtn.disabled = !themeKey;
+  }
+
+  themeAddBtn.addEventListener('click', () => {
+    const entry = themeKey ? themeEntries().find(t => t.key === themeKey) : null;
+    if (entry && entry.id){
+      localStorage.setItem('afs_edit_seed', JSON.stringify({ id: entry.id, name: entry.name, theme: entry.theme }));
+      location.href = `/frame_editor.html?themeId=${encodeURIComponent(entry.id)}`;
+    } else {
+      const seed = entry ? entry.name : '';
+      location.href = `/frame_editor.html?theme=${encodeURIComponent(seed)}`;
+    }
+  });
+
+  // Consume a just-saved custom theme when returning from frame_editor.html.
+  async function consumeCustomThemeIfJustSaved(){
+    if (sessionStorage.getItem('afs_custom_theme_just_saved') !== '1') return;
+    sessionStorage.removeItem('afs_custom_theme_just_saved');
+    const savedId = localStorage.getItem('afs_last_saved_theme_id');
+    await loadSavedThemes();
+    if (savedId) selectTheme('saved:' + savedId);
+  }
+  window.addEventListener('pageshow', consumeCustomThemeIfJustSaved);
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    location.href = `/timing.html?sessionId=${encodeURIComponent(sessionId)}`;
+  });
+
+  document.getElementById('saveLaterBtn').addEventListener('click', () => {
+    location.href = '/';
+  });
+
+  generateBtn.addEventListener('click', async () => {
+    if (!themeKey) return;
+    generateBtn.disabled = true;
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, theme: themeObject, themeName: themeLabel }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
+      location.href = `/generating.html?jobId=${encodeURIComponent(json.jobId)}&sessionId=${encodeURIComponent(sessionId)}`;
+    } catch (e) {
+      alert(e.message);
+      generateBtn.disabled = false;
+    }
+  });
+
+  (async function init(){
+    const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
+    if (!res.ok){ location.href = '/'; return; }
+    session = await res.json();
+
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    const surahName = surahInfo ? surahInfo.en : `Surah ${session.surah}`;
+    document.getElementById('ctxGlyph').textContent = surahName[0];
+    document.getElementById('ctxTitle').textContent = surahName;
+    document.getElementById('ctxSub').textContent = (session.ayahStart != null && session.ayahEnd != null)
+      ? `Ayahs ${session.ayahStart}–${session.ayahEnd}`
+      : '';
+
+    await loadSavedThemes();
+    if (session.themeName){
+      const match = themeEntries().find(t => t.name === session.themeName);
+      if (match) selectTheme(match.key);
+    }
+  })();
+</script>
+
+</body>
+</html>

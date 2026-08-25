@@ -64,10 +64,15 @@ except ImportError:
 
 from quran_lib.constants import RECITER_FOLDERS, OUTPUT_DIR
 from quran_lib.theme import load_theme
-from quran_lib.quran_api import fetch_verses
+from quran_lib.quran_api import fetch_verses, Verse, BASMALA_ARABIC
 from quran_lib.video_build import build_video
 from quran_lib.timing import load_timing_manifest, TimingManifestError
-from quran_lib.audio_sources import load_audio_source_manifest, AudioSourceManifestError
+from quran_lib.audio_sources import load_audio_source_manifest, AudioSourceManifestError, get_ayah_audio_source
+
+# Sahih International's rendering of the Basmala, shown as the translation
+# under BASMALA_ARABIC when a standalone Basmala intro scene is rendered
+# (see the "0" manifest entry handling below).
+BASMALA_TRANSLATION_EN = "In the name of Allah, the Entirely Merciful, the Especially Merciful."
 
 
 def main():
@@ -131,6 +136,18 @@ def main():
         args.surah, args.translation, args.ayah_start, args.ayah_end,
         split_basmala=not args.no_split_basmala,
     )
+
+    # A "0" entry in the custom-audio manifest is a standalone Basmala
+    # recording (a separate upload, never a slice of any ayah's own audio --
+    # see quran_lib/audio_sources.py) meant to play before the first ayah.
+    # Verse.number == 0 already renders as its own scene with no ayah-number
+    # badge (see text_render.py's show_badge check) and is resolved to this
+    # manifest entry the same way any other ayah's custom audio is (see
+    # video_build.py's get_ayah_audio_source() lookup) -- prepending it here
+    # is the only piece needed to make it play first.
+    if get_ayah_audio_source(audio_source_manifest, 0):
+        verses = [Verse(number=0, arabic=BASMALA_ARABIC, translation=BASMALA_TRANSLATION_EN)] + verses
+
     print(f"  {surah_name} ({surah_name_arabic}) — {len(verses)} verse(s) to render")
 
     output_path = Path(args.output) if args.output else OUTPUT_DIR / f"surah_{args.surah}_{args.reciter}.mp4"

@@ -73,25 +73,14 @@
   }
   .cta:active{ transform:scale(.97); }
   .cta svg{ width:15px; height:15px; }
-
-  /* ---------- quick actions ---------- */
-  .quick{ display:grid; grid-template-columns:repeat(1,1fr); gap:10px; margin-top:18px; }
-  .quick-item{
-    display:flex; align-items:center; gap:10px;
-    background:var(--surface); border:1px solid var(--line-soft); border-radius:14px;
-    padding:10px 12px; cursor:pointer;
-    min-height:44px;
-    box-shadow:0 2px 6px rgba(20,24,58,.05);
-    transition:border-color .15s ease, transform .12s ease;
+  .cta-secondary{
+    background:var(--surface-2, #F1EADC); color:var(--ink);
+    border:1.5px solid var(--line, #E3D9C4);
+    margin-top:10px; box-shadow:none;
   }
-  .quick-item:active{ transform:scale(.98); border-color:var(--line); }
-  .quick-icon{
-    width:38px; height:38px; border-radius:12px; flex-shrink:0;
-    background:var(--surface-2);
-    display:flex; align-items:center; justify-content:center;
-  }
-  .quick-icon svg{ width:18px; height:18px; }
-  .quick-label{ font-size:12.5px; font-weight:800; color:var(--ink); }
+  .cta-secondary svg{ stroke:#AD8226; }
+  .cta-facebook{ border-color:rgba(24,119,242,.3); }
+  .cta-youtube{ border-color:rgba(255,0,0,.3); }
 
   /* ---------- recent videos ---------- */
   .recent{ margin-top:28px; flex:1; }
@@ -149,6 +138,31 @@
   .vid-delete svg{ width:16px; height:16px; }
   .vid-delete:active{ background:rgba(178,59,59,.12); }
 
+  .vid-pin{
+    flex-shrink:0; width:36px; height:36px; border-radius:11px;
+    border:none; background:transparent; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .12s ease;
+  }
+  .vid-pin svg{ width:16px; height:16px; }
+  .vid-pin:active{ background:rgba(173,130,38,.12); }
+  .vid-pin.active svg{ fill:#AD8226; stroke:#AD8226; }
+  .vid-row.pinned{ background:rgba(173,130,38,.07); border-radius:14px; }
+
+  /* ---------- sub-section headings (pinned / ongoing / completed) ---------- */
+  .sublist-head{
+    font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--ink-mute); margin:16px 0 8px;
+  }
+  .sublist-head.first{ margin-top:0; }
+
+  /* ---------- delete-all button ---------- */
+  .head-right{ display:flex; align-items:center; gap:10px; }
+  .delete-all-btn{
+    font-size:11px; font-weight:800; color:var(--danger); background:none; border:none;
+    cursor:pointer; padding:2px 0;
+  }
+  .delete-all-btn:active{ opacity:.6; }
+
   /* ---------- sessions ---------- */
   .sessions{ margin-top:26px; }
   .sess-badge{
@@ -158,6 +172,106 @@
   .sess-badge.incomplete{ background:rgba(173,130,38,.16); color:var(--gold); }
   .sess-badge.complete{ background:rgba(47,143,106,.14); color:var(--success); }
   .vid-meta .sess-badge{ margin-right:2px; }
+
+  /* ---------- sessions grid (2-column cards) ---------- */
+  .sess-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .sess-card{
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    overflow:hidden; cursor:pointer; text-align:left;
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    transition:transform .12s ease, background .12s ease;
+  }
+  .sess-card:active{ transform:scale(.98); background:var(--surface-2); }
+  .sess-card.removing{
+    opacity:0; transform:translateY(6px) scale(.97);
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .sess-card-thumb{
+    position:relative; height:104px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(173,130,38,.10), transparent 55%),
+      linear-gradient(180deg, var(--surface), var(--surface-2));
+    border-bottom:1px solid var(--line-soft);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .sess-card-thumb .vid-thumb-ayah{ font-size:14px; }
+  .sess-card-badge{ position:absolute; top:8px; left:8px; }
+  .sess-card-delete{
+    position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:9px;
+    background:rgba(255,253,246,.9); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .12s ease;
+  }
+  .sess-card-delete svg{ width:12px; height:12px; }
+  .sess-card-delete:active{ background:rgba(178,59,59,.14); }
+  .sess-card-pin{
+    position:absolute; top:6px; right:38px; width:26px; height:26px; border-radius:9px;
+    background:rgba(255,253,246,.9); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .12s ease;
+  }
+  .sess-card-pin svg{ width:12px; height:12px; }
+  .sess-card-pin:active{ background:rgba(173,130,38,.14); }
+  .sess-card-pin.active svg{ fill:#AD8226; stroke:#AD8226; }
+  .sess-card.pinned{ border-color:#AD8226; }
+  .sess-card-body{ padding:10px 11px 12px; min-width:0; }
+  .sess-card-title{
+    font-size:12.5px; font-weight:800; color:var(--ink); line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .sess-card-meta{
+    font-size:10.5px; color:var(--ink-mute); font-weight:600; margin-top:5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .sess-card-time{ font-size:9.5px; color:var(--ink-mute); opacity:.75; margin-top:4px; }
+
+  /* ---------- styles row ---------- */
+  .opt-row{
+    display:flex; gap:10px; overflow-x:auto; padding:2px 2px 6px; scrollbar-width:none;
+  }
+  .opt-row::-webkit-scrollbar{ display:none; }
+
+  .theme-card{
+    flex-shrink:0; width:70px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+  }
+  .theme-swatch{
+    width:70px; height:104px; border-radius:13px;
+    border:1.5px solid var(--line); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .theme-card:active .theme-swatch{ transform:scale(.97); }
+  .theme-swatch::after{
+    content:""; position:absolute; inset:5px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
+    pointer-events:none;
+  }
+  .theme-swatch .glyph{ font-family:'Amiri', serif; font-weight:700; font-size:13px; }
+  .theme-name{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
+
+  .theme-delete{
+    position:absolute; top:6px; left:6px; width:17px; height:17px; border-radius:50%;
+    background:rgba(20,24,58,.55); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .theme-delete svg{ width:8px; height:8px; }
+  .theme-delete:active{ transform:scale(.9); }
+
+  .theme-add{
+    flex-shrink:0; width:70px; display:flex; flex-direction:column; align-items:center; gap:7px;
+    cursor:pointer; border:none; background:none; padding:0;
+  }
+  .theme-add-swatch{
+    width:70px; height:104px; border-radius:13px;
+    border:1.5px dashed var(--line); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .theme-add:active .theme-add-swatch{ transform:scale(.96); }
+  .theme-add-swatch svg{ width:18px; height:18px; }
+  .theme-add-label{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
 
   /* ---------- regenerate theme sheet + bottom sheet (shared pattern) ---------- */
   .sheet-backdrop{
@@ -228,29 +342,11 @@
   }
   .sheet-select-btn:active{ transform:scale(.98); }
   .sheet-select-btn:disabled{ opacity:.4; }
-
-  /* ---------- generating overlay (regenerate flow) ---------- */
-  .gen-overlay{
-    position:fixed; inset:0; background:var(--bg); z-index:60;
-    display:none; flex-direction:column; align-items:center; justify-content:center;
-    padding:32px; text-align:center; max-width:480px; margin:0 auto;
+  .sheet-edit-timing-btn{
+    display:block; width:100%; margin-top:10px; padding:4px; border:none; background:none;
+    color:var(--ink-soft, #6b6455); font-weight:700; font-size:12.5px; text-align:center; cursor:pointer;
   }
-  .gen-overlay.open{ display:flex; }
-  .gen-title{ font-family:'Fraunces', serif; font-weight:600; font-size:18px; margin-bottom:16px; }
-  .gen-track{ width:100%; max-width:280px; height:8px; border-radius:100px; background:var(--surface-2); overflow:hidden; }
-  .gen-fill{ height:100%; width:1%; background:var(--gold); transition:width .3s ease; }
-  .gen-label{ margin-top:12px; font-size:12px; color:var(--ink-mute); font-weight:700; }
-  .gen-log{
-    margin-top:16px; width:100%; max-width:340px; max-height:140px; overflow-y:auto;
-    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
-    font-family:ui-monospace, monospace; font-size:10px; color:var(--ink-mute); text-align:left; white-space:pre-wrap;
-  }
-  .gen-error{ color:var(--danger); font-weight:700; font-size:13px; margin-top:14px; max-width:340px; }
-  .gen-btn{
-    margin-top:20px; height:48px; padding:0 22px; border-radius:14px; border:none; cursor:pointer;
-    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:13px; display:none;
-  }
-  .gen-btn.show{ display:inline-flex; align-items:center; }
+  .sheet-edit-timing-btn:active{ opacity:.7; }
 
   .vid-row.removing{
     opacity:0; transform:translateX(14px) scale(.98);
@@ -286,6 +382,39 @@
   .foot span{ font-size:10px; color:var(--ink-mute); }
   .foot .addr{ font-family:ui-monospace, monospace; color:#8B8570; font-size:9.5px; }
 
+  /* ---------- confirmation dialog ---------- */
+  .confirm-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.42);
+    opacity:0; pointer-events:none; transition:opacity .18s ease;
+    z-index:60;
+  }
+  .confirm-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .confirm-modal{
+    position:fixed; left:50%; top:50%; z-index:61;
+    width:calc(100% - 64px); max-width:320px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:22px 20px 18px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.92);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .confirm-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+
+  .confirm-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; text-align:center; }
+  .confirm-message{
+    font-size:12.5px; color:var(--ink-mute); text-align:center; line-height:1.5;
+    margin-top:7px;
+  }
+  .confirm-actions{ display:flex; gap:9px; margin-top:18px; }
+  .confirm-btn{
+    flex:1; height:44px; border-radius:13px; border:none; cursor:pointer;
+    font-weight:800; font-size:12.5px;
+  }
+  .confirm-btn:active{ transform:scale(.97); }
+  .confirm-cancel{ background:var(--surface-2); color:var(--ink); }
+  .confirm-danger{ background:#B4453A; color:#FFFDF6; }
+
 </style>
 </head>
 <body>
@@ -312,24 +441,46 @@
     Start a new video
   </button>
 
-  <div class="quick">
-    <button class="quick-item" onclick="location.href='/frame_editor.html'">
-      <div class="quick-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10.5" r="1.1" fill="#AD8226"/><circle cx="12" cy="8" r="1.1" fill="#AD8226"/><circle cx="15.5" cy="10.5" r="1.1" fill="#AD8226"/><circle cx="10" cy="15" r="1.1" fill="#AD8226"/>
-        </svg>
-      </div>
-      <div class="quick-label">Browse &amp; create themes</div>
-    </button>
+  <button class="cta cta-secondary" id="customAudioBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19c-3.87 0-7-2.5-7-6M12 19c3.87 0 7-2.5 7-6M12 19v2M9 5a3 3 0 016 0v6a3 3 0 01-6 0V5z"/></svg>
+    Create with custom audio
+  </button>
+
+  <button class="cta cta-secondary cta-facebook" id="facebookReelsBtn">
+    <svg viewBox="0 0 24 24" fill="#1877F2"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>
+    View Facebook Reels
+  </button>
+
+  <button class="cta cta-secondary cta-youtube" id="youtubeVideosBtn">
+    <svg viewBox="0 0 24 24" fill="#FF0000"><path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2 31.4 31.4 0 000 12a31.4 31.4 0 00.5 5.8 3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1A31.4 31.4 0 0024 12a31.4 31.4 0 00-.5-5.8zM9.6 15.5v-7l6.3 3.5-6.3 3.5z"/></svg>
+    View YouTube Videos (test)
+  </button>
+
+  <div class="recent">
+    <div class="recent-head">
+      <div class="recent-title">Styles</div>
+    </div>
+    <div class="opt-row" id="styleRow">
+      <div id="styleCards" style="display:contents"></div>
+      <button class="theme-add" id="styleAddBtn">
+        <div class="theme-add-swatch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="theme-add-label">Add<br>theme</div>
+      </button>
+    </div>
   </div>
 
   <div class="recent sessions">
     <div class="recent-head">
       <div class="recent-title">Your sessions</div>
-      <span class="recent-count" id="sessCount"></span>
+      <div class="head-right">
+        <span class="recent-count" id="sessCount"></span>
+        <button class="delete-all-btn" id="sessDeleteAllBtn">Delete all</button>
+      </div>
     </div>
 
-    <div class="vid-list" id="sessList"></div>
+    <div id="sessList"></div>
 
     <div class="empty" id="sessEmptyState">
       <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
@@ -340,10 +491,13 @@
   <div class="recent">
     <div class="recent-head">
       <div class="recent-title">Your videos</div>
-      <span class="recent-count" id="vidCount"></span>
+      <div class="head-right">
+        <span class="recent-count" id="vidCount"></span>
+        <button class="delete-all-btn" id="vidDeleteAllBtn">Delete all</button>
+      </div>
     </div>
 
-    <div class="vid-list" id="vidList"></div>
+    <div id="vidList"></div>
 
     <div class="empty" id="emptyState">
       <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
@@ -377,16 +531,19 @@
   <div class="sheet-list" id="themeSheetList"></div>
   <div class="sheet-foot">
     <button class="sheet-select-btn" id="themeSheetSelect" disabled>Regenerate video</button>
+    <button class="sheet-edit-timing-btn" id="themeSheetEditTiming">Edit word timing instead</button>
   </div>
 </div>
 
-<div class="gen-overlay" id="genOverlay">
-  <div class="gen-title" id="genTitle">Regenerating your video…</div>
-  <div class="gen-track"><div class="gen-fill" id="genFill"></div></div>
-  <div class="gen-label" id="genLabel">Starting…</div>
-  <pre class="gen-log" id="genLog"></pre>
-  <div class="gen-error" id="genError" style="display:none;"></div>
-  <button class="gen-btn" id="genBackBtn">Close</button>
+<!-- Confirmation dialog (delete style, etc.) -->
+<div class="confirm-backdrop" id="confirmBackdrop"></div>
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-title" id="confirmTitle">Delete?</div>
+  <div class="confirm-message" id="confirmMessage">This can't be undone.</div>
+  <div class="confirm-actions">
+    <button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancel</button>
+    <button class="confirm-btn confirm-danger" id="confirmDangerBtn">Delete</button>
+  </div>
 </div>
 
 <script src="/quran-data.js"></script>
@@ -398,12 +555,37 @@
   const listEl = document.getElementById('vidList');
   const emptyEl = document.getElementById('emptyState');
   const countEl = document.getElementById('vidCount');
+  const vidDeleteAllBtn = document.getElementById('vidDeleteAllBtn');
 
   const sessListEl = document.getElementById('sessList');
   const sessEmptyEl = document.getElementById('sessEmptyState');
   const sessCountEl = document.getElementById('sessCount');
+  const sessDeleteAllBtn = document.getElementById('sessDeleteAllBtn');
 
   function surahOf(n){ return window.SURAHS.find(s => s.n === n); }
+
+  // ============ PIN STATE (stored locally, mirrors afs_hidden_presets pattern) ============
+  const PINNED_SESSIONS_KEY = 'afs_pinned_sessions';
+  const PINNED_VIDEOS_KEY = 'afs_pinned_videos';
+
+  function getPinnedIds(key){
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); }
+    catch (e) { return []; }
+  }
+  function setPinnedIds(key, ids){
+    localStorage.setItem(key, JSON.stringify(ids));
+  }
+  function isPinned(key, id){
+    return getPinnedIds(key).includes(id);
+  }
+  function togglePinned(key, id){
+    const ids = getPinnedIds(key);
+    const idx = ids.indexOf(id);
+    if (idx === -1) ids.push(id); else ids.splice(idx, 1);
+    setPinnedIds(key, ids);
+  }
+
+  const PIN_ICON = '<svg viewBox="0 0 24 24" fill="#6C7094" stroke="none"><path d="M14 4v5c0 1.12.37 2.16 1 3H9c.65-.86 1-1.9 1-3V4h4m3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3V4h1c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>';
 
   function fmtDuration(sec){
     if (sec == null) return '';
@@ -433,22 +615,11 @@
     return `${s.en} ${v.ayahStart}–${v.ayahEnd}`;
   }
 
-  function renderVideos(){
-    countEl.textContent = videos.length ? `${videos.length} video${videos.length === 1 ? '' : 's'}` : '';
-
-    if (!videos.length){
-      listEl.style.display = 'none';
-      emptyEl.style.display = 'flex';
-      return;
-    }
-    listEl.style.display = 'flex';
-    emptyEl.style.display = 'none';
-
-    listEl.innerHTML = videos.map(v => {
-      const s = surahOf(v.surah);
-      const reciterLabel = RECITER_LABELS[v.reciter] || v.reciter || '';
-      return `
-      <div class="vid-row" data-id="${v.id}">
+  function vidRowHtml(v, pinned){
+    const s = surahOf(v.surah);
+    const reciterLabel = RECITER_LABELS[v.reciter] || v.reciter || '';
+    return `
+      <div class="vid-row${pinned ? ' pinned' : ''}" data-id="${v.id}">
         <div class="vid-thumb">
           <div class="vid-thumb-ayah">${s ? s.ar : ''}</div>
           <div class="vid-play">
@@ -461,6 +632,7 @@
           <div class="vid-time">${fmtTimeAgo(v.createdAt)}</div>
         </div>
         <div class="vid-actions">
+          <button class="vid-pin${pinned ? ' active' : ''}" aria-label="${pinned ? 'Unpin video' : 'Pin video'}" data-id="${v.id}">${PIN_ICON}</button>
           <button class="vid-delete" aria-label="Delete video" data-id="${v.id}">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/>
@@ -470,7 +642,35 @@
         </div>
       </div>
     `;
-    }).join('');
+  }
+
+  function renderVideos(){
+    countEl.textContent = videos.length ? `${videos.length} video${videos.length === 1 ? '' : 's'}` : '';
+    vidDeleteAllBtn.style.display = videos.length ? '' : 'none';
+
+    if (!videos.length){
+      listEl.style.display = 'none';
+      emptyEl.style.display = 'flex';
+      return;
+    }
+    listEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+
+    const pinnedIds = getPinnedIds(PINNED_VIDEOS_KEY);
+    const pinned = videos.filter(v => pinnedIds.includes(v.id));
+    const rest = videos.filter(v => !pinnedIds.includes(v.id));
+
+    let html = '';
+    if (pinned.length){
+      html += `<div class="sublist-head first">Pinned</div><div class="vid-list">${pinned.map(v => vidRowHtml(v, true)).join('')}</div>`;
+    }
+    if (rest.length){
+      if (pinned.length){
+        html += `<div class="sublist-head">All videos</div>`;
+      }
+      html += `<div class="vid-list">${rest.map(v => vidRowHtml(v, false)).join('')}</div>`;
+    }
+    listEl.innerHTML = html;
   }
 
   function sessTitleOf(s){
@@ -481,52 +681,117 @@
     return `${surahEntry.en} ${s.ayahStart}–${s.ayahEnd}`;
   }
 
-  function renderSessions(){
-    sessCountEl.textContent = sessions.length ? `${sessions.length} session${sessions.length === 1 ? '' : 's'}` : '';
-
-    if (!sessions.length){
-      sessListEl.style.display = 'none';
-      sessEmptyEl.style.display = 'flex';
-      return;
-    }
-    sessListEl.style.display = 'flex';
-    sessEmptyEl.style.display = 'none';
-
-    sessListEl.innerHTML = sessions.map(s => {
-      const surahEntry = surahOf(s.surah);
-      const reciterLabel = RECITER_LABELS[s.reciter] || s.reciter || '';
-      const isComplete = s.status === 'complete';
-      return `
-      <div class="vid-row" data-id="${s.id}" data-status="${s.status}">
-        <div class="vid-thumb">
+  function sessCardHtml(s, pinned){
+    const surahEntry = surahOf(s.surah);
+    const reciterLabel = RECITER_LABELS[s.reciter] || s.reciter || '';
+    const isComplete = s.status === 'complete';
+    const metaBits = [s.themeName, reciterLabel].filter(Boolean).join(' · ');
+    return `
+      <div class="sess-card${pinned ? ' pinned' : ''}" data-id="${s.id}" data-status="${s.status}">
+        <div class="sess-card-thumb">
           <div class="vid-thumb-ayah">${surahEntry ? surahEntry.ar : ''}</div>
-        </div>
-        <div class="vid-info">
-          <div class="vid-title">${sessTitleOf(s)}</div>
-          <div class="vid-meta">
-            <span class="sess-badge ${isComplete ? 'complete' : 'incomplete'}">${isComplete ? 'Ready' : 'In progress'}</span>
-            ${s.themeName ? `· ${s.themeName}` : ''} ${reciterLabel ? `· ${reciterLabel}` : ''}
-          </div>
-          <div class="vid-time">${fmtTimeAgo(s.updatedAt)}</div>
-        </div>
-        <div class="vid-actions">
-          <button class="vid-delete" aria-label="Delete session" data-id="${s.id}">
+          <span class="sess-badge sess-card-badge ${isComplete ? 'complete' : 'incomplete'}">${isComplete ? 'Ready' : 'In progress'}</span>
+          <button class="sess-card-pin${pinned ? ' active' : ''}" aria-label="${pinned ? 'Unpin session' : 'Pin session'}" data-id="${s.id}">${PIN_ICON}</button>
+          <button class="sess-card-delete" aria-label="Delete session" data-id="${s.id}">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/>
               <path d="M10 11v6M14 11v6"/>
             </svg>
           </button>
         </div>
+        <div class="sess-card-body">
+          <div class="sess-card-title">${sessTitleOf(s)}</div>
+          ${metaBits ? `<div class="sess-card-meta">${metaBits}</div>` : ''}
+          <div class="sess-card-time">${fmtTimeAgo(s.updatedAt)}</div>
+        </div>
       </div>
     `;
-    }).join('');
+  }
+
+  function renderSessions(){
+    sessCountEl.textContent = sessions.length ? `${sessions.length} session${sessions.length === 1 ? '' : 's'}` : '';
+    sessDeleteAllBtn.style.display = sessions.length ? '' : 'none';
+
+    if (!sessions.length){
+      sessListEl.style.display = 'none';
+      sessEmptyEl.style.display = 'flex';
+      return;
+    }
+    sessListEl.style.display = 'block';
+    sessEmptyEl.style.display = 'none';
+
+    const pinnedIds = getPinnedIds(PINNED_SESSIONS_KEY);
+    const pinned = sessions.filter(s => pinnedIds.includes(s.id));
+    const unpinned = sessions.filter(s => !pinnedIds.includes(s.id));
+    const ongoing = unpinned.filter(s => s.status !== 'complete');
+    const completed = unpinned.filter(s => s.status === 'complete');
+
+    let html = '';
+    let first = true;
+    if (pinned.length){
+      html += `<div class="sublist-head first">Pinned</div><div class="sess-grid">${pinned.map(s => sessCardHtml(s, true)).join('')}</div>`;
+      first = false;
+    }
+    if (ongoing.length){
+      html += `<div class="sublist-head${first ? ' first' : ''}">Ongoing</div><div class="sess-grid">${ongoing.map(s => sessCardHtml(s, false)).join('')}</div>`;
+      first = false;
+    }
+    if (completed.length){
+      html += `<div class="sublist-head${first ? ' first' : ''}">Completed</div><div class="sess-grid">${completed.map(s => sessCardHtml(s, false)).join('')}</div>`;
+      first = false;
+    }
+    sessListEl.innerHTML = html;
+  }
+
+  // ============ CONFIRM DIALOG ============
+  function showConfirm({ title, message, confirmLabel = 'Delete', cancelLabel = 'Cancel' }){
+    const backdrop = document.getElementById('confirmBackdrop');
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const dangerBtn = document.getElementById('confirmDangerBtn');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    cancelBtn.textContent = cancelLabel;
+    dangerBtn.textContent = confirmLabel;
+
+    return new Promise(resolve => {
+      function close(result){
+        backdrop.classList.remove('open');
+        modal.classList.remove('open');
+        cancelBtn.removeEventListener('click', onCancel);
+        dangerBtn.removeEventListener('click', onConfirm);
+        backdrop.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onCancel(){ close(false); }
+      function onConfirm(){ close(true); }
+      cancelBtn.addEventListener('click', onCancel);
+      dangerBtn.addEventListener('click', onConfirm);
+      backdrop.addEventListener('click', onCancel);
+      backdrop.classList.add('open');
+      modal.classList.add('open');
+    });
   }
 
   sessListEl.addEventListener('click', async (e) => {
-    const delBtn = e.target.closest('.vid-delete');
+    const pinBtn = e.target.closest('.sess-card-pin');
+    if (pinBtn){
+      togglePinned(PINNED_SESSIONS_KEY, pinBtn.dataset.id);
+      renderSessions();
+      return;
+    }
+    const delBtn = e.target.closest('.sess-card-delete');
     if (delBtn){
       const id = delBtn.dataset.id;
-      const row = delBtn.closest('.vid-row');
+      const card = delBtn.closest('.sess-card');
+      const ok = await showConfirm({
+        title: 'Delete this session?',
+        message: "This can't be undone.",
+      });
+      if (!ok) return;
       try {
         const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
@@ -534,19 +799,21 @@
         alert("Couldn't delete that session.");
         return;
       }
-      row.classList.add('removing');
-      row.addEventListener('transitionend', () => {
+      card.classList.add('removing');
+      card.addEventListener('transitionend', () => {
         sessions = sessions.filter(s => s.id !== id);
         renderSessions();
       }, { once: true });
       return;
     }
-    const row = e.target.closest('.vid-row');
-    if (!row) return;
-    const s = sessions.find(x => x.id === row.dataset.id);
+    const card = e.target.closest('.sess-card');
+    if (!card) return;
+    const s = sessions.find(x => x.id === card.dataset.id);
     if (!s) return;
     if (s.status === 'complete'){
       openThemeSheet(s.id);
+    } else if (s.entry === 'custom'){
+      location.href = `/custom_audio.html?sessionId=${encodeURIComponent(s.id)}`;
     } else {
       location.href = `/new_video.html?sessionId=${encodeURIComponent(s.id)}`;
     }
@@ -554,7 +821,10 @@
 
   document.getElementById('newVideoBtn').addEventListener('click', async () => {
     try {
-      const res = await fetch('/api/sessions', { method: 'POST' });
+      const res = await fetch('/api/sessions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry: 'reciter' }),
+      });
       const session = await res.json();
       location.href = `/new_video.html?sessionId=${encodeURIComponent(session.id)}`;
     } catch (e) {
@@ -562,11 +832,75 @@
     }
   });
 
+  sessDeleteAllBtn.addEventListener('click', async () => {
+    const pinnedIds = getPinnedIds(PINNED_SESSIONS_KEY);
+    const toDelete = sessions.filter(s => !pinnedIds.includes(s.id));
+    if (!toDelete.length) return;
+    const ok = await showConfirm({
+      title: 'Delete all sessions?',
+      message: `This deletes ${toDelete.length} session${toDelete.length === 1 ? '' : 's'}. Pinned sessions are kept. This can't be undone.`,
+    });
+    if (!ok) return;
+    await Promise.all(toDelete.map(s =>
+      fetch(`/api/sessions/${encodeURIComponent(s.id)}`, { method: 'DELETE' }).catch(() => {})
+    ));
+    sessions = sessions.filter(s => pinnedIds.includes(s.id));
+    renderSessions();
+  });
+
+  vidDeleteAllBtn.addEventListener('click', async () => {
+    const pinnedIds = getPinnedIds(PINNED_VIDEOS_KEY);
+    const toDelete = videos.filter(v => !pinnedIds.includes(v.id));
+    if (!toDelete.length) return;
+    const ok = await showConfirm({
+      title: 'Delete all videos?',
+      message: `This deletes ${toDelete.length} video${toDelete.length === 1 ? '' : 's'}. Pinned videos are kept. This can't be undone.`,
+    });
+    if (!ok) return;
+    await Promise.all(toDelete.map(v =>
+      fetch(`/api/videos/${encodeURIComponent(v.id)}`, { method: 'DELETE' }).catch(() => {})
+    ));
+    videos = videos.filter(v => pinnedIds.includes(v.id));
+    renderVideos();
+  });
+
+  document.getElementById('facebookReelsBtn').addEventListener('click', () => {
+    location.href = '/facebook_reels.html';
+  });
+
+  document.getElementById('youtubeVideosBtn').addEventListener('click', () => {
+    location.href = '/youtube_videos.html';
+  });
+
+  document.getElementById('customAudioBtn').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry: 'custom' }),
+      });
+      const session = await res.json();
+      location.href = `/custom_audio.html?sessionId=${encodeURIComponent(session.id)}`;
+    } catch (e) {
+      location.href = '/custom_audio.html';
+    }
+  });
+
   listEl.addEventListener('click', async (e) => {
+    const pinBtn = e.target.closest('.vid-pin');
+    if (pinBtn){
+      togglePinned(PINNED_VIDEOS_KEY, pinBtn.dataset.id);
+      renderVideos();
+      return;
+    }
     const delBtn = e.target.closest('.vid-delete');
     if (delBtn){
       const id = delBtn.dataset.id;
       const row = delBtn.closest('.vid-row');
+      const ok = await showConfirm({
+        title: 'Delete this video?',
+        message: "This can't be undone.",
+      });
+      if (!ok) return;
       try {
         const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
@@ -615,8 +949,16 @@
     const presets = Object.keys(window.THEME_PRESETS)
       .filter(name => !hidden.includes(name))
       .map(name => ({ key: 'preset:' + name, name, theme: window.THEME_PRESETS[name] }));
-    const saved = savedThemes.map(t => ({ key: 'saved:' + t.id, name: t.name, theme: t.theme }));
+    const saved = savedThemes.map(t => ({ key: 'saved:' + t.id, name: t.name, theme: t.theme, id: t.id }));
     return presets.concat(saved);
+  }
+
+  function hidePreset(name){
+    const hidden = getHiddenPresets();
+    if (!hidden.includes(name)){
+      hidden.push(name);
+      localStorage.setItem('afs_hidden_presets', JSON.stringify(hidden));
+    }
   }
 
   function swatchStyle(theme){
@@ -629,6 +971,84 @@
     const c = theme.arabic_color || [240, 240, 235];
     return `color:rgb(${c.join(',')})`;
   }
+
+  // ============ STYLES ROW (top of the home screen) ============
+  const styleCardsEl = document.getElementById('styleCards');
+  const styleAddBtn = document.getElementById('styleAddBtn');
+
+  function renderStyleCards(){
+    styleCardsEl.innerHTML = themeEntries().map(entry => `
+      <div class="theme-card" data-key="${entry.key}">
+        <div class="theme-swatch" style="${swatchStyle(entry.theme)}">
+          <button class="theme-delete" data-key="${entry.key}" aria-label="Delete theme"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <div class="glyph" style="${glyphColor(entry.theme)}">ﷲ</div>
+        </div>
+        <div class="theme-name">${entry.name}</div>
+      </div>
+    `).join('');
+
+    styleCardsEl.querySelectorAll('.theme-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.theme-delete')) return;
+        const entry = themeEntries().find(t => t.key === card.dataset.key);
+        if (!entry) return;
+        if (entry.id){
+          localStorage.setItem('afs_edit_seed', JSON.stringify({ id: entry.id, name: entry.name, theme: entry.theme }));
+          location.href = `/frame_editor.html?themeId=${encodeURIComponent(entry.id)}`;
+        } else {
+          location.href = `/frame_editor.html?theme=${encodeURIComponent(entry.name)}`;
+        }
+      });
+    });
+
+    styleCardsEl.querySelectorAll('.theme-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.key;
+
+        if (key.startsWith('preset:')){
+          // Built-in style: hide it locally, nothing to delete server-side.
+          const name = key.slice('preset:'.length);
+          const ok = await showConfirm({
+            title: 'Remove style?',
+            message: `Remove "${name}" from your styles list? You can bring it back by clearing your browser data.`,
+          });
+          if (!ok) return;
+          hidePreset(name);
+          renderStyleCards();
+          return;
+        }
+
+        // Saved (custom) theme: delete from the backend.
+        const id = key.slice('saved:'.length);
+        const entry = savedThemes.find(t => t.id === id);
+        const ok = await showConfirm({
+          title: 'Delete style?',
+          message: `Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`,
+        });
+        if (!ok) return;
+        try {
+          await fetch(`/api/themes/${id}`, { method: 'DELETE' });
+        } catch (err) { /* best-effort */ }
+        savedThemes = savedThemes.filter(t => t.id !== id);
+        renderStyleCards();
+      });
+    });
+  }
+
+  styleAddBtn.addEventListener('click', () => {
+    location.href = '/frame_editor.html';
+  });
+
+  async function loadStyleRow(){
+    try {
+      savedThemes = await fetch('/api/themes').then(r => r.json());
+    } catch (e) {
+      savedThemes = [];
+    }
+    renderStyleCards();
+  }
+  window.addEventListener('pageshow', loadStyleRow);
 
   const themeBackdrop = document.getElementById('themeBackdrop');
   const themeSheet = document.getElementById('themeSheet');
@@ -672,34 +1092,15 @@
   }
   document.getElementById('themeSheetClose').addEventListener('click', closeThemeSheet);
   themeBackdrop.addEventListener('click', closeThemeSheet);
-
-  const genOverlay = document.getElementById('genOverlay');
-  const genFill = document.getElementById('genFill');
-  const genLabel = document.getElementById('genLabel');
-  const genLog = document.getElementById('genLog');
-  const genError = document.getElementById('genError');
-  const genBackBtn = document.getElementById('genBackBtn');
-
-  function showGenError(message){
-    genError.style.display = 'block';
-    genError.textContent = message;
-    genBackBtn.classList.add('show');
-  }
-  genBackBtn.addEventListener('click', () => genOverlay.classList.remove('open'));
+  document.getElementById('themeSheetEditTiming').addEventListener('click', () => {
+    location.href = `/timing.html?sessionId=${encodeURIComponent(regenSessionId)}&editTiming=1`;
+  });
 
   themeSheetSelect.addEventListener('click', async () => {
     const entry = themeEntries().find(t => t.key === regenThemeKey);
     if (!entry) return;
     closeThemeSheet();
 
-    genOverlay.classList.add('open');
-    genError.style.display = 'none';
-    genBackBtn.classList.remove('show');
-    genFill.style.width = '1%';
-    genLabel.textContent = 'Starting…';
-    genLog.textContent = '';
-
-    let jobId;
     try {
       const res = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -707,43 +1108,10 @@
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
-      jobId = json.jobId;
+      location.href = `/generating.html?jobId=${encodeURIComponent(json.jobId)}&sessionId=${encodeURIComponent(regenSessionId)}`;
     } catch (e) {
-      showGenError(e.message);
-      return;
+      alert(e.message);
     }
-
-    let since = 0;
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/status/${jobId}?since=${since}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Lost track of the job.');
-
-        if (json.log && json.log.length){
-          genLog.textContent += (genLog.textContent ? '\n' : '') + json.log.join('\n');
-          genLog.scrollTop = genLog.scrollHeight;
-          since = json.logLength;
-          genLabel.textContent = json.log[json.log.length - 1].trim().slice(0, 70);
-        }
-        genFill.style.width = json.percent + '%';
-
-        if (json.status === 'done'){
-          clearInterval(poll);
-          genOverlay.classList.remove('open');
-          videos = await fetch('/api/videos').then(r => r.json());
-          renderVideos();
-          sessions = await fetch('/api/sessions').then(r => r.json());
-          renderSessions();
-        } else if (json.status === 'error'){
-          clearInterval(poll);
-          showGenError(json.error || 'The generator hit an error.');
-        }
-      } catch (e) {
-        clearInterval(poll);
-        showGenError(e.message);
-      }
-    }, 1200);
   });
 
   async function init(){
@@ -751,6 +1119,8 @@
       const reciters = await fetch('/api/reciters').then(r => r.json());
       Object.assign(RECITER_LABELS, reciters);
     } catch (e) { /* non-fatal, just used for the meta line */ }
+
+    await loadStyleRow();
 
     try {
       videos = await fetch('/api/videos').then(r => r.json());

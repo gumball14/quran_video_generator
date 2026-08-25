@@ -1,0 +1,2838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Custom audio — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --gold-soft:#C9973A;
+    --line:rgba(20,24,58,.14);
+    --line-soft:rgba(20,24,58,.07);
+    --success:#2F8F6A;
+    --danger:#B23B3B;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a, input{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding-top:env(safe-area-inset-top,0px);
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px;
+  }
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.06);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    cursor:pointer;
+  }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:active{ transform:scale(.94); }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; }
+  .topbar-actions{ display:flex; gap:8px; flex-shrink:0; }
+
+  .body{ flex:1; overflow-y:auto; padding:6px 20px 26px; }
+
+  .section{ margin-top:22px; }
+  .section:first-child{ margin-top:6px; }
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--ink-mute); margin-bottom:10px; padding:0 2px;
+  }
+  .section-label-row{ display:flex; align-items:center; justify-content:space-between; }
+  .section-label-row .section-label{ margin-bottom:10px; }
+  .clear-marks-btn{
+    background:none; border:none; cursor:pointer; padding:0 2px 10px;
+    font-size:10.5px; font-weight:800; color:var(--danger); text-decoration:underline;
+  }
+  .clear-marks-btn:active{ opacity:.6; }
+
+  .hint{ font-size:11.5px; color:var(--ink-mute); line-height:1.55; padding:0 2px; }
+
+  /* ---------- surah/range/translation picker (ported from new_video.html) ---------- */
+  .select-btn{
+    width:100%; display:flex; align-items:center; gap:12px;
+    height:58px; padding:0 14px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+    cursor:pointer; text-align:left;
+  }
+  .select-btn:active{ transform:scale(.99); }
+  .select-btn.flat{
+    background:none; border:none; box-shadow:none; height:auto; padding:0 0 14px;
+    margin-bottom:14px; border-bottom:1px solid var(--line-soft); border-radius:0;
+  }
+  .select-glyph{
+    width:36px; height:36px; border-radius:11px; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Amiri', serif; font-weight:700; font-size:15px; color:#FFFDF6;
+  }
+  .select-text{ flex:1; min-width:0; }
+  .select-title{ font-size:13.5px; font-weight:800; color:var(--ink); line-height:1.3; }
+  .select-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:2px; }
+  .select-btn svg.chev{ width:14px; height:14px; flex-shrink:0; }
+
+  .surah-range-card{
+    padding:14px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+  .range-row{ display:flex; align-items:center; gap:10px; }
+  .stepper{ flex:1; }
+  .stepper-label{ font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--ink-mute); margin-bottom:8px; text-align:center; }
+  .stepper-controls{ display:flex; align-items:center; justify-content:center; gap:2px; }
+  .stepper-btn{
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .12s ease, transform .1s ease;
+  }
+  .stepper-btn svg{ width:13px; height:13px; }
+  .stepper-btn:active{ transform:scale(.92); background:var(--line); }
+  .stepper-btn:disabled{ opacity:.35; }
+  .stepper-value{
+    width:54px; text-align:center; font-size:16px; font-weight:800; font-variant-numeric:tabular-nums;
+    border:none; background:transparent; color:var(--ink); padding:0; -moz-appearance:textfield;
+  }
+  .stepper-value:focus{ outline:none; }
+  .stepper-value::-webkit-outer-spin-button,
+  .stepper-value::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .range-divider{ width:14px; height:1px; background:var(--line); flex-shrink:0; margin-top:18px; }
+  .range-count-line{
+    text-align:center; font-size:11px; color:var(--ink-mute); font-weight:600;
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--line-soft);
+  }
+
+  /* ---------- bottom sheet (ported from new_video.html) ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.42);
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+    z-index:40;
+  }
+  .sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    max-width:480px; margin:0 auto;
+    background:var(--bg);
+    border-radius:22px 22px 0 0;
+    border:1px solid var(--line);
+    border-bottom:none;
+    box-shadow:0 -18px 40px -20px rgba(20,24,58,.35);
+    max-height:78vh;
+    display:flex; flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+  }
+  .sheet.open{ transform:translateY(0); }
+
+  .sheet-handle{ display:flex; justify-content:center; padding:10px 0 4px; flex-shrink:0; }
+  .sheet-handle span{ width:34px; height:4px; border-radius:100px; background:var(--line); }
+
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px 12px; flex-shrink:0;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .sheet-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; }
+  .sheet-close{
+    width:30px; height:30px; border-radius:50%; border:none; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .sheet-close svg{ width:12px; height:12px; }
+
+  .sheet-search-wrap{ padding:10px 18px 4px; flex-shrink:0; }
+  .sheet-search{
+    width:100%; height:40px; border-radius:12px; border:1px solid var(--line-soft);
+    background:var(--surface-2); padding:0 14px; font-size:12.5px; font-weight:600;
+    color:var(--ink); outline:none;
+  }
+  .sheet-search::placeholder{ color:var(--ink-mute); font-weight:600; }
+
+  .sheet-list{ flex:1; overflow-y:auto; padding:6px 10px; -webkit-overflow-scrolling:touch; }
+
+  .sheet-row{
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:11px 10px; border-radius:14px; border:none; background:none; cursor:pointer;
+    text-align:left;
+  }
+  .sheet-row:active{ background:var(--surface-2); }
+  .sheet-row.picked{ background:#FBF4E2; }
+  .sheet-row-num{
+    width:28px; height:28px; border-radius:9px; flex-shrink:0;
+    background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:800; color:var(--ink-mute);
+  }
+  .sheet-row.picked .sheet-row-num{ background:var(--gold); color:#FFFDF6; }
+  .sheet-row-text{ flex:1; min-width:0; }
+  .sheet-row-title{ font-size:13px; font-weight:800; }
+  .sheet-row-sub{ font-size:10.5px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+  .sheet-row-ar{ font-family:'Amiri', serif; font-size:15px; color:var(--ink); flex-shrink:0; }
+  .sheet-row-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; font-size:13px; color:#FFFDF6;
+  }
+  .sheet-row-check{ width:18px; height:18px; border-radius:50%; background:var(--gold); flex-shrink:0; display:none; align-items:center; justify-content:center; }
+  .sheet-row.picked .sheet-row-check{ display:flex; }
+  .sheet-row-check svg{ width:9px; height:9px; }
+
+  /* ---------- upload dropzone ---------- */
+  .dropzone{
+    width:100%; padding:26px 16px; border-radius:16px;
+    background:var(--surface); border:1.5px dashed var(--line);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    cursor:pointer; text-align:center;
+  }
+  .dropzone:active{ transform:scale(.99); }
+  .dropzone svg{ width:26px; height:26px; color:var(--gold-soft); }
+  .dropzone-title{ font-size:13px; font-weight:800; }
+  .dropzone-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; }
+  .dropzone.uploading{ opacity:.6; pointer-events:none; }
+
+  .upload-error{
+    margin-top:10px; padding:10px 12px; border-radius:12px;
+    background:rgba(178,59,59,.09); border:1px solid rgba(178,59,59,.25);
+    color:var(--danger); font-size:11.5px; font-weight:700; line-height:1.4;
+    display:none;
+  }
+  .upload-error.show{ display:block; }
+
+  /* ---------- "paste a link" fetch row ---------- */
+  .link-toggle-btn{
+    display:block; width:100%; margin-top:10px; padding:4px 2px;
+    background:none; border:none; cursor:pointer; text-align:center;
+    font-size:11px; font-weight:700; color:var(--ink-mute); text-decoration:underline;
+  }
+  .link-toggle-btn:active{ opacity:.6; }
+  .url-row{ display:flex; gap:8px; margin-top:10px; }
+  .url-input{
+    flex:1; min-width:0; height:42px; padding:0 12px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line);
+    font-size:12.5px; color:var(--ink); outline:none;
+  }
+  .url-input::placeholder{ color:var(--ink-mute); }
+  .url-fetch-btn{
+    flex-shrink:0; height:42px; padding:0 16px; border-radius:12px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:12.5px;
+  }
+  .url-fetch-btn:active{ transform:scale(.96); }
+  .url-fetch-btn:disabled{ opacity:.5; pointer-events:none; }
+
+  /* ---------- recording card (once uploaded) ---------- */
+  .rec-card{
+    padding:14px; border-radius:16px;
+    background:var(--surface); border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+  .rec-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .rec-name{ font-size:12.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rec-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .rec-link-btn{
+    background:none; border:none; cursor:pointer;
+    font-size:11px; font-weight:800; color:var(--ink-mute); padding:4px 2px;
+  }
+  .rec-link-btn.danger{ color:var(--danger); }
+  .rec-link-btn:active{ opacity:.6; }
+
+  .rec-toolbar{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .rec-icon-btn{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0; color:var(--ink);
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rec-icon-btn svg{ width:14px; height:14px; }
+  .rec-icon-btn:active{ transform:scale(.9); }
+  .rec-icon-btn.danger{ color:var(--danger); }
+
+  /* ---------- "detect surah & ayah" (URL-fetched recordings only) ---------- */
+  .detect-btn{
+    width:100%; height:40px; border-radius:12px; margin-bottom:12px;
+    border:1.5px dashed var(--gold-soft); background:rgba(173,130,38,.06);
+    color:var(--gold); font-weight:800; font-size:12px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .detect-btn svg{ width:13px; height:13px; }
+  .detect-btn:active{ transform:scale(.98); }
+  .detect-btn:disabled{ opacity:.55; pointer-events:none; }
+  .detect-status{
+    font-size:11px; font-weight:700; color:var(--ink-mute);
+    margin:-4px 0 12px; line-height:1.4; display:none;
+  }
+  .detect-status.success{ color:var(--success); }
+  .detect-status.error{ color:var(--danger); }
+
+  .play-btn{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    background:var(--ink); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .play-btn svg{ width:14px; height:14px; fill:#FFFDF6; }
+  .play-btn:active{ transform:scale(.94); }
+
+  .track-wrap{ margin-top:2px; }
+
+  /* ---------- waveform zoom controls (shared: main track + trim dialog) ---------- */
+  .zoom-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; margin-bottom:6px; }
+  .zoom-btn{
+    width:22px; height:22px; border-radius:7px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); font-weight:800; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .zoom-btn:active{ transform:scale(.9); }
+  .zoom-btn:disabled{ opacity:.35; pointer-events:none; }
+  .zoom-label{ font-size:10px; font-weight:800; color:var(--ink-mute); min-width:26px; text-align:center; }
+
+  .track{
+    position:relative; height:52px; border-radius:10px; overflow-x:auto; overflow-y:hidden;
+    background:var(--surface-2); cursor:pointer; touch-action:pan-x;
+    -webkit-overflow-scrolling:touch;
+  }
+  .track-inner{ position:relative; height:100%; min-width:100%; }
+  .track-bars{ position:absolute; inset:0; display:flex; align-items:center; gap:1px; padding:0 4px; pointer-events:none; }
+  .track-bar{ flex:1; border-radius:2px; background:rgba(20,24,58,.18); }
+  .playhead{
+    position:absolute; top:0; bottom:0; width:2px; background:var(--ink);
+    pointer-events:none;
+  }
+  .mark-tick{
+    position:absolute; top:0; bottom:0; width:10px; margin-left:-5px;
+    display:flex; align-items:center; justify-content:center; cursor:ew-resize; touch-action:none;
+  }
+  .mark-tick::before{ content:""; width:2.5px; height:100%; background:var(--gold); border-radius:2px; }
+  .mark-tick::after{
+    content:""; position:absolute; width:13px; height:13px; border-radius:50%;
+    background:var(--gold); box-shadow:0 0 0 2px var(--bg);
+  }
+  .track-mask{
+    position:absolute; top:0; bottom:0; background:rgba(20,24,58,.4);
+    pointer-events:none; width:0;
+  }
+  .track-times{ display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; font-weight:800; color:var(--ink-mute); font-variant-numeric:tabular-nums; }
+
+  .transport-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; }
+  .transport-offset-btn{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0; color:var(--ink);
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .transport-offset-btn svg{ width:14px; height:14px; }
+  .transport-offset-btn:active{ transform:scale(.9); }
+  .transport-offset-btn:disabled{ opacity:.35; pointer-events:none; }
+  .transport-offset-btn.active{ background:var(--gold); color:#FFFDF6; }
+
+  .speed-row{ display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px; }
+  .speed-btn{
+    padding:5px 11px; border-radius:20px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink-mute); font-weight:800; font-size:11px;
+    font-variant-numeric:tabular-nums;
+  }
+  .speed-btn.active{ background:var(--ink); color:#FFFDF6; }
+  .speed-btn:active{ transform:scale(.94); }
+
+  .clip-status{
+    font-size:10.5px; font-weight:700; color:var(--ink-mute); margin-top:10px;
+  }
+  .clip-status.trimmed{ color:var(--gold); }
+
+  /* ---------- previous-surah context (reference only, no actions) ---------- */
+  .prev-surah-card{
+    margin-top:14px; padding:10px 12px; border-radius:12px;
+    background:var(--surface-2); border:1px dashed var(--line);
+  }
+  .prev-surah-card .verse-card-label{ opacity:.8; }
+  .prev-surah-ar{ margin-top:6px; font-size:16px; opacity:.75; }
+
+  /* ---------- ayah preview (mirrors new_video.html's verse-card) ---------- */
+  .preview-card{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); }
+  .verse-card-head{ display:flex; align-items:center; justify-content:space-between; }
+  .verse-card-label{ font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--ink-mute); }
+  .verse-nav{ display:flex; gap:6px; flex-shrink:0; }
+  .verse-nav-btn{
+    width:24px; height:24px; border-radius:8px; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .12s ease, transform .1s ease;
+  }
+  .verse-nav-btn svg{ width:11px; height:11px; }
+  .verse-nav-btn:active{ transform:scale(.9); background:var(--line); }
+  .verse-nav-btn:disabled{ opacity:.35; cursor:default; }
+  .verse-nav-btn.active{ background:var(--gold); color:#FFFDF6; }
+  .verse-ar{
+    font-family:'Amiri', serif; font-weight:700; direction:rtl;
+    font-size:19px; line-height:1.8; color:var(--ink); margin-top:10px;
+  }
+  .verse-en{
+    font-size:11.5px; font-style:italic; color:var(--ink-mute); margin-top:6px; line-height:1.5;
+  }
+  .preview-status{
+    font-size:10.5px; font-weight:700; color:var(--ink-mute); margin-top:10px;
+  }
+  .preview-status.marked{ color:var(--success); }
+  .preview-actions{ display:flex; gap:8px; margin-top:10px; }
+
+  .mark-add-row{ margin-top:12px; }
+  .mark-add-btn{
+    flex:1; height:42px; border-radius:13px; border:1.5px solid var(--line);
+    background:transparent; color:var(--ink); font-weight:800; font-size:12.5px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .mark-add-btn:active{ transform:scale(.98); }
+  .mark-add-btn svg{ width:12px; height:12px; }
+  .mark-add-btn:disabled{ opacity:.4; pointer-events:none; }
+
+  .play-here-btn{
+    flex:1; height:42px; border-radius:13px; border:1.5px solid var(--gold-soft);
+    background:transparent; color:var(--gold); font-weight:800; font-size:12.5px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .play-here-btn:active{ transform:scale(.98); }
+  .play-here-btn svg{ width:11px; height:11px; fill:var(--gold); }
+  .play-here-btn:disabled{ opacity:.4; pointer-events:none; }
+
+  /* ---------- marks list ---------- */
+  .marks-empty{
+    text-align:center; padding:22px 10px; color:var(--ink-mute); font-size:11.5px; font-weight:600;
+  }
+  .mark-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:13px;
+    background:var(--surface); border:1px solid var(--line);
+    margin-bottom:8px;
+  }
+  .mark-row.conflict{ border-color:rgba(178,59,59,.4); background:rgba(178,59,59,.05); }
+  .mark-time-btn{
+    background:none; border:none; cursor:pointer; flex-shrink:0;
+    font-size:11.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
+    padding:6px 8px; border-radius:9px; background:var(--surface-2);
+  }
+  .mark-time-btn:active{ transform:scale(.95); }
+  .mark-ayah-label{ font-size:10px; font-weight:700; color:var(--ink-mute); flex-shrink:0; }
+  .mark-ayah-input{
+    width:56px; height:32px; border-radius:9px; border:1px solid var(--line-soft);
+    background:var(--surface-2); text-align:center; font-size:12.5px; font-weight:800;
+    color:var(--ink); outline:none; -moz-appearance:textfield;
+  }
+  .mark-ayah-input::-webkit-outer-spin-button, .mark-ayah-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .mark-row.conflict .mark-ayah-input{ border-color:var(--danger); }
+  .mark-row-spacer{ flex:1; }
+  .mark-shift-btn{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); display:flex; align-items:center; justify-content:center;
+  }
+  .mark-shift-btn svg{ width:11px; height:11px; }
+  .mark-shift-btn:active{ transform:scale(.9); }
+  .mark-del-btn{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0; border:none; cursor:pointer;
+    background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+  }
+  .mark-del-btn svg{ width:10px; height:10px; }
+  .mark-del-btn:active{ transform:scale(.9); }
+
+  .conflict-hint{
+    font-size:10.5px; font-weight:700; color:var(--danger); padding:0 2px; margin-top:2px;
+  }
+
+  /* ---------- trim/crop dialog (shared: main marks + basmala) ---------- */
+  .crop-overlay{
+    position:fixed; inset:0; background:rgba(20,24,58,.5); z-index:70;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .crop-overlay.open{ display:flex; }
+  .crop-sheet{
+    width:100%; max-width:480px; background:var(--bg);
+    border-radius:22px 22px 0 0; padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+  }
+  .crop-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16.5px; margin-bottom:4px; }
+  .crop-track{
+    position:relative; height:56px; border-radius:10px; overflow-x:auto; overflow-y:hidden;
+    background:var(--surface-2); touch-action:pan-x; -webkit-overflow-scrolling:touch;
+  }
+  .crop-track-inner{ position:relative; height:100%; min-width:100%; }
+  .crop-bars{ position:absolute; inset:0; display:flex; align-items:center; gap:1px; padding:0 4px; }
+  .crop-bar{ flex:1; border-radius:2px; background:rgba(20,24,58,.18); }
+  .crop-mask{ position:absolute; top:0; bottom:0; background:rgba(20,24,58,.45); pointer-events:none; }
+  .crop-handle{
+    position:absolute; top:0; bottom:0; width:14px; margin-left:-7px;
+    display:flex; align-items:center; justify-content:center; cursor:ew-resize; touch-action:none;
+  }
+  .crop-handle::before{ content:""; width:3px; height:100%; background:var(--gold); border-radius:2px; }
+  .crop-handle::after{
+    content:""; position:absolute; width:16px; height:16px; border-radius:50%;
+    background:var(--gold); box-shadow:0 0 0 3px var(--bg);
+  }
+  .crop-playhead{
+    position:absolute; top:0; bottom:0; width:12px; margin-left:-6px; z-index:3;
+    display:flex; align-items:center; justify-content:center; cursor:ew-resize; touch-action:none;
+  }
+  .crop-playhead::before{ content:""; width:2px; height:100%; background:var(--ink); border-radius:2px; }
+  .crop-playhead::after{
+    content:""; position:absolute; top:-3px; width:12px; height:12px; border-radius:50%;
+    background:var(--ink); box-shadow:0 0 0 2px var(--bg);
+  }
+  .crop-times{ display:flex; justify-content:space-between; margin-top:8px; font-size:11px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+  .crop-transport-row{ display:flex; align-items:center; justify-content:center; gap:16px; margin-top:14px; }
+  .crop-play-btn{
+    width:44px; height:44px; border-radius:50%; flex-shrink:0;
+    background:var(--ink); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .crop-play-btn svg{ width:16px; height:16px; fill:#FFFDF6; }
+  .crop-play-btn:active{ transform:scale(.94); }
+  .crop-icon-btn{
+    width:36px; height:36px; border-radius:50%; flex-shrink:0;
+    background:var(--surface-2); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .crop-icon-btn svg{ width:15px; height:15px; fill:var(--ink); }
+  .crop-icon-btn:active{ transform:scale(.9); }
+
+  .crop-nudge-row{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:12px; }
+  .crop-nudge-group{ display:flex; align-items:center; gap:5px; }
+  .crop-nudge-label{ font-size:9.5px; font-weight:800; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.4px; }
+  .nudge-btn{
+    width:26px; height:26px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); font-weight:800; font-size:14px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nudge-btn:active{ transform:scale(.9); }
+  .crop-step-wrap{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .crop-step-input{
+    width:46px; height:26px; border-radius:8px; border:1px solid var(--line-soft);
+    background:var(--surface); text-align:center; font-size:11px; font-weight:800;
+    color:var(--ink); outline:none; -moz-appearance:textfield;
+  }
+  .crop-step-input::-webkit-outer-spin-button, .crop-step-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .crop-step-unit{ font-size:9.5px; color:var(--ink-mute); font-weight:700; }
+
+  .crop-actions{ display:flex; gap:10px; margin-top:16px; }
+  .crop-cancel-btn, .crop-apply-btn{
+    flex:1; height:48px; border-radius:14px; border:none; cursor:pointer;
+    font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;
+    transition:transform .12s ease;
+  }
+  .crop-cancel-btn{ background:var(--surface-2); color:var(--ink); }
+  .crop-apply-btn{ background:var(--ink); color:#F6F1E4; }
+  .crop-cancel-btn:active, .crop-apply-btn:active{ transform:scale(.97); }
+
+  /* ---------- sticky footer CTA ---------- */
+  .footbar{
+    padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+    background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
+    border-top:1px solid var(--line-soft);
+  }
+  .continue-btn{
+    width:100%; height:54px; border-radius:16px; border:none; cursor:pointer;
+    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:14.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 16px 28px -16px rgba(20,24,58,.45);
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .continue-btn:active{ transform:scale(.97); }
+  .continue-btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .continue-btn:disabled:active{ transform:none; }
+  .continue-btn svg{ width:14px; height:14px; }
+  .continue-hint{ text-align:center; font-size:10.5px; color:var(--ink-mute); margin-top:9px; }
+
+  /* ---------- save-state dialog (centered, not a bottom sheet) ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.45);
+    opacity:0; pointer-events:none; transition:opacity .18s ease; z-index:80;
+  }
+  .modal-backdrop.open{ opacity:1; pointer-events:auto; }
+  .save-modal{
+    position:fixed; left:50%; top:50%; z-index:81;
+    width:calc(100% - 64px); max-width:340px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:22px 20px 20px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.94);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .save-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  .save-modal-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16.5px; text-align:center; }
+  .save-modal-sub{ font-size:11.5px; color:var(--ink-mute); text-align:center; line-height:1.5; margin-top:6px; }
+  .save-modal-input{
+    width:100%; height:46px; border-radius:13px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); font-size:13.5px; padding:0 14px;
+    outline:none; margin-top:16px;
+  }
+  .save-modal-input::placeholder{ color:var(--ink-mute); }
+  .save-modal-error{
+    font-size:11px; font-weight:700; color:var(--danger); margin-top:8px; line-height:1.4; display:none;
+  }
+  .save-modal-error.show{ display:block; }
+  .save-modal-actions{ display:flex; gap:9px; margin-top:16px; }
+  .save-modal-btn{
+    flex:1; height:44px; border-radius:13px; border:none; cursor:pointer; font-weight:800; font-size:12.5px;
+  }
+  .save-modal-btn:active{ transform:scale(.97); }
+  .save-modal-cancel{ background:var(--surface-2); color:var(--ink); }
+  .save-modal-confirm{ background:var(--ink); color:#F6F1E4; }
+  .save-modal-confirm:disabled{ opacity:.6; pointer-events:none; }
+
+  /* ---------- import-state sheet rows ---------- */
+  .preset-row{
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:11px 10px; border-radius:14px; border:none; background:none; cursor:pointer; text-align:left;
+  }
+  .preset-row:active{ background:var(--surface-2); }
+  .preset-row-glyph{
+    width:36px; height:36px; border-radius:11px; flex-shrink:0;
+    background:linear-gradient(160deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Amiri', serif; font-weight:700; font-size:15px; color:#FFFDF6;
+  }
+  .preset-row-text{ flex:1; min-width:0; }
+  .preset-row-title{ font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .preset-row-sub{ font-size:10.5px; color:var(--ink-mute); font-weight:600; margin-top:2px; }
+  .preset-row-del{
+    width:30px; height:30px; border-radius:50%; flex-shrink:0; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--danger); display:flex; align-items:center; justify-content:center;
+  }
+  .preset-row-del svg{ width:12px; height:12px; }
+  .preset-row-del:active{ transform:scale(.9); }
+  .preset-list-empty{
+    text-align:center; padding:36px 14px; color:var(--ink-mute); font-size:12px; font-weight:600; line-height:1.5;
+  }
+  .preset-list-loading{ text-align:center; padding:24px 14px; color:var(--ink-mute); font-size:12px; font-weight:600; }
+
+  /* ---------- lightweight toast (save/import success or failure) ---------- */
+  .toast{
+    position:fixed; left:20px; right:20px; bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+    max-width:440px; margin:0 auto; z-index:90;
+    background:var(--ink); color:#F6F1E4; font-size:12.5px; font-weight:700;
+    padding:12px 16px; border-radius:13px; box-shadow:0 12px 28px -12px rgba(20,24,58,.4);
+    text-align:center; opacity:0; pointer-events:none; transform:translateY(8px);
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+  .toast.error{ background:var(--danger); }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+
+  <div class="topbar">
+    <button class="icon-btn" aria-label="Back" id="backBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">Custom audio</div>
+    <div class="topbar-actions">
+      <button class="icon-btn" aria-label="Import saved state" id="importStateBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Save state" id="saveStateBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="section">
+      <div class="section-label">Surah &amp; range</div>
+      <div class="surah-range-card">
+        <button class="select-btn flat" id="surahBtn">
+          <div class="select-glyph" id="surahGlyph">?</div>
+          <div class="select-text">
+            <div class="select-title" id="surahTitle">Select surah</div>
+            <div class="select-sub" id="surahSub"></div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+
+        <div class="range-row">
+          <div class="stepper">
+            <div class="stepper-label">From ayah</div>
+            <div class="stepper-controls">
+              <button class="stepper-btn" id="fromMinus" aria-label="Decrease from ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+              </button>
+              <input type="number" class="stepper-value" id="fromValue" value="1" inputmode="numeric" aria-label="From ayah number">
+              <button class="stepper-btn" id="fromPlus" aria-label="Increase from ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="range-divider"></div>
+          <div class="stepper">
+            <div class="stepper-label">To ayah</div>
+            <div class="stepper-controls">
+              <button class="stepper-btn" id="toMinus" aria-label="Decrease to ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+              </button>
+              <input type="number" class="stepper-value" id="toValue" value="7" inputmode="numeric" aria-label="To ayah number">
+              <button class="stepper-btn" id="toPlus" aria-label="Increase to ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="range-count-line" id="rangeCountLine">7 ayahs selected</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Recording</div>
+
+      <button class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+        <div class="dropzone-title">Upload a recording</div>
+        <div class="dropzone-sub">MP3, WAV, M4A or OGG</div>
+      </button>
+      <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" hidden>
+      <div class="upload-error" id="uploadError"></div>
+
+      <button class="link-toggle-btn" id="urlToggleBtn">Or paste a video link (Facebook, Instagram, TikTok, YouTube…)</button>
+      <div class="url-row" id="urlRow" style="display:none;">
+        <input type="url" class="url-input" id="urlInput" placeholder="https://www.facebook.com/reel/…" inputmode="url">
+        <button class="url-fetch-btn" id="urlFetchBtn">Fetch</button>
+      </div>
+
+      <div class="rec-card" id="recCard" style="display:none;">
+        <div class="rec-head">
+          <div class="rec-name" id="recName"></div>
+          <div class="rec-toolbar">
+            <button class="rec-icon-btn" id="editMainBtn" aria-label="Trim">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+            </button>
+            <button class="rec-icon-btn" id="replaceBtn" aria-label="Replace">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.2v-2a4 4 0 014-4h14"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.8v2a4 4 0 01-4 4H3"/></svg>
+            </button>
+            <button class="rec-icon-btn" id="downloadBtn" aria-label="Download" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            </button>
+            <button class="rec-icon-btn danger" id="removeBtn" aria-label="Remove">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="detect-btn" id="detectBtn" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          Detect surah &amp; ayah
+        </button>
+        <div class="detect-status" id="detectStatus"></div>
+        <button class="detect-btn" id="autoMarkBtn" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+          Auto-mark ayah starts
+        </button>
+        <div class="detect-status" id="autoMarkStatus"></div>
+        <div class="track-wrap">
+          <div class="zoom-row">
+            <span class="zoom-label" id="mainZoomLabel">1×</span>
+            <button class="zoom-btn" id="mainZoomOut" aria-label="Zoom out">−</button>
+            <button class="zoom-btn" id="mainZoomIn" aria-label="Zoom in">+</button>
+          </div>
+          <div class="track" id="track">
+            <div class="track-inner" id="trackInner">
+              <div class="track-bars" id="trackBars"></div>
+              <div class="track-mask" id="trackMaskStart" style="left:0;"></div>
+              <div class="track-mask" id="trackMaskEnd" style="right:0;"></div>
+              <div class="playhead" id="playhead" style="left:0%;"></div>
+            </div>
+          </div>
+          <div class="track-times">
+            <span id="curTime">0:00</span>
+            <span id="totalTime">0:00</span>
+          </div>
+          <div class="transport-row">
+            <button class="transport-offset-btn" id="resetPlayheadBtn" aria-label="Restart from trim start">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+            </button>
+            <button class="transport-offset-btn" id="offsetBackBtn" aria-label="Back 0.5 seconds">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 19V5l-7 7 7 7z"/><path d="M18 19V5l-7 7 7 7z"/></svg>
+            </button>
+            <button class="transport-offset-btn" id="markShiftLeftBtn" aria-label="Shift current ayah mark earlier" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <button class="play-btn" id="playBtn" aria-label="Play">
+              <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button class="transport-offset-btn" id="markShiftRightBtn" aria-label="Shift current ayah mark later" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <button class="transport-offset-btn" id="offsetFwdBtn" aria-label="Forward 0.5 seconds">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5v14l7-7-7-7z"/><path d="M6 5v14l7-7-7-7z"/></svg>
+            </button>
+            <button class="transport-offset-btn" id="lockBtn" aria-label="Lock waveform to follow playback">
+              <svg id="lockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+            </button>
+          </div>
+          <div class="speed-row" id="speedRow">
+            <button class="speed-btn" data-speed="0.5">0.5×</button>
+            <button class="speed-btn" data-speed="0.75">0.75×</button>
+            <button class="speed-btn active" data-speed="1">1×</button>
+            <button class="speed-btn" data-speed="1.5">1.5×</button>
+          </div>
+        </div>
+        <div class="prev-surah-card" id="prevAyahCard" style="display:none;">
+          <div class="verse-card-label" id="prevAyahLabel">Previous ayah</div>
+          <div class="verse-ar prev-surah-ar" id="prevAyahAr">…</div>
+        </div>
+        <div class="preview-card" id="previewCard">
+          <div class="verse-card-head">
+            <div class="verse-card-label" id="verseCardLabel">Preview · Ayah 1</div>
+            <div class="verse-nav">
+              <button class="verse-nav-btn" id="translationToggleBtn" aria-label="Show translation">
+                <svg id="translationToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.8 21.8 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.77 21.77 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+              <button class="verse-nav-btn" id="previewPrev" aria-label="Preview previous ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <button class="verse-nav-btn" id="previewNext" aria-label="Preview next ayah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="verse-ar" id="verseAr">…</div>
+          <div class="verse-en" id="verseEn" style="display:none;">Loading…</div>
+          <div class="preview-status" id="previewStatus">Not marked yet</div>
+          <div class="preview-actions">
+            <button class="mark-add-btn" id="markHereBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Mark start here
+            </button>
+            <button class="play-here-btn" id="playHereBtn" disabled>
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              Play from here
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="marksSection" style="display:none;">
+      <div class="section-label-row">
+        <div class="section-label">Ayah marks</div>
+        <button class="clear-marks-btn" id="clearMarksBtn">Clear all</button>
+      </div>
+      <div id="marksList"></div>
+      <div class="conflict-hint" id="conflictHint" style="display:none;">Two marks are set to the same ayah — fix that before continuing.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Basmala intro (optional)</div>
+      <button class="dropzone" id="basmalaDropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+        <div class="dropzone-title">Upload Basmala audio</div>
+        <div class="dropzone-sub">MP3, WAV, M4A or OGG</div>
+      </button>
+      <input type="file" id="basmalaFileInput" accept=".mp3,.wav,.m4a,.ogg,audio/*" hidden>
+      <div class="upload-error" id="basmalaUploadError"></div>
+
+      <div class="rec-card" id="basmalaRecCard" style="display:none;">
+        <div class="rec-head">
+          <div class="rec-name" id="basmalaRecName"></div>
+          <div class="rec-actions">
+            <button class="rec-link-btn" id="basmalaEditBtn">Edit</button>
+            <button class="rec-link-btn" id="basmalaReplaceBtn">Replace</button>
+            <button class="rec-link-btn danger" id="basmalaRemoveBtn">Remove</button>
+          </div>
+        </div>
+        <div class="clip-status" id="basmalaStatus">Full clip, 0:00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Translation</div>
+      <button class="select-btn" id="translationBtn">
+        <div class="select-glyph" id="translationGlyph">EN</div>
+        <div class="select-text">
+          <div class="select-title" id="translationTitle">Loading…</div>
+          <div class="select-sub" id="translationSub"></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+
+  </div>
+
+  <div class="footbar">
+    <button class="continue-btn" id="continueBtn" disabled>
+      Continue to timing
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <div class="continue-hint" id="continueHint">Add at least one mark to continue</div>
+  </div>
+
+</div>
+
+<!-- Surah bottom sheet -->
+<div class="sheet-backdrop" id="surahBackdrop"></div>
+<div class="sheet" id="surahSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Select surah</div>
+    <button class="sheet-close" id="surahSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-search-wrap">
+    <input type="text" class="sheet-search" id="surahSearchInput" placeholder="Search surahs…" autocomplete="off">
+  </div>
+  <div class="sheet-list" id="surahSheetList"></div>
+</div>
+
+<!-- Translation bottom sheet -->
+<div class="sheet-backdrop" id="translationBackdrop"></div>
+<div class="sheet" id="translationSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Select translation</div>
+    <button class="sheet-close" id="translationSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-search-wrap">
+    <input type="text" class="sheet-search" id="translationSearchInput" placeholder="Search translations…" autocomplete="off">
+  </div>
+  <div class="sheet-list" id="translationSheetList"></div>
+</div>
+
+<!-- Import-state bottom sheet -->
+<div class="sheet-backdrop" id="importStateBackdrop"></div>
+<div class="sheet" id="importStateSheet">
+  <div class="sheet-handle"><span></span></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Saved states</div>
+    <button class="sheet-close" id="importStateSheetClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-list" id="importStateSheetList"></div>
+</div>
+
+<!-- Save-state dialog -->
+<div class="modal-backdrop" id="saveStateBackdrop"></div>
+<div class="save-modal" id="saveStateModal">
+  <div class="save-modal-title">Save this state</div>
+  <div class="save-modal-sub">Saves the current recording, ayah marks and trim as a named preset you can import later.</div>
+  <input type="text" class="save-modal-input" id="saveStateNameInput" placeholder="e.g. Al-Fatiha, full range" maxlength="80" autocomplete="off">
+  <div class="save-modal-error" id="saveStateError"></div>
+  <div class="save-modal-actions">
+    <button class="save-modal-btn save-modal-cancel" id="saveStateCancelBtn" type="button">Cancel</button>
+    <button class="save-modal-btn save-modal-confirm" id="saveStateConfirmBtn" type="button">Save</button>
+  </div>
+</div>
+
+<!-- Trim/crop dialog: shared between the main recording and the Basmala clip -->
+<div class="crop-overlay" id="cropOverlay">
+  <div class="crop-sheet">
+    <div class="crop-title" id="cropTitle">Trim audio</div>
+    <div class="zoom-row">
+      <span class="zoom-label" id="cropZoomLabel">1×</span>
+      <button class="zoom-btn" id="cropZoomOut" aria-label="Zoom out">−</button>
+      <button class="zoom-btn" id="cropZoomIn" aria-label="Zoom in">+</button>
+    </div>
+    <div class="crop-track" id="cropTrack">
+      <div class="crop-track-inner" id="cropTrackInner">
+        <div class="crop-bars" id="cropBars"></div>
+        <div class="crop-mask" id="cropMaskStart"></div>
+        <div class="crop-mask" id="cropMaskEnd"></div>
+        <div class="crop-handle" id="cropHandleStart"></div>
+        <div class="crop-handle" id="cropHandleEnd"></div>
+        <div class="crop-playhead" id="cropPlayhead" style="left:0%;"></div>
+      </div>
+    </div>
+    <div class="crop-times">
+      <span id="cropStartLabel">0:00.0</span>
+      <span id="cropEndLabel">0:00.0</span>
+    </div>
+    <div class="crop-nudge-row">
+      <div class="crop-nudge-group">
+        <span class="crop-nudge-label">Start</span>
+        <button class="nudge-btn" id="cropNudgeStartMinus" aria-label="Move start earlier">−</button>
+        <button class="nudge-btn" id="cropNudgeStartPlus" aria-label="Move start later">+</button>
+      </div>
+      <div class="crop-step-wrap">
+        <input type="number" class="crop-step-input" id="cropStepInput" value="0.1" min="0.01" step="0.05">
+        <span class="crop-step-unit">sec</span>
+      </div>
+      <div class="crop-nudge-group">
+        <span class="crop-nudge-label">End</span>
+        <button class="nudge-btn" id="cropNudgeEndMinus" aria-label="Move end earlier">−</button>
+        <button class="nudge-btn" id="cropNudgeEndPlus" aria-label="Move end later">+</button>
+      </div>
+    </div>
+    <div class="crop-transport-row">
+      <button class="crop-icon-btn" id="cropPreviewBtn" aria-label="Play from trimmed start">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="crop-play-btn" id="cropPlayBtn" aria-label="Play">
+        <svg id="cropPlayIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="crop-icon-btn" id="cropResetBtn" aria-label="Reset trim">
+        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+    </div>
+    <div class="crop-actions">
+      <button class="crop-cancel-btn" id="cropCancelBtn">Cancel</button>
+      <button class="crop-apply-btn" id="cropApplyBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script src="/quran-data.js"></script>
+<script>
+  const sessionId = new URLSearchParams(location.search).get('sessionId');
+  if (!sessionId){ location.href = '/'; }
+
+  let session = null;       // /api/sessions/<id>
+  let rangeAudioInfo = null; // { filename, duration }
+  let rangeAudioFromUrl = false; // true only when rangeAudioInfo came from "paste a link", not a direct file upload
+  let marks = [];            // [{ time, ayah }]
+  let audioBuffer = null;
+  let audioEl = null;
+  let rawDuration = 0;
+  let isPlaying = false;
+  let rafId = null;
+  let dragMarkIndex = null;
+  let previewAyah = 1;   // which ayah the Preview card is currently showing
+  // Bumped on every loadPrevAyahPreview()/loadPreviewText() call so a
+  // slower, older fetch can tell it's been superseded and not overwrite
+  // the display with stale ayah data -- matters because "Mark start here"
+  // deliberately fires these back-to-back for a fast sequential-marking
+  // pass (see markHereBtn below), so an earlier request can easily resolve
+  // AFTER a later one.
+  let prevAyahRequestId = 0;
+  let previewTextRequestId = 0;
+
+  // Horizontal zoom for waveforms -- shared step scale between the main
+  // track and the trim dialog (each keeps its own current index). Values
+  // are a multiplier on the track's own width; the wider content then
+  // scrolls inside its (fixed-size) viewport.
+  const ZOOM_LEVELS = [1, 2, 4, 8, 16, 32];
+  let mainZoomIdx = 0;
+  let cropZoomIdx = 0;
+
+  // Trim on the WHOLE main recording (never per-ayah) -- absolute seconds
+  // into the raw upload, null = untrimmed at that edge. Marks can only ever
+  // be placed inside [mainTrimStart, mainTrimEnd] (see clampToMainWindow),
+  // and the last mark's audio stops at mainTrimEnd instead of the file's
+  // raw end (see markEndTime).
+  let mainTrimStart = null;
+  let mainTrimEnd = null;
+
+  // Basmala intro: a wholly separate upload (never a slice of the main
+  // recording above), played before the first ayah -- see quran_video.py's
+  // handling of a manifest "0" entry.
+  let basmalaAudioInfo = null; // { filename, duration }
+  let basmalaTrimStart = null; // absolute seconds, null = 0 (start of file)
+  let basmalaTrimEnd = null;   // absolute seconds, null = end of file
+  let basmalaAudioBuffer = null;
+  let basmalaAudioEl = null;
+
+  const STORAGE_KEY = `afs_custom_audio_${sessionId}`;
+  function storageContextKey(){ return [session.surah, session.ayahStart, session.ayahEnd].join('|'); }
+  function saveLocal(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      key: storageContextKey(), rangeAudioInfo, rangeAudioFromUrl, marks, mainTrimStart, mainTrimEnd,
+      basmalaAudioInfo, basmalaTrimStart, basmalaTrimEnd,
+    }));
+  }
+  function loadLocal(){
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); }
+    catch (e) { return null; }
+    if (!saved || saved.key !== storageContextKey()) return null;
+    return saved;
+  }
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    location.href = '/';
+  });
+
+  function saveSessionState(){
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        surah: session.surah, ayahStart: session.ayahStart, ayahEnd: session.ayahEnd,
+        translation: session.translation,
+      }),
+    }).catch(() => { /* best-effort; local state is still correct either way */ });
+  }
+
+  // ============ SURAH + RANGE + TRANSLATION PICKER (ported from new_video.html) ============
+  function updateSurahDisplay(){
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    if (!surahInfo) return;
+    document.getElementById('surahTitle').textContent = surahInfo.en;
+    document.getElementById('surahSub').textContent = `Surah ${surahInfo.n} · ${surahInfo.ayahs} ayahs`;
+    document.getElementById('surahGlyph').textContent = surahInfo.ar[0];
+  }
+
+  // ============ PREVIOUS-AYAH CONTEXT (Arabic only, no translation) ============
+  // The ayah immediately before whichever one the Preview card is currently
+  // showing (previewAyah) -- browse to ayah 12 and this shows ayah 11, so
+  // whatever boundary you're about to mark, you can see what leads into it.
+  // Hidden whenever previewAyah is already at the START of the selected
+  // range (nothing before it to show within this marking range). No
+  // translation shown -- this is purely a "does the recitation still match
+  // this text" reference, not something to read start-to-finish.
+  async function loadPrevAyahPreview(){
+    const cardEl = document.getElementById('prevAyahCard');
+    if (previewAyah <= session.ayahStart){
+      cardEl.style.display = 'none';
+      return;
+    }
+    const prevAyah = previewAyah - 1;
+    const requestId = ++prevAyahRequestId;
+    cardEl.style.display = '';
+    document.getElementById('prevAyahLabel').textContent = `Previous ayah · Ayah ${prevAyah}`;
+    const arEl = document.getElementById('prevAyahAr');
+    arEl.textContent = '…';
+    try {
+      const res = await fetch(`/api/timing/text?surah=${session.surah}&ayah=${prevAyah}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'fetch failed');
+      if (requestId !== prevAyahRequestId) return; // a newer call already took over
+      arEl.textContent = data.arabic;
+    } catch (e) {
+      if (requestId !== prevAyahRequestId) return;
+      arEl.textContent = '';
+    }
+  }
+
+  function updateRangeDisplay(){
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    const maxAyah = surahInfo ? surahInfo.ayahs : session.ayahEnd;
+    fromValueEl.value = session.ayahStart;
+    toValueEl.value = session.ayahEnd;
+    document.getElementById('fromMinus').disabled = session.ayahStart <= 1;
+    document.getElementById('fromPlus').disabled = session.ayahStart >= session.ayahEnd;
+    document.getElementById('toMinus').disabled = session.ayahEnd <= session.ayahStart;
+    document.getElementById('toPlus').disabled = session.ayahEnd >= maxAyah;
+    const count = session.ayahEnd - session.ayahStart + 1;
+    document.getElementById('rangeCountLine').textContent = `${count} ayah${count === 1 ? '' : 's'} selected`;
+    // The preview card's prev/next (and the previous-ayah card) are bounded
+    // to [ayahStart, ayahEnd] -- if the range just narrowed past whichever
+    // ayah the preview was showing, pull it back inside instead of leaving
+    // it stuck outside its own nav bounds. Either way, refresh the
+    // prev/next disabled state and previous-ayah card: loadPreviewText()
+    // does that itself (via updatePreviewStatus()) when previewAyah moves,
+    // but a range change that DOESN'T move it (e.g. ayahStart just caught
+    // up to it) still needs that refresh explicitly.
+    if (previewAyah < session.ayahStart || previewAyah > session.ayahEnd){
+      previewAyah = Math.min(Math.max(previewAyah, session.ayahStart), session.ayahEnd);
+      loadPreviewText();
+    } else {
+      updatePreviewStatus();
+    }
+  }
+
+  function renderSurahSheetList(pickedNum, query){
+    const listEl = document.getElementById('surahSheetList');
+    const surahs = window.SURAHS || [];
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? surahs.filter(s => s.en.toLowerCase().includes(q) || s.ar.includes(q) || String(s.n) === q)
+      : surahs;
+    if (!filtered.length){
+      listEl.innerHTML = `<div class="sheet-row-sub" style="padding:14px 10px;">No surahs found</div>`;
+      return;
+    }
+    listEl.innerHTML = filtered.map(s => `
+      <button class="sheet-row ${s.n === pickedNum ? 'picked' : ''}" data-n="${s.n}">
+        <div class="sheet-row-num">${s.n}</div>
+        <div class="sheet-row-text">
+          <div class="sheet-row-title">${s.en}</div>
+          <div class="sheet-row-sub">${s.ayahs} ayahs</div>
+        </div>
+        <div class="sheet-row-ar">${s.ar}</div>
+        <div class="sheet-row-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      </button>
+    `).join('');
+  }
+
+  let surahPick = null;
+  const surahSearchInput = document.getElementById('surahSearchInput');
+  document.getElementById('surahBtn').addEventListener('click', () => {
+    surahPick = session.surah;
+    surahSearchInput.value = '';
+    renderSurahSheetList(surahPick);
+    openSheet('surah');
+  });
+  surahSearchInput.addEventListener('input', () => {
+    renderSurahSheetList(surahPick, surahSearchInput.value);
+  });
+  document.getElementById('surahSheetList').addEventListener('click', (e) => {
+    const row = e.target.closest('.sheet-row');
+    if (!row) return;
+    const n = Number(row.dataset.n);
+    if (n === session.surah){ closeSheet('surah'); return; }
+    // Marks are keyed by ayah NUMBER within a surah -- switching surahs
+    // makes any existing marks meaningless, so confirm and clear them.
+    // The pasted/uploaded recording itself is untouched (it's just audio,
+    // not tied to a surah until marked).
+    if (marks.length){
+      const ok = confirm('Switching surahs will clear your existing ayah marks. Continue?');
+      if (!ok) return;
+      marks = [];
+    }
+    const surahInfo = (window.SURAHS || []).find(s => s.n === n);
+    session.surah = n;
+    session.ayahStart = 1;
+    session.ayahEnd = surahInfo.ayahs;
+    updateSurahDisplay();
+    updateRangeDisplay();
+    closeSheet('surah');
+    saveSessionState();
+    saveLocal();
+    previewAyah = session.ayahStart;
+    loadPreviewText();
+    updatePreviewStatus();
+  });
+
+  // ============ AYAH RANGE STEPPERS + DIRECT INPUT ============
+  const fromValueEl = document.getElementById('fromValue');
+  const toValueEl = document.getElementById('toValue');
+
+  document.getElementById('fromMinus').addEventListener('click', () => {
+    if (session.ayahStart > 1){ session.ayahStart--; updateRangeDisplay(); saveSessionState(); }
+  });
+  document.getElementById('fromPlus').addEventListener('click', () => {
+    if (session.ayahStart < session.ayahEnd){ session.ayahStart++; updateRangeDisplay(); saveSessionState(); }
+  });
+  document.getElementById('toMinus').addEventListener('click', () => {
+    if (session.ayahEnd > session.ayahStart){ session.ayahEnd--; updateRangeDisplay(); saveSessionState(); }
+  });
+  document.getElementById('toPlus').addEventListener('click', () => {
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    const maxAyah = surahInfo ? surahInfo.ayahs : session.ayahEnd;
+    if (session.ayahEnd < maxAyah){ session.ayahEnd++; updateRangeDisplay(); saveSessionState(); }
+  });
+
+  function commitFromValue(){
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    const maxAyah = surahInfo ? surahInfo.ayahs : session.ayahEnd;
+    let n = parseInt(fromValueEl.value, 10);
+    if (isNaN(n)) n = session.ayahStart;
+    n = Math.min(Math.max(n, 1), maxAyah);
+    session.ayahStart = n;
+    if (session.ayahEnd < session.ayahStart) session.ayahEnd = session.ayahStart;
+    updateRangeDisplay();
+    saveSessionState();
+  }
+  function commitToValue(){
+    const surahInfo = (window.SURAHS || []).find(s => s.n === session.surah);
+    const maxAyah = surahInfo ? surahInfo.ayahs : session.ayahEnd;
+    let n = parseInt(toValueEl.value, 10);
+    if (isNaN(n)) n = session.ayahEnd;
+    n = Math.min(Math.max(n, 1), maxAyah);
+    session.ayahEnd = n;
+    if (session.ayahStart > session.ayahEnd) session.ayahStart = session.ayahEnd;
+    updateRangeDisplay();
+    saveSessionState();
+  }
+  fromValueEl.addEventListener('focus', () => fromValueEl.select());
+  toValueEl.addEventListener('focus', () => toValueEl.select());
+  fromValueEl.addEventListener('change', commitFromValue);
+  toValueEl.addEventListener('change', commitToValue);
+  fromValueEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') fromValueEl.blur(); });
+  toValueEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') toValueEl.blur(); });
+
+  // ============ TRANSLATION SELECT ============
+  let translations = []; // [{identifier, language, name, englishName}], filled from /api/translations
+
+  const LANG_FLAGS = {
+    ar:'🇸🇦', en:'🇬🇧', ur:'🇵🇰', fr:'🇫🇷', es:'🇪🇸', de:'🇩🇪', id:'🇮🇩', tr:'🇹🇷',
+    ru:'🇷🇺', zh:'🇨🇳', bn:'🇧🇩', ml:'🇮🇳', ta:'🇮🇳', sw:'🇹🇿', fa:'🇮🇷', hi:'🇮🇳',
+    it:'🇮🇹', pt:'🇵🇹', nl:'🇳🇱', ja:'🇯🇵', ko:'🇰🇷', th:'🇹🇭', vi:'🇻🇳', ha:'🇳🇬',
+    so:'🇸🇴', bs:'🇧🇦', sq:'🇦🇱', az:'🇦🇿', uz:'🇺🇿', tg:'🇹🇯', ku:'🇮🇶', sd:'🇵🇰',
+    ps:'🇦🇫', am:'🇪🇹', kn:'🇮🇳', te:'🇮🇳', mr:'🇮🇳', pl:'🇵🇱', sv:'🇸🇪', no:'🇳🇴',
+    da:'🇩🇰', fi:'🇫🇮', cs:'🇨🇿', ro:'🇷🇴', hu:'🇭🇺', el:'🇬🇷', he:'🇮🇱', ms:'🇲🇾',
+    fil:'🇵🇭', tl:'🇵🇭', si:'🇱🇰', my:'🇲🇲', km:'🇰🇭', ne:'🇳🇵', uk:'🇺🇦', bg:'🇧🇬',
+    sr:'🇷🇸', hr:'🇭🇷', sk:'🇸🇰', sl:'🇸🇮', et:'🇪🇪', lv:'🇱🇻', lt:'🇱🇹',
+  };
+  function langToFlag(lang){
+    return LANG_FLAGS[(lang || '').toLowerCase()] || '🌐';
+  }
+
+  function updateTranslationDisplay(){
+    const entry = translations.find(t => t.identifier === session.translation);
+    if (!entry){
+      document.getElementById('translationTitle').textContent = session.translation;
+      document.getElementById('translationSub').textContent = '';
+      document.getElementById('translationGlyph').textContent = '🌐';
+      return;
+    }
+    document.getElementById('translationTitle').textContent = entry.englishName;
+    document.getElementById('translationSub').textContent = `${entry.name} · ${entry.language.toUpperCase()}`;
+    document.getElementById('translationGlyph').textContent = langToFlag(entry.language);
+  }
+
+  function renderTranslationSheetList(pickedId, query){
+    const listEl = document.getElementById('translationSheetList');
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? translations.filter(t => t.englishName.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.language.toLowerCase().includes(q))
+      : translations;
+    if (!filtered.length){
+      listEl.innerHTML = `<div class="sheet-row-sub" style="padding:14px 10px;">No translations found</div>`;
+      return;
+    }
+    listEl.innerHTML = filtered.map(t => `
+      <button class="sheet-row ${t.identifier === pickedId ? 'picked' : ''}" data-id="${t.identifier}">
+        <div class="sheet-row-avatar">${langToFlag(t.language)}</div>
+        <div class="sheet-row-text">
+          <div class="sheet-row-title">${t.englishName}</div>
+          <div class="sheet-row-sub">${t.name} · ${t.language.toUpperCase()}</div>
+        </div>
+        <div class="sheet-row-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      </button>
+    `).join('');
+  }
+
+  let translationPick = null;
+  const translationSearchInput = document.getElementById('translationSearchInput');
+  document.getElementById('translationBtn').addEventListener('click', () => {
+    translationPick = session.translation;
+    translationSearchInput.value = '';
+    renderTranslationSheetList(translationPick);
+    openSheet('translation');
+  });
+  translationSearchInput.addEventListener('input', () => {
+    renderTranslationSheetList(translationPick, translationSearchInput.value);
+  });
+  document.getElementById('translationSheetList').addEventListener('click', (e) => {
+    const row = e.target.closest('.sheet-row');
+    if (!row) return;
+    translationPick = row.dataset.id;
+    session.translation = translationPick;
+    updateTranslationDisplay();
+    closeSheet('translation');
+    saveSessionState();
+    loadPreviewText();
+  });
+
+  // ============ BOTTOM SHEET HELPERS ============
+  function openSheet(key){
+    document.getElementById(`${key}Backdrop`).classList.add('open');
+    document.getElementById(`${key}Sheet`).classList.add('open');
+  }
+  function closeSheet(key){
+    document.getElementById(`${key}Backdrop`).classList.remove('open');
+    document.getElementById(`${key}Sheet`).classList.remove('open');
+  }
+  ['surah', 'translation', 'importState'].forEach(key => {
+    document.getElementById(`${key}Backdrop`).addEventListener('click', () => closeSheet(key));
+    document.getElementById(`${key}SheetClose`).addEventListener('click', () => closeSheet(key));
+  });
+
+  function fmtTime(s){
+    s = Math.max(0, s || 0);
+    const m = Math.floor(s / 60);
+    const sec = (s - m * 60).toFixed(1);
+    return `${m}:${sec.padStart(4, '0')}`;
+  }
+
+  // ============ WAVEFORM ============
+  // Renders `buffer`'s waveform (or just the [startSec, endSec) slice of it,
+  // if given) as flexed bars into `targetEl`, with a bar count that scales
+  // with `zoom` (more bars = finer detail once zoomed in) but capped so an
+  // extreme zoom on a long recording doesn't spam the DOM with thousands of
+  // elements.
+  function renderWaveformBars(buffer, zoom, targetEl, barClass, startSec, endSec){
+    const data = buffer.getChannelData(0);
+    const sr = buffer.sampleRate;
+    const startSample = startSec != null ? Math.max(0, Math.floor(startSec * sr)) : 0;
+    const endSample = endSec != null ? Math.min(data.length, Math.floor(endSec * sr)) : data.length;
+    const rangeLen = Math.max(1, endSample - startSample);
+    const n = Math.min(1200, Math.round(90 * zoom));
+    const step = Math.floor(rangeLen / n) || 1;
+    let bars = '';
+    for (let i = 0; i < n; i++){
+      let min = 1.0, max = -1.0;
+      for (let j = 0; j < step; j++){
+        const v = data[startSample + i * step + j] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const h = Math.max(6, Math.round((max - min) * 100));
+      bars += `<div class="${barClass}" style="height:${h}%"></div>`;
+    }
+    targetEl.innerHTML = bars;
+  }
+
+  function renderBars(){
+    renderWaveformBars(audioBuffer, ZOOM_LEVELS[mainZoomIdx], document.getElementById('trackBars'), 'track-bar');
+  }
+
+  // Scrolls the main track so `t` (seconds) sits centered in the viewport --
+  // used after a zoom change to keep the same part of the recording in
+  // view, and (when followPlayhead is on) continuously during playback.
+  function scrollTrackToTime(t){
+    const track = document.getElementById('track');
+    const inner = document.getElementById('trackInner');
+    if (!rawDuration) return;
+    const targetLeft = (t / rawDuration) * inner.clientWidth - track.clientWidth / 2;
+    track.scrollLeft = Math.max(0, targetLeft);
+  }
+
+  // ============ WAVEFORM FOLLOW-LOCK ============
+  // When on, the main track auto-scrolls to keep the playhead in view as
+  // audio plays (useful once zoomed in past the point where the whole
+  // recording fits on screen). It's only turned back off by a genuine
+  // MANUAL scroll -- dragging/swiping the track itself, or a mouse wheel --
+  // never by the programmatic scrollLeft writes above (playback follow,
+  // zoom-change recentering), which don't fire these gesture events at all.
+  let followPlayhead = false;
+
+  function setFollowPlayhead(active){
+    followPlayhead = active;
+    document.getElementById('lockBtn').classList.toggle('active', active);
+    document.getElementById('lockIcon').innerHTML = active
+      ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'
+      : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/>';
+  }
+
+  document.getElementById('lockBtn').addEventListener('click', () => {
+    setFollowPlayhead(!followPlayhead);
+    if (followPlayhead) scrollTrackToTime(audioEl ? audioEl.currentTime : 0);
+  });
+
+  const track = document.getElementById('track');
+  track.addEventListener('wheel', () => { if (followPlayhead) setFollowPlayhead(false); }, { passive: true });
+  track.addEventListener('touchmove', () => { if (followPlayhead) setFollowPlayhead(false); }, { passive: true });
+
+  function applyMainZoom(idx){
+    mainZoomIdx = Math.max(0, Math.min(idx, ZOOM_LEVELS.length - 1));
+    const zoom = ZOOM_LEVELS[mainZoomIdx];
+    document.getElementById('trackInner').style.width = (zoom * 100) + '%';
+    document.getElementById('mainZoomLabel').textContent = zoom + '×';
+    document.getElementById('mainZoomOut').disabled = mainZoomIdx === 0;
+    document.getElementById('mainZoomIn').disabled = mainZoomIdx === ZOOM_LEVELS.length - 1;
+    renderBars();
+    scrollTrackToTime(audioEl ? audioEl.currentTime : 0);
+  }
+  document.getElementById('mainZoomOut').addEventListener('click', () => applyMainZoom(mainZoomIdx - 1));
+  document.getElementById('mainZoomIn').addEventListener('click', () => applyMainZoom(mainZoomIdx + 1));
+
+  // Seconds a mark is allowed to sit at, given the whole-recording trim.
+  function clampToMainWindow(t){
+    const lo = mainTrimStart != null ? mainTrimStart : 0;
+    const hi = mainTrimEnd != null ? mainTrimEnd : rawDuration;
+    return Math.max(lo, Math.min(t, hi));
+  }
+
+  function renderTrackMask(){
+    const startPct = rawDuration > 0 ? (mainTrimStart || 0) / rawDuration * 100 : 0;
+    const endPct = rawDuration > 0 ? (mainTrimEnd != null ? mainTrimEnd : rawDuration) / rawDuration * 100 : 100;
+    document.getElementById('trackMaskStart').style.width = startPct + '%';
+    document.getElementById('trackMaskEnd').style.width = (100 - endPct) + '%';
+  }
+
+  function renderMarkTicks(){
+    const inner = document.getElementById('trackInner');
+    inner.querySelectorAll('.mark-tick').forEach(el => el.remove());
+    marks.forEach((m, i) => {
+      const el = document.createElement('div');
+      el.className = 'mark-tick';
+      el.style.left = (m.time / rawDuration * 100) + '%';
+      el.dataset.index = i;
+      attachMarkDrag(el, i);
+      inner.appendChild(el);
+    });
+  }
+
+  function attachMarkDrag(handleEl, index){
+    handleEl.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      dragMarkIndex = index;
+      handleEl.setPointerCapture(e.pointerId);
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+      if (dragMarkIndex !== index) return;
+      const rect = document.getElementById('trackInner').getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      marks[index].time = clampToMainWindow(pct * rawDuration);
+      // Only reposition this handle and refresh the marks list text --
+      // NOT renderMarkTicks(), which would tear down and recreate every
+      // .mark-tick element (including this one, mid-drag). That detaches
+      // handleEl from the DOM, silently releasing its pointer capture, so
+      // the pointerup below would never fire and dragMarkIndex would stay
+      // stuck forever -- permanently blocking the track's own click-to-seek
+      // (its listener bails out whenever a drag is "in progress").
+      handleEl.style.left = (marks[index].time / rawDuration * 100) + '%';
+      renderMarksList();
+    });
+    handleEl.addEventListener('pointerup', () => {
+      if (dragMarkIndex !== index) return;
+      dragMarkIndex = null;
+      marks.sort((a, b) => a.time - b.time);
+      renderMarksList();
+      renderMarkTicks();
+      saveLocal();
+    });
+  }
+
+  // Safety net: if a mark drag's own pointerup handler above somehow never
+  // fires (pointer released outside the track, capture lost some other
+  // way), this still clears dragMarkIndex -- otherwise it'd stay stuck and
+  // the track's click-to-seek would silently stop working for the rest of
+  // the session.
+  window.addEventListener('pointerup', () => {
+    if (dragMarkIndex === null) return;
+    dragMarkIndex = null;
+    marks.sort((a, b) => a.time - b.time);
+    renderMarksList();
+    renderMarkTicks();
+    saveLocal();
+  });
+
+  // ============ PLAYBACK ============
+  function setPlayhead(t){
+    document.getElementById('playhead').style.left = (t / rawDuration * 100) + '%';
+    document.getElementById('curTime').textContent = fmtTime(t);
+  }
+
+  function tick(){
+    if (!isPlaying) return;
+    setPlayhead(audioEl.currentTime);
+    if (followPlayhead) scrollTrackToTime(audioEl.currentTime);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  document.getElementById('playBtn').addEventListener('click', () => {
+    if (!audioEl) return;
+    if (isPlaying){
+      audioEl.pause();
+    } else {
+      // Playback here has to actually honor the whole-recording trim, not
+      // just display it -- resume from wherever the playhead sits if
+      // that's still inside [mainTrimStart, mainTrimEnd], otherwise jump
+      // back to the trimmed start, and stop at the trimmed end instead of
+      // running on into audio that's been trimmed off.
+      const start = mainTrimStart != null ? mainTrimStart : 0;
+      const end = mainTrimEnd != null ? mainTrimEnd : rawDuration;
+      const current = audioEl.currentTime;
+      const playFrom = (current < start || current >= end) ? start : current;
+      playRange(playFrom, end, audioEl, rawDuration);
+    }
+  });
+
+  // Small step nudge of the playhead -- for landing precisely on a marked
+  // ayah's true start/end rather than relying on click-to-seek accuracy.
+  // Clamped to the trim window like every other main-track seek.
+  const TRANSPORT_OFFSET_STEP = 0.5;
+  function nudgeMainPlayhead(delta){
+    if (!audioEl) return;
+    const t = clampToMainWindow(audioEl.currentTime + delta);
+    audioEl.currentTime = t;
+    setPlayhead(t);
+  }
+  document.getElementById('offsetBackBtn').addEventListener('click', () => nudgeMainPlayhead(-TRANSPORT_OFFSET_STEP));
+  document.getElementById('offsetFwdBtn').addEventListener('click', () => nudgeMainPlayhead(TRANSPORT_OFFSET_STEP));
+
+  // Nudges a mark's time by `delta` seconds -- same fine-grained step as
+  // the crop dialog's own nudge buttons, for correcting a mark that's just
+  // slightly off without having to drag its tick by hand. Used both by the
+  // Preview card's shift buttons (acting on whichever ayah is currently
+  // shown there) and each mark row's own shift buttons in the Ayah marks
+  // list (acting on that specific mark, regardless of the preview).
+  const MARK_SHIFT_STEP = 0.1;
+  function shiftMarkTime(index, delta){
+    if (index === -1) return;
+    marks[index].time = clampToMainWindow(marks[index].time + delta);
+    marks.sort((a, b) => a.time - b.time);
+    renderMarksList();
+    renderMarkTicks();
+    updatePreviewStatus();
+    saveLocal();
+  }
+  document.getElementById('markShiftLeftBtn').addEventListener('click', () => shiftMarkTime(findMarkIndexForAyah(previewAyah), -MARK_SHIFT_STEP));
+  document.getElementById('markShiftRightBtn').addEventListener('click', () => shiftMarkTime(findMarkIndexForAyah(previewAyah), MARK_SHIFT_STEP));
+
+  // Playback speed -- slowing down makes it much easier to release/pause
+  // right on a precise word or syllable when hunting for an ayah boundary.
+  function setPlaybackRate(rate){
+    if (audioEl) audioEl.playbackRate = rate;
+    document.querySelectorAll('#speedRow .speed-btn').forEach(b => {
+      b.classList.toggle('active', parseFloat(b.dataset.speed) === rate);
+    });
+  }
+  document.getElementById('speedRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.speed-btn');
+    if (!btn) return;
+    setPlaybackRate(parseFloat(btn.dataset.speed));
+  });
+
+  function onPlayStateChange(){
+    isPlaying = !audioEl.paused;
+    document.getElementById('playIcon').innerHTML = isPlaying
+      ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>'
+      : '<path d="M8 5v14l11-7z"/>';
+    if (isPlaying) tick();
+    else if (rafId) cancelAnimationFrame(rafId);
+  }
+
+  document.getElementById('track').addEventListener('click', (e) => {
+    if (dragMarkIndex !== null) return;
+    const rect = document.getElementById('trackInner').getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    // Clicking in the masked-out (trimmed-off) part of the waveform should
+    // still land the playhead at the nearest edge of the trimmed window,
+    // not seek into audio that playback will never actually reach.
+    const t = clampToMainWindow(pct * rawDuration);
+    if (audioEl) audioEl.currentTime = t;
+    setPlayhead(t);
+  });
+
+  // Plays from `start` on `el` (defaults to the main recording's audio
+  // element), auto-pausing at `end` (if given and short of that element's
+  // own full duration) so "play this ayah" previews just that one ayah's
+  // window instead of running on into the next one.
+  function playRange(start, end, el, elDuration){
+    el = el || audioEl;
+    elDuration = elDuration != null ? elDuration : rawDuration;
+    if (!el) return;
+    el.currentTime = start;
+    if (end != null && end < elDuration - 0.02){
+      const onTime = () => {
+        if (el.currentTime >= end - 0.02) el.pause();
+      };
+      el.addEventListener('timeupdate', onTime);
+      el.addEventListener('pause', () => el.removeEventListener('timeupdate', onTime), { once: true });
+    }
+    el.play();
+  }
+
+  // A mark's audio runs up to the next mark -- or, for the last mark, up to
+  // the whole recording's trimmed end (mainTrimEnd), not its raw end.
+  function markEndTime(index){
+    if (index < marks.length - 1) return marks[index + 1].time;
+    return mainTrimEnd != null ? mainTrimEnd : rawDuration;
+  }
+
+  // ============ MARKS ============
+  function findMarkIndexForAyah(ayah){
+    return marks.findIndex(m => m.ayah === ayah);
+  }
+
+  function renderMarksList(){
+    const listEl = document.getElementById('marksList');
+    document.getElementById('marksSection').style.display = marks.length ? '' : 'none';
+    if (!marks.length){
+      listEl.innerHTML = '';
+      document.getElementById('conflictHint').style.display = 'none';
+      return;
+    }
+    const counts = {};
+    marks.forEach(m => { counts[m.ayah] = (counts[m.ayah] || 0) + 1; });
+    let anyConflict = false;
+    listEl.innerHTML = marks.map((m, i) => {
+      const conflict = counts[m.ayah] > 1;
+      if (conflict) anyConflict = true;
+      return `
+        <div class="mark-row ${conflict ? 'conflict' : ''}" data-index="${i}">
+          <button class="mark-time-btn" data-action="seek">${fmtTime(m.time)}</button>
+          <span class="mark-ayah-label">Ayah</span>
+          <input type="number" class="mark-ayah-input" data-action="ayah" value="${m.ayah}" min="1">
+          <div class="mark-row-spacer"></div>
+          <button class="mark-shift-btn" data-action="shift-left" aria-label="Shift mark earlier">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <button class="mark-shift-btn" data-action="shift-right" aria-label="Shift mark later">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button class="mark-del-btn" data-action="delete" aria-label="Remove mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('conflictHint').style.display = anyConflict ? '' : 'none';
+    updatePreviewStatus();
+  }
+
+  document.getElementById('marksList').addEventListener('click', (e) => {
+    const row = e.target.closest('.mark-row');
+    if (!row) return;
+    const i = Number(row.dataset.index);
+    const action = e.target.closest('[data-action]');
+    if (!action) return;
+    if (action.dataset.action === 'delete'){
+      marks.splice(i, 1);
+      renderMarksList();
+      renderMarkTicks();
+      saveLocal();
+      updateContinueBtn();
+    } else if (action.dataset.action === 'seek'){
+      playRange(marks[i].time, markEndTime(i));
+    } else if (action.dataset.action === 'shift-left'){
+      shiftMarkTime(i, -MARK_SHIFT_STEP);
+    } else if (action.dataset.action === 'shift-right'){
+      shiftMarkTime(i, MARK_SHIFT_STEP);
+    }
+  });
+
+  document.getElementById('clearMarksBtn').addEventListener('click', () => {
+    if (!marks.length) return;
+    const ok = confirm('Remove all ayah marks? This can\'t be undone.');
+    if (!ok) return;
+    marks = [];
+    renderMarksList();
+    renderMarkTicks();
+    saveLocal();
+    updateContinueBtn();
+    updatePreviewStatus();
+  });
+  document.getElementById('marksList').addEventListener('change', (e) => {
+    const input = e.target.closest('[data-action="ayah"]');
+    if (!input) return;
+    const row = input.closest('.mark-row');
+    const i = Number(row.dataset.index);
+    let v = parseInt(input.value, 10);
+    if (isNaN(v) || v < 1) v = marks[i].ayah;
+    marks[i].ayah = v;
+    renderMarksList();
+    saveLocal();
+    updateContinueBtn();
+  });
+
+  // ============ AYAH PREVIEW ============
+  function updatePreviewStatus(){
+    const btnPlay = document.getElementById('playHereBtn');
+    const statusEl = document.getElementById('previewStatus');
+    const idx = findMarkIndexForAyah(previewAyah);
+    if (idx !== -1){
+      statusEl.textContent = `Marked at ${fmtTime(marks[idx].time)}`;
+      statusEl.classList.add('marked');
+      btnPlay.disabled = !audioEl;
+    } else {
+      statusEl.textContent = 'Not marked yet';
+      statusEl.classList.remove('marked');
+      btnPlay.disabled = true;
+    }
+    document.getElementById('markShiftLeftBtn').disabled = idx === -1;
+    document.getElementById('markShiftRightBtn').disabled = idx === -1;
+    document.getElementById('previewPrev').disabled = previewAyah <= session.ayahStart;
+    document.getElementById('previewNext').disabled = previewAyah >= session.ayahEnd;
+    document.getElementById('verseCardLabel').textContent = `Preview · Ayah ${previewAyah}`;
+    loadPrevAyahPreview();
+  }
+
+  // Translation is hidden by default in the recording editor's ayah
+  // preview (only the Arabic matters for marking ayah starts) -- this just
+  // toggles visibility of the already-loaded text, it doesn't refetch.
+  let translationVisible = false;
+  function setTranslationVisible(visible){
+    translationVisible = visible;
+    document.getElementById('verseEn').style.display = visible ? '' : 'none';
+    const btn = document.getElementById('translationToggleBtn');
+    btn.classList.toggle('active', visible);
+    btn.setAttribute('aria-label', visible ? 'Hide translation' : 'Show translation');
+    document.getElementById('translationToggleIcon').innerHTML = visible
+      ? '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>'
+      : '<path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.8 21.8 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.77 21.77 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  }
+  document.getElementById('translationToggleBtn').addEventListener('click', () => setTranslationVisible(!translationVisible));
+
+  async function loadPreviewText(){
+    const verseEn = document.getElementById('verseEn');
+    const verseAr = document.getElementById('verseAr');
+    updatePreviewStatus();
+    verseEn.textContent = 'Loading…';
+    const requestId = ++previewTextRequestId;
+    const requestedAyah = previewAyah;
+    try {
+      const res = await fetch(`/api/timing/text?surah=${session.surah}&ayah=${requestedAyah}&translation=${encodeURIComponent(session.translation || 'en.sahih')}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'fetch failed');
+      if (requestId !== previewTextRequestId) return; // a newer call already took over
+      verseAr.textContent = data.arabic;
+      verseEn.textContent = data.translation;
+    } catch (e) {
+      if (requestId !== previewTextRequestId) return;
+      verseAr.textContent = '';
+      verseEn.textContent = `Ayah ${requestedAyah}`;
+    }
+  }
+
+  document.getElementById('previewPrev').addEventListener('click', () => {
+    if (previewAyah > session.ayahStart){ previewAyah--; loadPreviewText(); }
+  });
+  document.getElementById('previewNext').addEventListener('click', () => {
+    if (previewAyah < session.ayahEnd){ previewAyah++; loadPreviewText(); }
+  });
+
+  document.getElementById('markHereBtn').addEventListener('click', () => {
+    if (!audioEl) return;
+    const t = clampToMainWindow(audioEl.currentTime);
+    const idx = findMarkIndexForAyah(previewAyah);
+    if (idx !== -1) marks[idx].time = t;
+    else marks.push({ time: t, ayah: previewAyah });
+    marks.sort((a, b) => a.time - b.time);
+    renderMarksList();
+    renderMarkTicks();
+    saveLocal();
+    updateContinueBtn();
+    // advance to the next ayah for a fast, sequential marking pass
+    if (previewAyah < session.ayahEnd){ previewAyah++; loadPreviewText(); }
+    else updatePreviewStatus();
+  });
+
+  document.getElementById('playHereBtn').addEventListener('click', () => {
+    const idx = findMarkIndexForAyah(previewAyah);
+    if (idx === -1) return;
+    playRange(marks[idx].time, markEndTime(idx));
+  });
+
+  function updateContinueBtn(){
+    const btn = document.getElementById('continueBtn');
+    const hint = document.getElementById('continueHint');
+    const counts = {};
+    marks.forEach(m => { counts[m.ayah] = (counts[m.ayah] || 0) + 1; });
+    const hasConflict = Object.values(counts).some(c => c > 1);
+    const ok = (marks.length > 0 || !!basmalaAudioInfo) && !hasConflict;
+    btn.disabled = !ok;
+    if (hasConflict){
+      hint.textContent = 'Fix the duplicate ayah marks above';
+    } else if (!marks.length && !basmalaAudioInfo){
+      hint.textContent = 'Add at least one mark, or a Basmala intro, to continue';
+    } else {
+      const parts = [];
+      if (marks.length) parts.push(`${marks.length} ayah${marks.length === 1 ? '' : 's'} from this recording`);
+      if (basmalaAudioInfo) parts.push('a Basmala intro');
+      hint.textContent = `Using ${parts.join(' + ')}`;
+    }
+  }
+
+  // ============ UPLOAD ============
+  document.getElementById('dropzone').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('replaceBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    if (!audioEl || !rangeAudioInfo) return;
+    const a = document.createElement('a');
+    a.href = audioEl.src;
+    a.download = rangeAudioInfo.filename || 'audio';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+  document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadFile(file);
+  });
+
+  function showUploadError(msg){
+    const el = document.getElementById('uploadError');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+  }
+
+  async function uploadFile(file){
+    showUploadError('');
+    const dz = document.getElementById('dropzone');
+    dz.classList.add('uploading');
+    try {
+      const fd = new FormData();
+      fd.append('audio', file);
+      fd.append('sessionId', sessionId);
+      const res = await fetch('/api/timing/upload-range-audio', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed.');
+      await applyRangeAudioResult(data);
+    } catch (err) {
+      showUploadError(err.message || String(err));
+    } finally {
+      dz.classList.remove('uploading');
+    }
+  }
+
+  // Shared "we now have a new range recording" step for both a direct file
+  // upload and a fetched-from-URL download -- resets marks/trim exactly like
+  // a fresh upload does, since neither the old recording's marks nor its
+  // trim window mean anything against a different underlying file.
+  async function applyRangeAudioResult(data, fromUrl){
+    rangeAudioInfo = { filename: data.filename, duration: data.duration };
+    rangeAudioFromUrl = !!fromUrl;
+    marks = [];
+    mainTrimStart = null;
+    mainTrimEnd = null;
+    previewAyah = session.ayahStart || 1;
+    saveLocal();
+    await loadRecording();
+  }
+
+  // ============ FETCH FROM URL (Facebook Reels/videos, Instagram, TikTok, YouTube, ...) ============
+  document.getElementById('urlToggleBtn').addEventListener('click', () => {
+    const row = document.getElementById('urlRow');
+    const opening = row.style.display === 'none';
+    row.style.display = opening ? 'flex' : 'none';
+    if (opening) document.getElementById('urlInput').focus();
+  });
+
+  document.getElementById('urlFetchBtn').addEventListener('click', async () => {
+    const input = document.getElementById('urlInput');
+    const url = input.value.trim();
+    if (!url) return;
+    showUploadError('');
+    const btn = document.getElementById('urlFetchBtn');
+    const dz = document.getElementById('dropzone');
+    btn.disabled = true;
+    dz.classList.add('uploading');
+    const prevLabel = btn.textContent;
+    btn.textContent = 'Fetching…';
+    try {
+      const res = await fetch('/api/timing/download-range-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Download failed.');
+      await applyRangeAudioResult(data, true);
+      input.value = '';
+      document.getElementById('urlRow').style.display = 'none';
+    } catch (err) {
+      showUploadError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+      dz.classList.remove('uploading');
+    }
+  });
+
+  async function loadRecording(){
+    if (!rangeAudioInfo) return;
+    const url = `/api/timing/audio?surah=${session.surah}&ayah=${session.ayahStart}` +
+      `&reciter=${encodeURIComponent(session.reciter || 'yasser_al_dossary')}` +
+      `&sessionId=${encodeURIComponent(sessionId)}&customFilename=${encodeURIComponent(rangeAudioInfo.filename)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Couldn't load the recording.");
+    const blob = await res.blob();
+
+    if (audioEl){ audioEl.pause(); URL.revokeObjectURL(audioEl.src); }
+    audioEl = new Audio(URL.createObjectURL(blob));
+    audioEl.addEventListener('play', onPlayStateChange);
+    audioEl.addEventListener('pause', onPlayStateChange);
+    audioEl.addEventListener('ended', onPlayStateChange);
+    setPlaybackRate(1);
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioBuffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+    rawDuration = audioBuffer.duration;
+
+    document.getElementById('dropzone').style.display = 'none';
+    document.getElementById('urlToggleBtn').style.display = 'none';
+    document.getElementById('urlRow').style.display = 'none';
+    document.getElementById('recCard').style.display = '';
+    document.getElementById('recName').textContent = rangeAudioInfo.filename;
+    document.getElementById('detectBtn').style.display = rangeAudioFromUrl ? '' : 'none';
+    document.getElementById('downloadBtn').style.display = rangeAudioFromUrl ? '' : 'none';
+    showDetectStatus('');
+    document.getElementById('autoMarkBtn').style.display = '';
+    showAutoMarkStatus('');
+    document.getElementById('totalTime').textContent = fmtTime(rawDuration);
+    applyMainZoom(0);
+    renderTrackMask();
+    renderMarkTicks();
+    setPlayhead(0);
+    renderMarksList();
+    updateContinueBtn();
+    await loadPreviewText();
+  }
+
+  // ============ DETECT SURAH & AYAH (URL-fetched recordings only) ============
+  function showDetectStatus(msg, cls){
+    const el = document.getElementById('detectStatus');
+    el.textContent = msg || '';
+    el.className = 'detect-status' + (cls ? ' ' + cls : '');
+    el.style.display = msg ? '' : 'none';
+  }
+
+  document.getElementById('detectBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('detectBtn');
+    const prevHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Detecting… this can take a minute';
+    showDetectStatus('');
+    try {
+      const res = await fetch('/api/timing/detect-range-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Detection failed.');
+      if (data.error){ showDetectStatus(data.error, 'error'); return; }
+
+      const surahInfo = (window.SURAHS || []).find(s => s.n === data.surah);
+      if (!surahInfo) throw new Error('Detected an unknown surah number.');
+
+      // Marks are keyed by ayah number within THIS surah -- if the detected
+      // surah differs from the one currently selected, any existing marks
+      // are meaningless against it, same as the manual surah picker.
+      if (marks.length && data.surah !== session.surah){
+        const ok = confirm(
+          `Detected ${surahInfo.en}, ayahs ${data.ayahStart}-${data.ayahEnd}. ` +
+          `Switching surahs will clear your existing ayah marks. Continue?`
+        );
+        if (!ok) return;
+        marks = [];
+      }
+
+      session.surah = data.surah;
+      session.ayahStart = data.ayahStart;
+      session.ayahEnd = data.ayahEnd;
+      updateSurahDisplay();
+      updateRangeDisplay();
+      saveSessionState();
+      previewAyah = session.ayahStart;
+      await loadPreviewText();
+      renderMarksList();
+      renderMarkTicks();
+      updateContinueBtn();
+      saveLocal();
+
+      const pct = Math.round(data.confidence * 100);
+      showDetectStatus(`Detected ${surahInfo.en}, ayahs ${data.ayahStart}-${data.ayahEnd} (${pct}% match) — check it before continuing.`, 'success');
+    } catch (err) {
+      showDetectStatus(err.message || String(err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = prevHtml;
+    }
+  });
+
+  // ============ AUTO-MARK AYAH STARTS (whole-range recording) ============
+  // Transcribes the range recording once with faster-whisper and
+  // fuzzy-matches every ayah's own words in the selected range against it
+  // (quran_lib/recognize.py's align_ayah_starts()) to guess where each
+  // ayah BEGINS -- i.e. exactly what "Mark start here" records by hand,
+  // just for every ayah in the range at once. Replaces the whole mark
+  // list with one mark per ayah in [ayahStart, ayahEnd], same all-at-once
+  // replacement runAutoAlign() does in static/timing.html.
+  function showAutoMarkStatus(msg, cls){
+    const el = document.getElementById('autoMarkStatus');
+    el.textContent = msg || '';
+    el.className = 'detect-status' + (cls ? ' ' + cls : '');
+    el.style.display = msg ? '' : 'none';
+  }
+
+  document.getElementById('autoMarkBtn').addEventListener('click', async () => {
+    if (!rangeAudioInfo) return;
+    if (marks.length){
+      const ok = confirm('This will replace your existing ayah marks with auto-detected ones. Continue?');
+      if (!ok) return;
+    }
+    const btn = document.getElementById('autoMarkBtn');
+    const prevHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Marking… this can take a minute';
+    showAutoMarkStatus('');
+    try {
+      const ayahNumbers = [];
+      for (let n = session.ayahStart; n <= session.ayahEnd; n++) ayahNumbers.push(n);
+
+      const wordLists = await Promise.all(ayahNumbers.map(async (n) => {
+        const res = await fetch(`/api/timing/text?surah=${session.surah}&ayah=${n}&translation=${encodeURIComponent(session.translation || 'en.sahih')}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Couldn't fetch ayah ${n}'s text.`);
+        return data.arabic.split(' ').filter(Boolean);
+      }));
+
+      const res = await fetch('/api/timing/detect-ayah-starts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, ayahs: wordLists }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't auto-mark ayah starts.");
+
+      marks = ayahNumbers.map((n, i) => ({ ayah: n, time: clampToMainWindow(data.times[i]) }));
+      marks.sort((a, b) => a.time - b.time);
+      renderMarksList();
+      renderMarkTicks();
+      saveLocal();
+      updateContinueBtn();
+      previewAyah = session.ayahStart;
+      await loadPreviewText();
+
+      showAutoMarkStatus(`Marked ${ayahNumbers.length} ayah${ayahNumbers.length === 1 ? '' : 's'} — check each one before continuing.`, 'success');
+    } catch (err) {
+      showAutoMarkStatus(err.message || String(err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = prevHtml;
+    }
+  });
+
+  document.getElementById('editMainBtn').addEventListener('click', () => openCropDialog('main'));
+
+  // Rewinds playback to the trimmed start (not the raw file's start) --
+  // trimming itself is only ever changed from the crop dialog now.
+  document.getElementById('resetPlayheadBtn').addEventListener('click', () => {
+    if (!audioEl) return;
+    const start = mainTrimStart != null ? mainTrimStart : 0;
+    audioEl.pause();
+    audioEl.currentTime = start;
+    setPlayhead(start);
+  });
+
+  document.getElementById('removeBtn').addEventListener('click', async () => {
+    if (audioEl){ audioEl.pause(); URL.revokeObjectURL(audioEl.src); audioEl = null; }
+    await fetch(`/api/timing/upload-range-audio?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' }).catch(() => {});
+    rangeAudioInfo = null;
+    rangeAudioFromUrl = false;
+    marks = [];
+    mainTrimStart = null;
+    mainTrimEnd = null;
+    audioBuffer = null;
+    previewAyah = session.ayahStart || 1;
+    saveLocal();
+    document.getElementById('dropzone').style.display = '';
+    document.getElementById('urlToggleBtn').style.display = '';
+    document.getElementById('recCard').style.display = 'none';
+    document.getElementById('detectBtn').style.display = 'none';
+    showDetectStatus('');
+    document.getElementById('autoMarkBtn').style.display = 'none';
+    showAutoMarkStatus('');
+    renderMarksList();
+    updateContinueBtn();
+  });
+
+  // ============ BASMALA INTRO (separate upload, stored as ayah "0") ============
+  document.getElementById('basmalaDropzone').addEventListener('click', () => document.getElementById('basmalaFileInput').click());
+  document.getElementById('basmalaReplaceBtn').addEventListener('click', () => document.getElementById('basmalaFileInput').click());
+  document.getElementById('basmalaFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadBasmalaFile(file);
+  });
+
+  function showBasmalaUploadError(msg){
+    const el = document.getElementById('basmalaUploadError');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+  }
+
+  async function uploadBasmalaFile(file){
+    showBasmalaUploadError('');
+    const dz = document.getElementById('basmalaDropzone');
+    dz.classList.add('uploading');
+    try {
+      const fd = new FormData();
+      fd.append('audio', file);
+      fd.append('sessionId', sessionId);
+      fd.append('ayah', '0');
+      const res = await fetch('/api/timing/upload-audio', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed.');
+      basmalaAudioInfo = { filename: data.filename, duration: data.duration };
+      basmalaTrimStart = null;
+      basmalaTrimEnd = null;
+      saveLocal();
+      await loadBasmalaRecording();
+    } catch (err) {
+      showBasmalaUploadError(err.message || String(err));
+    } finally {
+      dz.classList.remove('uploading');
+    }
+  }
+
+  async function loadBasmalaRecording(){
+    if (!basmalaAudioInfo) return;
+    const url = `/api/timing/audio?surah=${session.surah}&ayah=0` +
+      `&reciter=${encodeURIComponent(session.reciter || 'yasser_al_dossary')}` +
+      `&sessionId=${encodeURIComponent(sessionId)}&customFilename=${encodeURIComponent(basmalaAudioInfo.filename)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Couldn't load the Basmala recording.");
+    const blob = await res.blob();
+
+    if (basmalaAudioEl){ basmalaAudioEl.pause(); URL.revokeObjectURL(basmalaAudioEl.src); }
+    basmalaAudioEl = new Audio(URL.createObjectURL(blob));
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    basmalaAudioBuffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+
+    document.getElementById('basmalaDropzone').style.display = 'none';
+    document.getElementById('basmalaRecCard').style.display = '';
+    document.getElementById('basmalaRecName').textContent = basmalaAudioInfo.filename;
+    renderBasmalaStatus();
+    updateContinueBtn();
+  }
+
+  function renderBasmalaStatus(){
+    const el = document.getElementById('basmalaStatus');
+    const trimmed = basmalaTrimStart != null || basmalaTrimEnd != null;
+    const start = basmalaTrimStart != null ? basmalaTrimStart : 0;
+    const end = basmalaTrimEnd != null ? basmalaTrimEnd : basmalaAudioBuffer.duration;
+    el.textContent = trimmed
+      ? `Trimmed to ${fmtTime(start)}–${fmtTime(end)} of ${fmtTime(basmalaAudioBuffer.duration)}`
+      : `Full clip, ${fmtTime(basmalaAudioBuffer.duration)}`;
+    el.classList.toggle('trimmed', trimmed);
+  }
+
+  document.getElementById('basmalaEditBtn').addEventListener('click', () => openCropDialog('basmala'));
+
+  document.getElementById('basmalaRemoveBtn').addEventListener('click', async () => {
+    if (basmalaAudioEl){ basmalaAudioEl.pause(); URL.revokeObjectURL(basmalaAudioEl.src); basmalaAudioEl = null; }
+    await fetch(`/api/timing/upload-audio?sessionId=${encodeURIComponent(sessionId)}&ayah=0`, { method: 'DELETE' }).catch(() => {});
+    basmalaAudioInfo = null;
+    basmalaTrimStart = null;
+    basmalaTrimEnd = null;
+    basmalaAudioBuffer = null;
+    saveLocal();
+    document.getElementById('basmalaDropzone').style.display = '';
+    document.getElementById('basmalaRecCard').style.display = 'none';
+    updateContinueBtn();
+  });
+
+  // ============ TRIM/CROP DIALOG (shared: main recording + Basmala clip) ============
+  const CROP_MIN_SEGMENT = 0.15;
+  let cropCtx = null; // { kind: 'main'|'basmala', buffer, windowStart, windowEnd, trimStart, trimEnd }
+
+  // Playback inside the trim editor runs on its own <audio> element (a second
+  // reader of the same already-uploaded blob URL) instead of the main
+  // recording's/basmala's shared element. That keeps the editor's play
+  // button, icon, and moving position indicator fully self-contained --
+  // scrubbing or previewing here no longer flips the transport play button
+  // or drags the playhead out on the main screen.
+  let cropAudioEl = null;
+  let cropRafId = null;
+  let cropPlayheadDragging = false;
+
+  function cropTick(){
+    if (!cropAudioEl || cropAudioEl.paused) return;
+    renderCropPlayhead(cropAudioEl.currentTime);
+    cropRafId = requestAnimationFrame(cropTick);
+  }
+
+  function onCropPlayStateChange(){
+    const playing = !!cropAudioEl && !cropAudioEl.paused;
+    document.getElementById('cropPlayIcon').innerHTML = playing
+      ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>'
+      : '<path d="M8 5v14l11-7z"/>';
+    if (playing) cropTick();
+    else if (cropRafId) cancelAnimationFrame(cropRafId);
+  }
+
+  function renderCropPlayhead(t){
+    document.getElementById('cropPlayhead').style.left = cropWindowPct(t) + '%';
+  }
+
+  function teardownCropAudio(){
+    if (cropRafId) cancelAnimationFrame(cropRafId);
+    if (cropAudioEl){
+      cropAudioEl.pause();
+      cropAudioEl.removeEventListener('play', onCropPlayStateChange);
+      cropAudioEl.removeEventListener('pause', onCropPlayStateChange);
+      cropAudioEl.removeEventListener('ended', onCropPlayStateChange);
+      cropAudioEl = null;
+    }
+  }
+
+  function openCropDialog(kind){
+    let buffer, windowStart, windowEnd, trimStart, trimEnd, title, srcEl;
+    if (kind === 'main'){
+      buffer = audioBuffer;
+      windowStart = 0;
+      windowEnd = rawDuration;
+      trimStart = mainTrimStart != null ? mainTrimStart : windowStart;
+      trimEnd = mainTrimEnd != null ? mainTrimEnd : windowEnd;
+      title = 'Trim recording';
+      srcEl = audioEl;
+    } else {
+      buffer = basmalaAudioBuffer;
+      windowStart = 0;
+      windowEnd = basmalaAudioBuffer ? basmalaAudioBuffer.duration : 0;
+      trimStart = basmalaTrimStart != null ? basmalaTrimStart : windowStart;
+      trimEnd = basmalaTrimEnd != null ? basmalaTrimEnd : windowEnd;
+      title = 'Trim Basmala audio';
+      srcEl = basmalaAudioEl;
+    }
+    if (!buffer) return;
+    cropCtx = { kind, buffer, windowStart, windowEnd, trimStart, trimEnd };
+    teardownCropAudio();
+    if (srcEl){
+      cropAudioEl = new Audio(srcEl.src);
+      cropAudioEl.addEventListener('play', onCropPlayStateChange);
+      cropAudioEl.addEventListener('pause', onCropPlayStateChange);
+      cropAudioEl.addEventListener('ended', onCropPlayStateChange);
+    }
+    document.getElementById('cropPlayIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+    document.getElementById('cropTitle').textContent = title;
+    document.getElementById('cropStepInput').value = '0.1';
+    document.getElementById('cropTrack').scrollLeft = 0;
+    applyCropZoom(0);
+    renderCropHandles();
+    renderCropPlayhead(trimStart);
+    document.getElementById('cropOverlay').classList.add('open');
+  }
+
+  function closeCropDialog(){
+    document.getElementById('cropOverlay').classList.remove('open');
+    teardownCropAudio();
+    cropCtx = null;
+  }
+
+  // Tapping the dimmed backdrop (outside the sheet itself) dismisses the
+  // trim editor, same as hitting Cancel.
+  document.getElementById('cropOverlay').addEventListener('pointerdown', (e) => {
+    if (e.target.id === 'cropOverlay') closeCropDialog();
+  });
+
+  function renderCropBars(){
+    renderWaveformBars(
+      cropCtx.buffer, ZOOM_LEVELS[cropZoomIdx], document.getElementById('cropBars'), 'crop-bar',
+      cropCtx.windowStart, cropCtx.windowEnd,
+    );
+  }
+
+  // Scrolls the trim dialog's track so `tWindowRelative` (seconds relative
+  // to cropCtx.windowStart) sits centered in the viewport.
+  function scrollCropTrackToTime(tWindowRelative){
+    const track = document.getElementById('cropTrack');
+    const inner = document.getElementById('cropTrackInner');
+    const span = cropCtx.windowEnd - cropCtx.windowStart;
+    if (span <= 0) return;
+    const targetLeft = (tWindowRelative / span) * inner.clientWidth - track.clientWidth / 2;
+    track.scrollLeft = Math.max(0, targetLeft);
+  }
+
+  // Nudges the track just enough to bring `tWindowRelative` back into view,
+  // instead of recentering -- keeps repeated nudge-button taps from
+  // constantly jumping the view around.
+  function ensureCropTimeVisible(tWindowRelative){
+    const track = document.getElementById('cropTrack');
+    const inner = document.getElementById('cropTrackInner');
+    const span = cropCtx.windowEnd - cropCtx.windowStart;
+    if (span <= 0) return;
+    const px = (tWindowRelative / span) * inner.clientWidth;
+    const margin = 24;
+    if (px < track.scrollLeft + margin) track.scrollLeft = Math.max(0, px - margin);
+    else if (px > track.scrollLeft + track.clientWidth - margin) track.scrollLeft = px - track.clientWidth + margin;
+  }
+
+  function applyCropZoom(idx){
+    cropZoomIdx = Math.max(0, Math.min(idx, ZOOM_LEVELS.length - 1));
+    const zoom = ZOOM_LEVELS[cropZoomIdx];
+    document.getElementById('cropTrackInner').style.width = (zoom * 100) + '%';
+    document.getElementById('cropZoomLabel').textContent = zoom + '×';
+    document.getElementById('cropZoomOut').disabled = cropZoomIdx === 0;
+    document.getElementById('cropZoomIn').disabled = cropZoomIdx === ZOOM_LEVELS.length - 1;
+    renderCropBars();
+    if (cropCtx) scrollCropTrackToTime(((cropCtx.trimStart + cropCtx.trimEnd) / 2) - cropCtx.windowStart);
+  }
+  document.getElementById('cropZoomOut').addEventListener('click', () => applyCropZoom(cropZoomIdx - 1));
+  document.getElementById('cropZoomIn').addEventListener('click', () => applyCropZoom(cropZoomIdx + 1));
+
+  function cropWindowPct(t){
+    const span = cropCtx.windowEnd - cropCtx.windowStart;
+    return span > 0 ? (t - cropCtx.windowStart) / span * 100 : 0;
+  }
+
+  function renderCropHandles(){
+    const startPct = cropWindowPct(cropCtx.trimStart);
+    const endPct = cropWindowPct(cropCtx.trimEnd);
+    document.getElementById('cropHandleStart').style.left = startPct + '%';
+    document.getElementById('cropHandleEnd').style.left = endPct + '%';
+    const maskStart = document.getElementById('cropMaskStart');
+    maskStart.style.left = '0'; maskStart.style.width = startPct + '%';
+    const maskEnd = document.getElementById('cropMaskEnd');
+    maskEnd.style.left = endPct + '%'; maskEnd.style.width = (100 - endPct) + '%';
+    document.getElementById('cropStartLabel').textContent = fmtTime(cropCtx.trimStart - cropCtx.windowStart);
+    document.getElementById('cropEndLabel').textContent = fmtTime(cropCtx.trimEnd - cropCtx.windowStart);
+  }
+
+  function attachCropDrag(handleEl, which){
+    handleEl.addEventListener('pointerdown', (e) => {
+      handleEl.setPointerCapture(e.pointerId);
+      handleEl.dataset.dragging = '1';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+      if (!cropCtx || handleEl.dataset.dragging !== '1') return;
+      const rect = document.getElementById('cropTrackInner').getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const t = cropCtx.windowStart + pct * (cropCtx.windowEnd - cropCtx.windowStart);
+      if (which === 'start'){
+        cropCtx.trimStart = Math.max(cropCtx.windowStart, Math.min(t, cropCtx.trimEnd - CROP_MIN_SEGMENT));
+      } else {
+        cropCtx.trimEnd = Math.min(cropCtx.windowEnd, Math.max(t, cropCtx.trimStart + CROP_MIN_SEGMENT));
+      }
+      renderCropHandles();
+    });
+    handleEl.addEventListener('pointerup', () => { handleEl.dataset.dragging = '0'; });
+  }
+  attachCropDrag(document.getElementById('cropHandleStart'), 'start');
+  attachCropDrag(document.getElementById('cropHandleEnd'), 'end');
+
+  // The position indicator doubles as a scrubber: drag it anywhere along
+  // the window to seek, whether or not playback is currently running.
+  const cropPlayheadEl = document.getElementById('cropPlayhead');
+  function seekCropTo(t){
+    if (!cropCtx) return;
+    const clamped = Math.max(cropCtx.windowStart, Math.min(t, cropCtx.windowEnd));
+    if (cropAudioEl) cropAudioEl.currentTime = clamped;
+    renderCropPlayhead(clamped);
+  }
+  cropPlayheadEl.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    cropPlayheadEl.setPointerCapture(e.pointerId);
+    cropPlayheadDragging = true;
+  });
+  cropPlayheadEl.addEventListener('pointermove', (e) => {
+    if (!cropCtx || !cropPlayheadDragging) return;
+    const rect = document.getElementById('cropTrackInner').getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    seekCropTo(cropCtx.windowStart + pct * (cropCtx.windowEnd - cropCtx.windowStart));
+  });
+  cropPlayheadEl.addEventListener('pointerup', () => { cropPlayheadDragging = false; });
+
+  // Tapping anywhere on the waveform itself jumps the position indicator
+  // straight there, same as the main track's click-to-seek -- but ignore
+  // taps on the handles/playhead so their own drag handling isn't disturbed.
+  document.getElementById('cropTrack').addEventListener('click', (e) => {
+    if (!cropCtx) return;
+    if (e.target.closest('.crop-handle') || e.target.closest('.crop-playhead')) return;
+    const rect = document.getElementById('cropTrackInner').getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    seekCropTo(cropCtx.windowStart + pct * (cropCtx.windowEnd - cropCtx.windowStart));
+  });
+
+  // Nudges the start or end handle by the configured step size, for
+  // precise adjustments that dragging (especially at low zoom) can't
+  // reliably hit.
+  function nudgeCropHandle(which, dir){
+    if (!cropCtx) return;
+    const step = parseFloat(document.getElementById('cropStepInput').value);
+    const delta = dir * (isFinite(step) && step > 0 ? step : 0.1);
+    if (which === 'start'){
+      cropCtx.trimStart = Math.max(cropCtx.windowStart, Math.min(cropCtx.trimStart + delta, cropCtx.trimEnd - CROP_MIN_SEGMENT));
+      ensureCropTimeVisible(cropCtx.trimStart - cropCtx.windowStart);
+    } else {
+      cropCtx.trimEnd = Math.min(cropCtx.windowEnd, Math.max(cropCtx.trimEnd + delta, cropCtx.trimStart + CROP_MIN_SEGMENT));
+      ensureCropTimeVisible(cropCtx.trimEnd - cropCtx.windowStart);
+    }
+    renderCropHandles();
+  }
+  document.getElementById('cropNudgeStartMinus').addEventListener('click', () => nudgeCropHandle('start', -1));
+  document.getElementById('cropNudgeStartPlus').addEventListener('click', () => nudgeCropHandle('start', 1));
+  document.getElementById('cropNudgeEndMinus').addEventListener('click', () => nudgeCropHandle('end', -1));
+  document.getElementById('cropNudgeEndPlus').addEventListener('click', () => nudgeCropHandle('end', 1));
+
+  // The rewind-style button always jumps to and plays from the trimmed
+  // start, regardless of where the position indicator currently sits.
+  document.getElementById('cropPreviewBtn').addEventListener('click', () => {
+    if (!cropCtx || !cropAudioEl) return;
+    renderCropPlayhead(cropCtx.trimStart);
+    playRange(cropCtx.trimStart, cropCtx.trimEnd, cropAudioEl, cropCtx.windowEnd);
+  });
+
+  // The circular play button toggles: pause wherever it currently is, or
+  // resume playback from wherever the position indicator is sitting (not
+  // necessarily the trimmed start) -- it never touches the main
+  // recording's/basmala's own transport.
+  document.getElementById('cropPlayBtn').addEventListener('click', () => {
+    if (!cropCtx || !cropAudioEl) return;
+    if (!cropAudioEl.paused){
+      cropAudioEl.pause();
+    } else {
+      const start = cropAudioEl.currentTime;
+      const end = start < cropCtx.trimEnd - 0.02 ? cropCtx.trimEnd : cropCtx.windowEnd;
+      playRange(start, end, cropAudioEl, cropCtx.windowEnd);
+    }
+  });
+
+  document.getElementById('cropResetBtn').addEventListener('click', () => {
+    if (!cropCtx) return;
+    cropCtx.trimStart = cropCtx.windowStart;
+    cropCtx.trimEnd = cropCtx.windowEnd;
+    renderCropHandles();
+  });
+
+  document.getElementById('cropCancelBtn').addEventListener('click', closeCropDialog);
+
+  document.getElementById('cropApplyBtn').addEventListener('click', () => {
+    if (!cropCtx) return;
+    const isFullWindow = cropCtx.trimStart <= cropCtx.windowStart + 0.02 && cropCtx.trimEnd >= cropCtx.windowEnd - 0.02;
+    if (cropCtx.kind === 'main'){
+      mainTrimStart = isFullWindow ? null : cropCtx.trimStart;
+      mainTrimEnd = isFullWindow ? null : cropCtx.trimEnd;
+      // The usable window just changed -- pull any mark that's now outside
+      // it back inside, rather than leaving it stranded in the trimmed-off
+      // region.
+      marks.forEach(m => { m.time = clampToMainWindow(m.time); });
+      marks.sort((a, b) => a.time - b.time);
+      // Same for the main transport's own playhead -- otherwise it can be
+      // sitting (and about to resume playing) in audio that's now outside
+      // the trimmed window.
+      if (audioEl){
+        const clamped = clampToMainWindow(audioEl.currentTime);
+        if (clamped !== audioEl.currentTime) audioEl.currentTime = clamped;
+        setPlayhead(clamped);
+      }
+      renderTrackMask();
+      renderMarksList();
+      renderMarkTicks();
+    } else {
+      basmalaTrimStart = isFullWindow ? null : cropCtx.trimStart;
+      basmalaTrimEnd = isFullWindow ? null : cropCtx.trimEnd;
+      renderBasmalaStatus();
+    }
+    saveLocal();
+    closeCropDialog();
+  });
+
+  // ============ SAVE / IMPORT NAMED STATE (server-side presets) ============
+  // A preset is a full snapshot of this screen -- surah/range/translation,
+  // the range recording (+ optional Basmala clip), ayah marks and trim --
+  // saved server-side under a name so it can be re-loaded into a different
+  // session later. See /api/custom-audio-presets* in app.py.
+  function showToast(message, isError){
+    let el = document.getElementById('stateToast');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'stateToast';
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => { el.classList.remove('show'); }, 3200);
+  }
+
+  const saveStateBackdrop = document.getElementById('saveStateBackdrop');
+  const saveStateModal = document.getElementById('saveStateModal');
+  const saveStateNameInput = document.getElementById('saveStateNameInput');
+  const saveStateError = document.getElementById('saveStateError');
+  const saveStateConfirmBtn = document.getElementById('saveStateConfirmBtn');
+
+  function showSaveStateError(msg){
+    saveStateError.textContent = msg || '';
+    saveStateError.classList.toggle('show', !!msg);
+  }
+  function openSaveStateModal(){
+    saveStateNameInput.value = '';
+    showSaveStateError('');
+    saveStateBackdrop.classList.add('open');
+    saveStateModal.classList.add('open');
+    saveStateNameInput.focus();
+  }
+  function closeSaveStateModal(){
+    saveStateBackdrop.classList.remove('open');
+    saveStateModal.classList.remove('open');
+  }
+  document.getElementById('saveStateBtn').addEventListener('click', () => {
+    if (!rangeAudioInfo){
+      showToast('Upload a recording before saving a state.', true);
+      return;
+    }
+    openSaveStateModal();
+  });
+  document.getElementById('saveStateCancelBtn').addEventListener('click', closeSaveStateModal);
+  saveStateBackdrop.addEventListener('click', closeSaveStateModal);
+  saveStateNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveStateConfirmBtn.click(); });
+
+  saveStateConfirmBtn.addEventListener('click', async () => {
+    const name = saveStateNameInput.value.trim();
+    if (!name){ showSaveStateError('Name is required.'); return; }
+    showSaveStateError('');
+    saveStateConfirmBtn.disabled = true;
+    saveStateConfirmBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/custom-audio-presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId, name,
+          surah: session.surah, ayahStart: session.ayahStart, ayahEnd: session.ayahEnd,
+          translation: session.translation, marks, mainTrimStart, mainTrimEnd,
+          basmalaTrimStart, basmalaTrimEnd,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed.');
+      closeSaveStateModal();
+      showToast(`Saved “${data.name}”.`);
+    } catch (err) {
+      showSaveStateError(err.message || String(err));
+    } finally {
+      saveStateConfirmBtn.disabled = false;
+      saveStateConfirmBtn.textContent = 'Save';
+    }
+  });
+
+  function fmtPresetDate(ms){
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  async function renderPresetList(){
+    const listEl = document.getElementById('importStateSheetList');
+    listEl.innerHTML = '<div class="preset-list-loading">Loading…</div>';
+    let presets;
+    try {
+      presets = await fetch('/api/custom-audio-presets').then(r => r.json());
+      if (!Array.isArray(presets)) presets = [];
+    } catch (e) {
+      listEl.innerHTML = '<div class="preset-list-empty">Couldn\'t load saved states.</div>';
+      return;
+    }
+    if (!presets.length){
+      listEl.innerHTML = '<div class="preset-list-empty">No saved states yet. Use the save button to create one.</div>';
+      return;
+    }
+    listEl.innerHTML = presets.map(p => {
+      const surahInfo = (window.SURAHS || []).find(s => s.n === p.surah);
+      const range = (p.ayahStart != null && p.ayahEnd != null)
+        ? (p.ayahStart === p.ayahEnd ? `Ayah ${p.ayahStart}` : `Ayahs ${p.ayahStart}–${p.ayahEnd}`)
+        : '';
+      const parts = [surahInfo ? surahInfo.en : `Surah ${p.surah}`, range].filter(Boolean);
+      parts.push(`${p.marksCount} mark${p.marksCount === 1 ? '' : 's'}`);
+      if (p.hasBasmala) parts.push('Basmala');
+      parts.push(fmtPresetDate(p.createdAt * 1000));
+      return `
+        <button class="preset-row" data-id="${p.id}" type="button">
+          <div class="preset-row-glyph">${surahInfo ? surahInfo.ar[0] : '?'}</div>
+          <div class="preset-row-text">
+            <div class="preset-row-title">${p.name}</div>
+            <div class="preset-row-sub">${parts.join(' · ')}</div>
+          </div>
+          <button class="preset-row-del" data-id="${p.id}" type="button" aria-label="Delete saved state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </button>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.preset-row-del').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (!confirm('Delete this saved state? This can\'t be undone.')) return;
+        try {
+          await fetch(`/api/custom-audio-presets/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        } catch (err) { /* list refresh below will show it's still there if this failed */ }
+        renderPresetList();
+      });
+    });
+    listEl.querySelectorAll('.preset-row').forEach(row => {
+      row.addEventListener('click', () => loadPreset(row.dataset.id));
+    });
+  }
+
+  document.getElementById('importStateBtn').addEventListener('click', () => {
+    renderPresetList();
+    openSheet('importState');
+  });
+
+  async function loadPreset(presetId){
+    if (rangeAudioInfo || basmalaAudioInfo){
+      const ok = confirm('Loading this saved state will replace your current recording, marks and trim. Continue?');
+      if (!ok) return;
+    }
+    closeSheet('importState');
+    showToast('Loading saved state…');
+    try {
+      const res = await fetch(`/api/custom-audio-presets/${encodeURIComponent(presetId)}/load`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Load failed.');
+
+      const surahInfo = (window.SURAHS || []).find(s => s.n === data.surah);
+      session.surah = data.surah;
+      session.ayahStart = data.ayahStart;
+      session.ayahEnd = data.ayahEnd;
+      session.translation = data.translation;
+      updateSurahDisplay();
+      updateRangeDisplay();
+      updateTranslationDisplay();
+      saveSessionState();
+
+      rangeAudioInfo = data.rangeAudio;
+      rangeAudioFromUrl = false;
+      marks = data.marks || [];
+      mainTrimStart = data.mainTrimStart ?? null;
+      mainTrimEnd = data.mainTrimEnd ?? null;
+      previewAyah = session.ayahStart;
+      saveLocal();
+      await loadRecording();
+
+      if (data.basmalaAudio){
+        basmalaAudioInfo = data.basmalaAudio;
+        basmalaTrimStart = data.basmalaTrimStart ?? null;
+        basmalaTrimEnd = data.basmalaTrimEnd ?? null;
+        saveLocal();
+        await loadBasmalaRecording();
+      } else if (basmalaAudioInfo){
+        // The loaded preset has no Basmala clip -- clear whatever was here
+        // before, on the server too, so a later save/continue doesn't pick
+        // up a stale upload that no client-side state points to anymore.
+        await fetch(`/api/timing/upload-audio?sessionId=${encodeURIComponent(sessionId)}&ayah=0`, { method: 'DELETE' }).catch(() => {});
+        basmalaAudioInfo = null;
+        basmalaTrimStart = null;
+        basmalaTrimEnd = null;
+        saveLocal();
+        document.getElementById('basmalaDropzone').style.display = '';
+        document.getElementById('basmalaRecCard').style.display = 'none';
+      }
+      updateContinueBtn();
+      showToast(`Loaded${surahInfo ? ' ' + surahInfo.en : ''}.`);
+    } catch (err) {
+      showToast(err.message || String(err), true);
+    }
+  }
+
+  // ============ CONTINUE -> hand off to timing.html ============
+  function sessionKeyFor(surah, from, to, reciterKey, translation){
+    return [surah, from, to, reciterKey, translation].join('|');
+  }
+
+  document.getElementById('continueBtn').addEventListener('click', async () => {
+    // Re-fetch the session right before writing, in case anything changed
+    // in another tab while this screen was open.
+    const fresh = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`).then(r => r.json());
+    // Match timing.html's own draft.reciterKey default exactly (a
+    // custom-audio session never has session.reciter set) -- otherwise the
+    // two pages compute different keys for the same session and
+    // timing.html's loadSavedSession() silently discards the
+    // customAudioByRealAyah/rangeAudioInfo stashed below.
+    const key = sessionKeyFor(fresh.surah, fresh.ayahStart, fresh.ayahEnd, fresh.reciter || 'yasser_al_dossary', fresh.translation || 'en.sahih');
+
+    const customAudioByRealAyah = {};
+    marks.forEach((m, i) => {
+      customAudioByRealAyah[m.ayah] = {
+        filename: rangeAudioInfo.filename,
+        duration: rangeAudioInfo.duration,
+        cropStart: m.time,
+        cropEnd: markEndTime(i),
+      };
+    });
+    if (basmalaAudioInfo){
+      // Ayah "0" is the Basmala scene -- quran_video.py prepends a synthetic
+      // verse for it (see BASMALA_ARABIC) whenever the manifest has this key.
+      customAudioByRealAyah['0'] = {
+        filename: basmalaAudioInfo.filename,
+        duration: basmalaAudioInfo.duration,
+        cropStart: basmalaTrimStart || 0,
+        cropEnd: basmalaTrimEnd,
+      };
+    }
+
+    const TIMING_SESSION_KEY = 'afs_timing_session';
+    let existing = null;
+    try { existing = JSON.parse(localStorage.getItem(TIMING_SESSION_KEY) || 'null'); }
+    catch (e) { existing = null; }
+    const merged = (existing && existing.key === key)
+      ? { ...existing, customAudioByRealAyah, rangeAudioInfo }
+      : { key, ayahIndex: 0, ayahStates: [], customAudioByRealAyah, rangeAudioInfo };
+    localStorage.setItem(TIMING_SESSION_KEY, JSON.stringify(merged));
+
+    location.href = `/timing.html?sessionId=${encodeURIComponent(sessionId)}`;
+  });
+
+  // ============ INIT ============
+  (async function init(){
+    const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
+    if (!res.ok){ location.href = '/'; return; }
+    session = await res.json();
+
+    // A fresh session (or one whose surah/range never got set) starts from
+    // the same defaults new_video.html's picker does -- this page is now a
+    // standalone entry point, so it can't rely on new_video.html having
+    // already picked something.
+    const surahs = window.SURAHS || [];
+    const restoredSurah = surahs.find(s => s.n === session.surah) || surahs[0];
+    session.surah = restoredSurah.n;
+    if (!(Number.isInteger(session.ayahStart) && Number.isInteger(session.ayahEnd) &&
+          session.ayahStart >= 1 && session.ayahEnd <= restoredSurah.ayahs && session.ayahStart <= session.ayahEnd)){
+      session.ayahStart = 1;
+      session.ayahEnd = Math.min(7, restoredSurah.ayahs);
+    }
+    if (!session.translation) session.translation = 'en.sahih';
+    saveSessionState();
+
+    updateSurahDisplay();
+    updateRangeDisplay();
+    try {
+      translations = await fetch('/api/translations').then(r => r.json());
+      if (!Array.isArray(translations)) translations = [];
+    } catch (e) {
+      translations = [];
+    }
+    updateTranslationDisplay();
+
+    previewAyah = session.ayahStart;
+
+    const saved = loadLocal();
+    if (saved && saved.rangeAudioInfo){
+      rangeAudioInfo = saved.rangeAudioInfo;
+      rangeAudioFromUrl = !!saved.rangeAudioFromUrl;
+      marks = saved.marks || [];
+      mainTrimStart = saved.mainTrimStart ?? null;
+      mainTrimEnd = saved.mainTrimEnd ?? null;
+      try {
+        await loadRecording();
+      } catch (e) {
+        // The upload may have been cleaned up server-side -- fall back to a fresh upload prompt.
+        rangeAudioInfo = null;
+        rangeAudioFromUrl = false;
+        marks = [];
+        mainTrimStart = null;
+        mainTrimEnd = null;
+        saveLocal();
+      }
+    }
+    if (saved && saved.basmalaAudioInfo){
+      basmalaAudioInfo = saved.basmalaAudioInfo;
+      basmalaTrimStart = saved.basmalaTrimStart ?? null;
+      basmalaTrimEnd = saved.basmalaTrimEnd ?? null;
+      try {
+        await loadBasmalaRecording();
+      } catch (e) {
+        basmalaAudioInfo = null;
+        basmalaTrimStart = null;
+        basmalaTrimEnd = null;
+        saveLocal();
+      }
+    }
+    updateContinueBtn();
+  })();
+</script>
+
+</body>
+</html>

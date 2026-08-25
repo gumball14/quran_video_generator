@@ -25,10 +25,12 @@ ARABIC_FONT_BOLD = FONT_DIR / "NotoNaskhArabic-Bold.ttf"
 LATIN_FONT_REGULAR = FONT_DIR / "NotoSans-Regular.ttf"
 
 DEFAULT_THEME = {
+    "orientation": "vertical",         # "vertical" | "horizontal" -- the style's own output aspect ratio; drives /api/generate when this theme is selected
     "background_style": "gradient",
     "bg_top": list(BG_COLOR_TOP),
     "bg_bottom": list(BG_COLOR_BOTTOM),
     "bg_solid": list(BG_COLOR_TOP),
+    "bg_gradient_style": "linear",     # "linear" (top-to-bottom) | "diagonal" (top-left to bottom-right) | "radial" (center-out)
 
     "arabic_color": list(WHITE),
     "translation_color": [200, 205, 210],
@@ -91,9 +93,23 @@ DEFAULT_THEME = {
     "highlight_pointer_style": "hand",
     "highlight_pointer_position": "top",  # "top" (pointer sits above the highlighted word) | "bottom" (pointer sits below it)
     "highlight_pointer_gap_mult": 1.0,
+    "highlight_pointer_size_mult": 1.0,   # scales the pointer marker itself (hand/arrow/dot), independent of the word's font size
 
     "outro_enabled": False,           # append a plain background screen (no text) after the last ayah
     "outro_duration": 2.0,            # seconds the outro screen holds, before/into the closing fade
+
+    "text_shadow_enabled": False,      # master switch -- per-target flags below only matter when this is on
+    "text_shadow_arabic": True,
+    "text_shadow_translation": True,
+    "text_shadow_header": True,        # surah name
+    "text_shadow_badge_number": True,  # the ayah number digit(s)
+    "text_shadow_badge_border": False, # the badge shape's own outline stroke
+    "text_shadow_line": False,         # the badge's optional line accent (divider)
+    "text_shadow_color": [0, 0, 0],
+    "text_shadow_spread_color": [0, 0, 0],  # badge border / line shadow color -- independent of text_shadow_color
+    "text_shadow_blur_frac": 0.006,   # blur radius as a fraction of frame height
+    "text_shadow_offset_x_frac": 0.003,
+    "text_shadow_offset_y_frac": 0.004,
 }
 
 # Mutated in place by load_theme() -- render code reads from this dict

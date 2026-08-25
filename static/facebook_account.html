@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Facebook Account — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --danger:#B23B3B;
+    --success:#2F8F6A;
+    --fb:#1877F2;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    max-width:480px; margin:0 auto;
+    padding:20px 20px 40px;
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+  }
+
+  .topbar{ width:100%; display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+  .topbar-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+    text-decoration:none;
+  }
+  .topbar-btn:active{ transform:scale(.93); }
+  .topbar-btn svg{ width:16px; height:16px; }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; }
+
+  #content{ width:100%; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+
+  /* ---------- not-connected state ---------- */
+  .connect-hero{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:36px 8px 8px; }
+  .connect-icon{
+    width:72px; height:72px; border-radius:50%; background:var(--fb); color:#fff;
+    display:flex; align-items:center; justify-content:center; margin-bottom:20px;
+    box-shadow:0 16px 30px -14px rgba(24,119,242,.55);
+  }
+  .connect-icon svg{ width:34px; height:34px; }
+  .connect-title{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:8px; }
+  .connect-sub{ font-size:12.5px; color:var(--ink-mute); line-height:1.6; max-width:30ch; margin-bottom:28px; }
+
+  .connect-btn{
+    width:100%; height:52px; border-radius:15px; border:none; cursor:pointer;
+    background:var(--fb); color:#fff; font-weight:800; font-size:13.5px;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    box-shadow:0 16px 28px -16px rgba(24,119,242,.55);
+  }
+  .connect-btn:active{ transform:scale(.98); }
+  .connect-btn:disabled{ opacity:.7; pointer-events:none; }
+  .connect-btn svg{ width:16px; height:16px; flex-shrink:0; }
+  .connect-btn .spinner{ animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .connect-fineprint{
+    font-size:11px; color:var(--ink-mute); text-align:center; line-height:1.6; margin-top:14px; max-width:32ch;
+  }
+
+  .error-banner{
+    display:flex; align-items:flex-start; gap:10px; width:100%;
+    background:rgba(178,59,59,.1); border:1px solid rgba(178,59,59,.25);
+    border-radius:14px; padding:12px 14px; margin-bottom:18px;
+    font-size:12px; font-weight:600; color:var(--danger); line-height:1.5;
+  }
+  .error-banner svg{ width:15px; height:15px; flex-shrink:0; margin-top:1px; }
+
+  .page-row-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+
+  /* ---------- connected state ---------- */
+  .profile-card{ display:flex; align-items:center; gap:12px; padding:16px; margin-bottom:20px; }
+  .profile-avatar{
+    width:46px; height:46px; border-radius:50%; background:var(--fb); color:#fff;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    font-weight:800; font-size:15px;
+  }
+  .profile-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+  .profile-info{ flex:1; min-width:0; }
+  .profile-name{ font-weight:800; font-size:14.5px; }
+  .profile-handle{ font-size:11.5px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+  .profile-badge{
+    flex-shrink:0; display:flex; align-items:center; gap:5px;
+    background:rgba(47,143,106,.14); color:var(--success); font-weight:800; font-size:10.5px;
+    padding:5px 9px; border-radius:100px;
+  }
+  .profile-badge svg{ width:10px; height:10px; }
+
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--ink-mute); margin:0 2px 10px;
+  }
+
+  .pages-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+  .page-row{
+    display:flex; align-items:center; gap:12px; padding:12px 14px;
+  }
+  .page-row-avatar{
+    width:38px; height:38px; border-radius:50%; color:#fff; font-weight:800; font-size:13.5px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .page-row-text{ flex:1; min-width:0; }
+  .page-row-name{ font-weight:800; font-size:13.5px; }
+  .page-row-sub{ font-size:11px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+
+  .disconnect-btn{
+    width:100%; height:50px; border-radius:14px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--danger); font-weight:800; font-size:13px;
+  }
+  .disconnect-btn:active{ transform:scale(.98); }
+
+  /* ---------- confirm dialog ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.45); backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none; transition:opacity .18s ease; z-index:40;
+  }
+  .modal-backdrop.open{ opacity:1; pointer-events:auto; }
+  .confirm-modal{
+    position:fixed; left:50%; top:50%; z-index:41;
+    width:calc(100% - 64px); max-width:320px;
+    background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:22px 20px 18px; box-shadow:0 24px 60px -20px rgba(20,24,58,.45);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) scale(.92);
+    transition:opacity .18s ease, transform .18s cubic-bezier(.32,.72,0,1);
+  }
+  .confirm-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  .confirm-title{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; text-align:center; }
+  .confirm-message{ font-size:12.5px; color:var(--ink-mute); text-align:center; line-height:1.5; margin-top:7px; }
+  .confirm-actions{ display:flex; gap:9px; margin-top:18px; }
+  .confirm-btn{
+    flex:1; height:44px; border-radius:13px; border:none; cursor:pointer; font-weight:800; font-size:12.5px;
+  }
+  .confirm-btn:active{ transform:scale(.97); }
+  .confirm-cancel{ background:var(--surface-2); color:var(--ink); }
+  .confirm-danger{ background:#B4453A; color:#FFFDF6; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="topbar">
+    <a class="topbar-btn" id="backBtn" href="/facebook_reels.html" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="topbar-title">Facebook Account</div>
+  </div>
+
+  <div id="errorBanner"></div>
+  <div id="content"></div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop"></div>
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-title">Disconnect Facebook?</div>
+  <div class="confirm-message">You won't be able to post reels or see your Pages until you reconnect. Videos already posted stay on Facebook.</div>
+  <div class="confirm-actions">
+    <button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancel</button>
+    <button class="confirm-btn confirm-danger" id="confirmDisconnectBtn">Disconnect</button>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const returnTo = params.get('returnTo');
+  if (returnTo) document.getElementById('backBtn').href = returnTo;
+
+  const contentEl = document.getElementById('content');
+  const errorBannerEl = document.getElementById('errorBanner');
+
+  const ERROR_MESSAGES = {
+    not_configured: "This server doesn't have a Facebook App configured yet. See facebook-integration-progress.md for setup steps.",
+    denied: 'Facebook connection was cancelled.',
+  };
+
+  function initials(name){
+    return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  }
+
+  // Purely a UI nicety when a Page has no profile picture -- deterministic
+  // so the same Page always gets the same color, not random per reload.
+  const AVATAR_COLORS = ['#1877F2', '#AD8226', '#2F8F6A', '#B23B3B', '#6C5CE7'];
+  function hashString(s){
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function colorFor(id){ return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length]; }
+
+  function pageAvatar(p){
+    return p.picture
+      ? `<div class="page-row-avatar"><img src="${p.picture}" alt=""></div>`
+      : `<div class="page-row-avatar" style="background:${colorFor(p.id)}">${initials(p.name)}</div>`;
+  }
+
+  function showError(message){
+    if (!message){ errorBannerEl.innerHTML = ''; return; }
+    errorBannerEl.innerHTML = `
+      <div class="error-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>
+        <span>${message}</span>
+      </div>
+    `;
+  }
+
+  function renderDisconnected(){
+    contentEl.innerHTML = `
+      <div class="connect-hero">
+        <div class="connect-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>
+        </div>
+        <div class="connect-title">Connect your Facebook account</div>
+        <div class="connect-sub">Link an account to post reels straight from your video library and manage them from here.</div>
+        <button class="connect-btn" id="connectBtn" type="button">
+          <svg id="connectBtnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>
+          <span id="connectBtnLabel">Continue with Facebook</span>
+        </button>
+        <div class="connect-fineprint">You'll be sent to Facebook to log in and approve access — nothing here happens without your OK there.</div>
+      </div>
+    `;
+    document.getElementById('connectBtn').addEventListener('click', () => {
+      const btn = document.getElementById('connectBtn');
+      const label = document.getElementById('connectBtnLabel');
+      const icon = document.getElementById('connectBtnIcon');
+      btn.disabled = true;
+      label.textContent = 'Redirecting…';
+      icon.outerHTML = '<svg id="connectBtnIcon" class="spinner" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
+      const back = returnTo ? `/facebook_account.html?returnTo=${encodeURIComponent(returnTo)}` : '/facebook_account.html';
+      location.href = `/facebook/oauth/start?returnTo=${encodeURIComponent(back)}`;
+    });
+  }
+
+  function renderConnected(status){
+    const pages = status.pages || [];
+    contentEl.innerHTML = `
+      <div class="card profile-card">
+        <div class="profile-avatar">${initials(status.user.name || 'F')}</div>
+        <div class="profile-info">
+          <div class="profile-name">${status.user.name || 'Facebook account'}</div>
+        </div>
+        <div class="profile-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Connected
+        </div>
+      </div>
+
+      <div class="section-label">Pages you manage</div>
+      <div class="pages-list">
+        ${pages.length ? pages.map(p => `
+          <div class="card page-row">
+            ${pageAvatar(p)}
+            <div class="page-row-text">
+              <div class="page-row-name">${p.name}</div>
+              <div class="page-row-sub">${p.category || 'Page'}</div>
+            </div>
+          </div>
+        `).join('') : `<div class="card page-row"><div class="page-row-text"><div class="page-row-sub">No Pages found for this account.</div></div></div>`}
+      </div>
+
+      <button class="disconnect-btn" id="disconnectBtn" type="button">Disconnect account</button>
+    `;
+    document.getElementById('disconnectBtn').addEventListener('click', openConfirm);
+  }
+
+  async function render(){
+    const fbError = params.get('fbError');
+    showError(fbError ? (ERROR_MESSAGES[fbError] || fbError) : null);
+
+    let status;
+    try {
+      status = await fetch('/api/facebook/status').then(r => r.json());
+    } catch (e) {
+      showError("Couldn't reach the server to check your Facebook connection.");
+      renderDisconnected();
+      return;
+    }
+    if (status.connected) renderConnected(status); else renderDisconnected();
+  }
+
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const confirmModal = document.getElementById('confirmModal');
+  function openConfirm(){
+    modalBackdrop.classList.add('open');
+    confirmModal.classList.add('open');
+  }
+  function closeConfirm(){
+    modalBackdrop.classList.remove('open');
+    confirmModal.classList.remove('open');
+  }
+  modalBackdrop.addEventListener('click', closeConfirm);
+  document.getElementById('confirmCancelBtn').addEventListener('click', closeConfirm);
+  document.getElementById('confirmDisconnectBtn').addEventListener('click', async () => {
+    try { await fetch('/api/facebook/disconnect', { method: 'POST' }); } catch (e) { /* falls through to re-render, which will show it's still connected */ }
+    closeConfirm();
+    render();
+  });
+
+  render();
+</script>
+
+</body>
+</html>

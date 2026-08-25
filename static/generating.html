@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Generating — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --danger:#B23B3B;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    max-width:480px; margin:0 auto;
+    padding:32px; text-align:center;
+    padding-top:calc(env(safe-area-inset-top,0px) + 32px);
+  }
+
+  .gen-title{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:18px; }
+  .gen-track{ width:100%; max-width:280px; height:8px; border-radius:100px; background:var(--surface-2); overflow:hidden; }
+  .gen-fill{ height:100%; width:1%; background:var(--gold); transition:width .3s ease; }
+  .gen-label{ margin-top:12px; font-size:12px; color:var(--ink-mute); font-weight:700; min-height:16px; }
+  .gen-log{
+    margin-top:16px; width:100%; max-width:340px; max-height:160px; overflow-y:auto;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    font-family:ui-monospace, monospace; font-size:10px; color:var(--ink-mute); text-align:left; white-space:pre-wrap;
+  }
+  .gen-error{ color:var(--danger); font-weight:700; font-size:13px; margin-top:14px; max-width:340px; }
+  .gen-cancelled{ color:var(--ink-mute); font-weight:700; font-size:13px; margin-top:14px; max-width:340px; }
+
+  .gen-actions{ margin-top:22px; display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px; }
+  .gen-btn{
+    height:48px; padding:0 22px; border-radius:14px; border:none; cursor:pointer;
+    font-weight:800; font-size:13px; display:none; align-items:center; justify-content:center;
+  }
+  .gen-btn.show{ display:flex; }
+  .gen-btn-primary{ background:var(--ink); color:#F6F1E4; }
+  .gen-btn-secondary{ background:var(--surface-2); color:var(--ink); }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="gen-title" id="genTitle">Generating your video…</div>
+  <div class="gen-track"><div class="gen-fill" id="genFill"></div></div>
+  <div class="gen-label" id="genLabel">Starting…</div>
+  <pre class="gen-log" id="genLog"></pre>
+  <div class="gen-error" id="genError" style="display:none;"></div>
+  <div class="gen-cancelled" id="genCancelled" style="display:none;">Generation was cancelled.</div>
+
+  <div class="gen-actions">
+    <button class="gen-btn gen-btn-secondary show" id="cancelBtn">Cancel</button>
+    <button class="gen-btn gen-btn-primary" id="backToStyleBtn">Back to style</button>
+    <button class="gen-btn gen-btn-secondary" id="homeBtn">Home</button>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  let jobId = params.get('jobId');
+  const sessionId = params.get('sessionId');
+  if (!jobId && !sessionId){ location.href = '/'; }
+
+  const genFill = document.getElementById('genFill');
+  const genLabel = document.getElementById('genLabel');
+  const genLog = document.getElementById('genLog');
+  const genError = document.getElementById('genError');
+  const genCancelled = document.getElementById('genCancelled');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const backToStyleBtn = document.getElementById('backToStyleBtn');
+  const homeBtn = document.getElementById('homeBtn');
+
+  let poll = null;
+  let cancelling = false;
+
+  function stopPolling(){
+    if (poll){ clearInterval(poll); poll = null; }
+  }
+
+  function showEndState({ title, showBack }){
+    document.getElementById('genTitle').textContent = title;
+    cancelBtn.classList.remove('show');
+    if (showBack && sessionId) backToStyleBtn.classList.add('show');
+    homeBtn.classList.add('show');
+  }
+
+  function showError(message){
+    genError.style.display = 'block';
+    genError.textContent = message;
+    showEndState({ title: 'Something went wrong', showBack: true });
+  }
+
+  function showCancelled(){
+    genCancelled.style.display = 'block';
+    showEndState({ title: 'Cancelled', showBack: true });
+  }
+
+  backToStyleBtn.addEventListener('click', () => {
+    location.href = `/select_style.html?sessionId=${encodeURIComponent(sessionId)}`;
+  });
+  homeBtn.addEventListener('click', () => { location.href = '/'; });
+
+  cancelBtn.addEventListener('click', async () => {
+    if (cancelling || !jobId) return;
+    cancelling = true;
+    cancelBtn.textContent = 'Cancelling…';
+    cancelBtn.disabled = true;
+    try {
+      await fetch(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+    } catch (e) { /* the next poll tick will still catch the eventual status */ }
+  });
+
+  // sessionId is appended to every /api/status call so the backend can
+  // recover this job's outcome from the SESSION (see app.py's
+  // _session_job_fallback()) if JOBS -- in-memory only -- has forgotten it,
+  // e.g. because the server restarted since this job was started.
+  function statusUrl(since){
+    let url = `/api/status/${encodeURIComponent(jobId)}?since=${since}`;
+    if (sessionId) url += `&sessionId=${encodeURIComponent(sessionId)}`;
+    return url;
+  }
+
+  function startPolling(){
+    let since = 0;
+    poll = setInterval(async () => {
+      try {
+        const res = await fetch(statusUrl(since));
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Lost track of the job.');
+
+        if (json.log && json.log.length){
+          genLog.textContent += (genLog.textContent ? '\n' : '') + json.log.join('\n');
+          genLog.scrollTop = genLog.scrollHeight;
+          since = json.logLength;
+          genLabel.textContent = json.log[json.log.length - 1].trim().slice(0, 70);
+        }
+        genFill.style.width = json.percent + '%';
+
+        if (json.status === 'done'){
+          stopPolling();
+          let url = `/video_ready.html?jobId=${encodeURIComponent(jobId)}`;
+          if (sessionId) url += `&sessionId=${encodeURIComponent(sessionId)}`;
+          location.href = url;
+        } else if (json.status === 'error'){
+          stopPolling();
+          showError(json.error || 'The generator hit an error.');
+        } else if (json.status === 'cancelled'){
+          stopPolling();
+          showCancelled();
+        }
+      } catch (e) {
+        stopPolling();
+        showError(e.message);
+      }
+    }, 1200);
+  }
+
+  // If this page was reopened with only a sessionId (the jobId fell out of
+  // the URL -- e.g. a bookmark, or a "continue" link that only kept the
+  // session), recover the jobId the session itself last recorded (see
+  // app.py's api_generate()) before polling. A session with no job at all
+  // has nothing to show here.
+  (async function init(){
+    if (!jobId && sessionId){
+      try {
+        const session = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`).then(r => r.json());
+        if (session && session.jobId) jobId = session.jobId;
+      } catch (e) { /* fall through to the no-jobId check below */ }
+    }
+    if (!jobId){ location.href = '/'; return; }
+    startPolling();
+  })();
+</script>
+
+</body>
+</html>

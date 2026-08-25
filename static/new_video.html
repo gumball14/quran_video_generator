@@ -147,74 +147,6 @@
     font-size:11.5px; font-style:italic; color:var(--ink-mute); margin-top:6px; line-height:1.5;
   }
 
-  /* ---------- orientation toggle ---------- */
-  .segmented{ display:flex; background:var(--surface-2); border-radius:12px; padding:3px; gap:2px; }
-  .segmented button{
-    flex:1; border:none; background:none; cursor:pointer; padding:11px 4px; border-radius:9px;
-    font-size:12.5px; font-weight:800; color:var(--ink-mute); white-space:nowrap;
-    transition:background .15s ease, color .15s ease;
-  }
-  .segmented button.active{ background:var(--surface); color:var(--ink); box-shadow:0 2px 5px rgba(20,24,58,.08); }
-  .segmented button:active{ transform:scale(.97); }
-
-  /* ---------- theme row ---------- */
-  .opt-row{
-    display:flex; gap:10px; overflow-x:auto; padding:2px 2px 6px; scrollbar-width:none;
-  }
-  .opt-row::-webkit-scrollbar{ display:none; }
-
-  .theme-card{
-    flex-shrink:0; width:70px; cursor:pointer;
-    display:flex; flex-direction:column; align-items:center; gap:7px;
-  }
-  .theme-swatch{
-    width:70px; height:104px; border-radius:13px;
-    border:1.5px solid var(--line); position:relative; overflow:hidden;
-    display:flex; align-items:center; justify-content:center;
-    transition:border-color .12s ease, transform .12s ease;
-  }
-  .theme-card.selected .theme-swatch{ border-color:var(--ink); transform:scale(.97); }
-  .theme-swatch::after{
-    content:""; position:absolute; inset:5px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
-    pointer-events:none;
-  }
-  .theme-swatch .glyph{ font-family:'Amiri', serif; font-weight:700; font-size:13px; }
-  .theme-check{
-    position:absolute; top:6px; right:6px; width:17px; height:17px; border-radius:50%;
-    background:var(--ink); display:none; align-items:center; justify-content:center;
-  }
-  .theme-card.selected .theme-check{ display:flex; }
-  .theme-check svg{ width:8px; height:8px; }
-  .theme-name{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
-  .theme-card.selected .theme-name{ color:var(--ink); }
-
-  .theme-delete{
-    position:absolute; top:6px; left:6px; width:17px; height:17px; border-radius:50%;
-    background:rgba(20,24,58,.55); border:none; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .theme-delete svg{ width:8px; height:8px; }
-  .theme-delete:active{ transform:scale(.9); }
-
-  .theme-add{
-    flex-shrink:0; width:70px; display:flex; flex-direction:column; align-items:center; gap:7px;
-    cursor:pointer; border:none; background:none; padding:0;
-  }
-  .theme-add-swatch{
-    width:70px; height:104px; border-radius:13px;
-    border:1.5px dashed var(--line); background:transparent;
-    display:flex; align-items:center; justify-content:center;
-    transition:border-color .12s ease, background .12s ease;
-  }
-  .theme-add.is-edit .theme-add-swatch{
-    border-style:solid; background:var(--surface-2); border-color:var(--line);
-  }
-  .theme-add.is-custom .theme-add-swatch{ border-color:var(--ink); }
-  .theme-add:active .theme-add-swatch{ transform:scale(.96); }
-  .theme-add-swatch svg{ width:18px; height:18px; }
-  .theme-add-label{ font-size:10px; font-weight:700; color:var(--ink-mute); text-align:center; line-height:1.25; }
-  .theme-add.is-custom .theme-add-label{ color:var(--ink); }
-
   /* ---------- sticky footer CTA ---------- */
   .footbar{
     padding:14px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
@@ -319,12 +251,6 @@
     background:var(--ink); color:#F6F1E4; font-weight:800; font-size:13.5px;
   }
   .sheet-select-btn:active{ transform:scale(.98); }
-  .sheet-manage-btn{
-    width:100%; height:46px; border-radius:15px; margin-top:9px;
-    border:1.5px solid var(--line-soft); cursor:pointer; background:transparent;
-    color:var(--ink); font-weight:800; font-size:12.5px;
-  }
-  .sheet-manage-btn:active{ transform:scale(.98); }
 
   /* ---------- confirmation dialog ---------- */
   .confirm-backdrop{
@@ -456,27 +382,6 @@
       </button>
     </div>
 
-    <div class="section">
-      <div class="section-label">Orientation</div>
-      <div class="segmented" id="orientationSeg">
-        <button class="active" data-value="vertical">Vertical</button>
-        <button data-value="horizontal">Horizontal</button>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-label">Style</div>
-      <div class="opt-row" id="themeRow">
-        <div id="themeCards" style="display:contents"></div>
-        <button class="theme-add" id="themeAddBtn">
-          <div class="theme-add-swatch" id="themeAddSwatch">
-            <svg id="themeAddIcon" viewBox="0 0 24 24" fill="none" stroke="#AD8226" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          </div>
-          <div class="theme-add-label" id="themeAddLabel">Add<br>theme</div>
-        </button>
-      </div>
-    </div>
-
   </div>
 
   <div class="footbar">
@@ -519,9 +424,6 @@
     <input type="text" class="sheet-search" id="reciterSearchInput" placeholder="Search reciters…" autocomplete="off">
   </div>
   <div class="sheet-list" id="reciterSheetList"></div>
-  <div class="sheet-foot">
-    <button class="sheet-manage-btn" id="manageCustomAudioBtn">Manage custom audio</button>
-  </div>
 </div>
 
 <!-- Translation bottom sheet -->
@@ -571,7 +473,10 @@
       }
       sessionId = null;
     }
-    const created = await fetch('/api/sessions', { method: 'POST' }).then(r => r.json());
+    const created = await fetch('/api/sessions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry: 'reciter' }),
+    }).then(r => r.json());
     sessionId = created.id;
     history.replaceState(null, '', `/new_video.html?sessionId=${encodeURIComponent(sessionId)}`);
     return created;
@@ -587,9 +492,6 @@
         ayahEnd: state.to,
         reciter: state.reciter ? state.reciter.key : null,
         translation: state.translation,
-        orientation: state.orientation,
-        theme: state.themeObject,
-        themeName: state.themeLabel,
       }),
     }).catch(() => { /* best-effort; local state is still correct either way */ });
   }
@@ -602,10 +504,6 @@
     previewAyah: 1,   // which ayah the Preview card is currently showing; starts at "From" but can be browsed independently
     reciter: null,
     translation: 'en.sahih',  // edition identifier (see /api/translations); this default always exists so the Preview card and a fresh session work before the picker's list has loaded
-    orientation: 'vertical',  // 'vertical' | 'horizontal' -- actual export orientation, sent through to /api/generate on the timing screen
-    themeKey: null,     // 'preset:<name>' or 'saved:<id>', or null (= default look)
-    themeLabel: null,   // display name string, or null
-    themeObject: null,  // resolved theme.py-shaped object, or null
   };
 
   // ============ SURAH SELECT ============
@@ -746,13 +644,6 @@
   document.getElementById('toMinus').addEventListener('click', () => { if (state.to > state.from){ state.to--; updateRangeDisplay(); saveSessionState(); } });
   document.getElementById('toPlus').addEventListener('click', () => { if (state.to < state.surah.ayahs){ state.to++; updateRangeDisplay(); saveSessionState(); } });
 
-  document.getElementById('orientationSeg').addEventListener('click', (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    state.orientation = btn.dataset.value;
-    document.querySelectorAll('#orientationSeg button').forEach(b => b.classList.toggle('active', b === btn));
-    saveSessionState();
-  });
 
   function commitFromValue(){
     let n = parseInt(fromValue.value, 10);
@@ -873,11 +764,6 @@
     closeSheet('reciter');
     saveSessionState();
   });
-  document.getElementById('manageCustomAudioBtn').addEventListener('click', () => {
-    saveSessionState();
-    window.location.href = `/custom_audio.html?sessionId=${encodeURIComponent(sessionId)}`;
-  });
-
   // ============ TRANSLATION SELECT ============
   const translationBtn = document.getElementById('translationBtn');
   let translations = []; // [{identifier, language, name, englishName}], filled from /api/translations
@@ -974,39 +860,7 @@
   });
 
   // ============ CONFIRM DIALOG ============
-  function showConfirm({ title, message, confirmLabel = 'Delete', cancelLabel = 'Cancel' }){
-    const backdrop = document.getElementById('confirmBackdrop');
-    const modal = document.getElementById('confirmModal');
-    const titleEl = document.getElementById('confirmTitle');
-    const messageEl = document.getElementById('confirmMessage');
-    const cancelBtn = document.getElementById('confirmCancelBtn');
-    const dangerBtn = document.getElementById('confirmDangerBtn');
-
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-    cancelBtn.textContent = cancelLabel;
-    dangerBtn.textContent = confirmLabel;
-
-    return new Promise(resolve => {
-      function close(result){
-        backdrop.classList.remove('open');
-        modal.classList.remove('open');
-        cancelBtn.removeEventListener('click', onCancel);
-        dangerBtn.removeEventListener('click', onConfirm);
-        backdrop.removeEventListener('click', onCancel);
-        resolve(result);
-      }
-      function onCancel(){ close(false); }
-      function onConfirm(){ close(true); }
-      cancelBtn.addEventListener('click', onCancel);
-      dangerBtn.addEventListener('click', onConfirm);
-      backdrop.addEventListener('click', onCancel);
-      backdrop.classList.add('open');
-      modal.classList.add('open');
-    });
-  }
-
-  // Single-button variant of showConfirm() above, reusing the same modal
+  // Single-button "OK" dialog, reusing the same modal
   // markup with the Cancel button hidden -- for messages that just need
   // acknowledging, not a yes/no choice.
   function showAlert({ title, message, okLabel = 'OK' }){
@@ -1041,179 +895,20 @@
     });
   }
 
-  // ============ THEME: built-in presets + saved custom themes ============
-  const themeCardsEl = document.getElementById('themeCards');
-  const themeRow = document.getElementById('themeRow');
-  const themeAddBtn = document.getElementById('themeAddBtn');
-  const themeAddLabel = document.getElementById('themeAddLabel');
-  const themeAddIcon = document.getElementById('themeAddIcon');
-
-  let savedThemes = []; // [{id, name, theme}], fetched from /api/themes
-
-  // Presets are hard-coded in quran-data.js, so "deleting" one just hides it
-  // for this browser (stored locally) rather than removing it from the file.
-  function getHiddenPresets(){
-    try { return JSON.parse(localStorage.getItem('afs_hidden_presets') || '[]'); }
-    catch (e) { return []; }
-  }
-  function hidePreset(name){
-    const hidden = getHiddenPresets();
-    if (!hidden.includes(name)){
-      hidden.push(name);
-      localStorage.setItem('afs_hidden_presets', JSON.stringify(hidden));
-    }
-  }
-
-  function themeEntries(){
-    const hidden = getHiddenPresets();
-    const presets = Object.keys(window.THEME_PRESETS)
-      .filter(name => !hidden.includes(name))
-      .map(name => ({
-        key: 'preset:' + name, name, theme: window.THEME_PRESETS[name], deletable: true,
-      }));
-    const saved = savedThemes.map(t => ({
-      key: 'saved:' + t.id, name: t.name, theme: t.theme, deletable: true, id: t.id,
-    }));
-    return presets.concat(saved);
-  }
-
-  function swatchStyle(theme){
-    const top = (theme.background_style === 'solid' ? theme.bg_solid : theme.bg_top) || [10, 20, 35];
-    const bottom = theme.background_style === 'solid' ? theme.bg_solid : (theme.bg_bottom || top);
-    return `background:linear-gradient(160deg, rgb(${top.join(',')}), rgb(${bottom.join(',')}))`;
-  }
-
-  function glyphColor(theme){
-    const c = theme.arabic_color || [240, 240, 235];
-    return `color:rgb(${c.join(',')})`;
-  }
-
-  function renderThemeCards(){
-    themeCardsEl.innerHTML = themeEntries().map(entry => `
-      <div class="theme-card" data-key="${entry.key}">
-        <div class="theme-swatch" style="${swatchStyle(entry.theme)}">
-          ${entry.deletable ? `<button class="theme-delete" data-key="${entry.key}" aria-label="Delete theme"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}
-          <div class="theme-check"><svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-          <div class="glyph" style="${glyphColor(entry.theme)}">ﷲ</div>
-        </div>
-        <div class="theme-name">${entry.name}</div>
-      </div>
-    `).join('');
-    themeCardsEl.querySelectorAll('.theme-card').forEach(card => {
-      card.classList.toggle('selected', card.dataset.key === state.themeKey);
-      card.addEventListener('click', () => {
-        const isSame = state.themeKey === card.dataset.key;
-        selectTheme(isSame ? null : card.dataset.key);
-      });
-    });
-    themeCardsEl.querySelectorAll('.theme-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const key = btn.dataset.key;
-
-        if (key.startsWith('preset:')){
-          // Built-in style: hide it locally, nothing to delete server-side.
-          const name = key.slice('preset:'.length);
-          const ok = await showConfirm({
-            title: 'Remove style?',
-            message: `Remove "${name}" from your styles list? You can bring it back by clearing your browser data.`,
-          });
-          if (!ok) return;
-          hidePreset(name);
-          if (state.themeKey === key) selectTheme(null);
-          renderThemeCards();
-          return;
-        }
-
-        // Saved (custom) theme: delete from the backend.
-        const id = key.slice('saved:'.length);
-        const entry = savedThemes.find(t => t.id === id);
-        const ok = await showConfirm({
-          title: 'Delete style?',
-          message: `Delete "${entry ? entry.name : 'this theme'}"? This can't be undone.`,
-        });
-        if (!ok) return;
-        try {
-          await fetch(`/api/themes/${id}`, { method: 'DELETE' });
-        } catch (err) { /* best-effort */ }
-        savedThemes = savedThemes.filter(t => t.id !== id);
-        if (state.themeKey === key) selectTheme(null);
-        renderThemeCards();
-      });
-    });
-  }
-
-  async function loadSavedThemes(){
-    try {
-      savedThemes = await fetch('/api/themes').then(r => r.json());
-    } catch (e) {
-      savedThemes = [];
-    }
-    renderThemeCards();
-  }
-
-  function selectTheme(key){
-    const entry = key ? themeEntries().find(t => t.key === key) : null;
-    state.themeKey = entry ? entry.key : null;
-    state.themeLabel = entry ? entry.name : null;
-    state.themeObject = entry ? entry.theme : null;
-    themeCardsEl.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.key === state.themeKey));
-    themeAddBtn.classList.toggle('is-custom', !!(entry && entry.id));
-    updateThemeAddTile();
-    updateContinueBtn();
-    saveSessionState();
-  }
-
-  function updateThemeAddTile(){
-    if (state.themeLabel){
-      themeAddBtn.classList.add('is-edit');
-      themeAddLabel.innerHTML = 'Edit<br>theme';
-      themeAddIcon.innerHTML = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>';
-    } else {
-      themeAddBtn.classList.remove('is-edit');
-      themeAddLabel.innerHTML = 'Add<br>theme';
-      themeAddIcon.innerHTML = '<path d="M12 5v14M5 12h14"/>';
-    }
-  }
-
-  themeAddBtn.addEventListener('click', () => {
-    const entry = state.themeKey ? themeEntries().find(t => t.key === state.themeKey) : null;
-    if (entry && entry.id){
-      localStorage.setItem('afs_edit_seed', JSON.stringify({ id: entry.id, name: entry.name, theme: entry.theme }));
-      location.href = `/frame_editor.html?themeId=${encodeURIComponent(entry.id)}`;
-    } else {
-      const seed = entry ? entry.name : '';
-      location.href = `/frame_editor.html?theme=${encodeURIComponent(seed)}`;
-    }
-  });
-
-  // Consume a just-saved custom theme when returning from frame_editor.html.
-  async function consumeCustomThemeIfJustSaved(){
-    if (sessionStorage.getItem('afs_custom_theme_just_saved') !== '1') return;
-    sessionStorage.removeItem('afs_custom_theme_just_saved');
-    const savedId = localStorage.getItem('afs_last_saved_theme_id');
-    await loadSavedThemes();
-    if (savedId) selectTheme('saved:' + savedId);
-  }
-  window.addEventListener('pageshow', consumeCustomThemeIfJustSaved);
-
   // ============ CONTINUE ============
   const continueBtn = document.getElementById('continueBtn');
   const continueHint = document.getElementById('continueHint');
 
   function updateContinueBtn(){
-    const hasTheme = !!state.themeKey;
     const hasReciter = !!state.reciter;
-    continueBtn.disabled = !hasTheme || !hasReciter;
-    continueHint.textContent = !hasReciter
-      ? 'Pick a reciter above to continue'
-      : hasTheme
-        ? "You'll sync recitation timing on the next step"
-        : 'Pick a style above to continue';
+    continueBtn.disabled = !hasReciter;
+    continueHint.textContent = hasReciter
+      ? "You'll sync recitation timing on the next step"
+      : 'Pick a reciter above to continue';
   }
 
   continueBtn.addEventListener('click', () => {
-    if (!state.themeKey) return;
+    if (!state.reciter) return;
     saveSessionState();
     location.href = `/timing.html?sessionId=${encodeURIComponent(sessionId)}`;
   });
@@ -1235,18 +930,10 @@
     // loadPreview()) so that preview fetch already uses the restored
     // translation instead of the default, then corrected right after.
     if (session.translation) state.translation = session.translation;
-    if (session.orientation === 'horizontal' || session.orientation === 'vertical') state.orientation = session.orientation;
-    document.querySelectorAll('#orientationSeg button').forEach(b => b.classList.toggle('active', b.dataset.value === state.orientation));
 
     updateSurahDisplay();
     updateRangeDisplay();
-    updateThemeAddTile();
     updateContinueBtn();
-    await loadSavedThemes();
-    if (session.themeName){
-      const match = themeEntries().find(t => t.name === session.themeName);
-      if (match) selectTheme(match.key);
-    }
 
     try {
       const data = await fetch('/api/reciters').then(r => r.json());
@@ -1278,8 +965,6 @@
       translations = [];
     }
     updateTranslationDisplay();
-
-    await consumeCustomThemeIfJustSaved();
   }
   init();
 </script>

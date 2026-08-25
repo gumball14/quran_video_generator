@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Facebook Reels — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="/quran-data.js"></script>
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --fb:#1877F2;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a{ font-family:inherit; -webkit-user-select:none; user-select:none; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding:20px 20px 32px;
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+  }
+
+  .topbar{ width:100%; display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .topbar-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+    text-decoration:none;
+  }
+  .topbar-btn:active{ transform:scale(.93); }
+  .topbar-btn svg{ width:16px; height:16px; }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; flex:1; min-width:0; }
+
+  /* ---------- page filter ---------- */
+  .page-filter{
+    display:flex; gap:9px; overflow-x:auto; padding:4px 2px; margin:18px 0 24px; scrollbar-width:none;
+  }
+  .page-filter::-webkit-scrollbar{ display:none; }
+  .page-chip{
+    flex-shrink:0; display:flex; align-items:center; gap:8px;
+    height:38px; padding:0 15px 0 5px; border-radius:100px; border:1.5px solid var(--line);
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.05);
+    cursor:pointer; font-size:12.5px; font-weight:800; color:var(--ink-mute);
+    transition:border-color .12s ease, box-shadow .12s ease, color .12s ease;
+  }
+  .page-chip:active{ transform:scale(.96); }
+  .page-chip.active{
+    border-color:var(--chip-color, var(--ink)); color:var(--ink);
+    box-shadow:0 0 0 2px var(--chip-color, var(--ink)) inset, 0 4px 10px -4px rgba(20,24,58,.2);
+  }
+  .page-chip-avatar{
+    width:26px; height:26px; border-radius:50%; color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;
+    box-shadow:0 0 0 2px var(--surface);
+  }
+  .page-chip-all{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-mute);
+  }
+  .page-chip.active .page-chip-all{ background:var(--ink); color:#F6F1E4; }
+  .page-chip-all svg{ width:12px; height:12px; }
+
+  /* ---------- grid view ---------- */
+  .reels-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .reel-card{
+    display:flex; flex-direction:column; gap:7px; border:none; background:none; cursor:pointer;
+    padding:0; text-align:left; -webkit-user-select:none; user-select:none;
+  }
+  .reel-thumb{
+    position:relative; width:100%; aspect-ratio:9/16; border-radius:14px; overflow:hidden; background:#000;
+  }
+  .reel-thumb video{ width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .reel-thumb-badge{
+    position:absolute; top:8px; left:8px; width:22px; height:22px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .reel-thumb-badge svg{ width:11px; height:11px; }
+  .reel-stats{
+    position:absolute; left:0; right:0; bottom:0; padding:8px 8px 7px;
+    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    display:flex; gap:10px; pointer-events:none;
+  }
+  .reel-stat{ display:flex; align-items:center; gap:3px; color:#fff; font-size:10.5px; font-weight:800; }
+  .reel-stat svg{ width:11px; height:11px; }
+  .reel-title{
+    font-size:11.5px; font-weight:700; color:var(--ink); line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .reel-time-grid{ font-size:10px; color:var(--ink-mute); font-weight:600; }
+
+  .reels-empty{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:48px 10px; color:var(--ink-mute);
+  }
+  .reels-empty svg{ width:30px; height:30px; margin-bottom:10px; }
+  .reels-empty p{ font-size:12.5px; margin:0; line-height:1.5; max-width:26ch; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="topbar">
+    <a class="topbar-btn" href="/" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="topbar-title">Facebook Reels</div>
+    <a class="topbar-btn" href="/facebook_account.html?returnTo=%2Ffacebook_reels.html" aria-label="Facebook account">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+    </a>
+  </div>
+
+  <div class="page-filter" id="pageFilter"></div>
+
+  <div id="reelsContent"></div>
+
+  <div class="reels-empty" id="reelsEmpty" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
+    <p>No reels yet. Post a video to Facebook to see it here.</p>
+  </div>
+</div>
+
+<script>
+  const AVATAR_COLORS = ['#1877F2', '#AD8226', '#2F8F6A', '#B23B3B', '#6C5CE7'];
+  function hashString(s){
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function colorFor(id){ return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length]; }
+  function formatCount(n){
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+  function fmtTimeAgo(ms){
+    const mins = Math.floor((Date.now() - ms) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return `${Math.floor(days / 7)}w ago`;
+  }
+  function titleOf(v){
+    const s = (window.SURAHS || []).find(x => x.n === v.surah);
+    const name = s ? s.en : (v.surah != null ? `Surah ${v.surah}` : 'Untitled');
+    const range = (v.ayahStart != null && v.ayahEnd != null)
+      ? (v.ayahStart === v.ayahEnd ? `Ayah ${v.ayahStart}` : `Ayahs ${v.ayahStart}–${v.ayahEnd}`)
+      : '';
+    return range ? `${name} · ${range}` : name;
+  }
+
+  let posted = []; // videos merged with their Facebook post record
+  let pages = [];  // distinct Pages actually posted to, for the filter chips
+  let selectedPageId = null; // null = all Pages
+
+  const contentEl = document.getElementById('reelsContent');
+  const emptyEl = document.getElementById('reelsEmpty');
+  const pageFilterEl = document.getElementById('pageFilter');
+
+  function openDetail(id){
+    location.href = `/facebook_reel_detail.html?id=${encodeURIComponent(id)}`;
+  }
+
+  function initials(name){
+    return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  }
+
+  function pageAvatar(id, name, picture, cls){
+    return picture
+      ? `<span class="${cls}"><img src="${picture}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></span>`
+      : `<span class="${cls}" style="background:${colorFor(id)}">${initials(name)}</span>`;
+  }
+
+  function visibleVideos(){
+    return selectedPageId ? posted.filter(v => v.post.pageId === selectedPageId) : posted;
+  }
+
+  function renderPageFilter(){
+    const chips = [{ id: null, name: 'All Pages' }, ...pages];
+    pageFilterEl.innerHTML = chips.map(p => `
+      <button class="page-chip${selectedPageId === p.id ? ' active' : ''}" data-page-id="${p.id || ''}" type="button"${p.id ? ` style="--chip-color:${colorFor(p.id)}"` : ''}>
+        ${p.id
+          ? pageAvatar(p.id, p.name, p.picture, 'page-chip-avatar')
+          : `<span class="page-chip-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>`}
+        ${p.name}
+      </button>
+    `).join('');
+    pageFilterEl.querySelectorAll('.page-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        selectedPageId = chip.dataset.pageId || null;
+        renderPageFilter();
+        render();
+      });
+    });
+  }
+
+  function renderGrid(){
+    const list = visibleVideos();
+    if (!list.length){
+      contentEl.innerHTML = `<div class="reels-empty"><svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg><p>No reels from this Page yet.</p></div>`;
+      return;
+    }
+    contentEl.innerHTML = `<div class="reels-grid" id="reelsGrid"></div>`;
+    const grid = document.getElementById('reelsGrid');
+    grid.innerHTML = list.map(({ v, post }) => {
+      const statsHtml = (post.stats && (post.stats.views != null || post.stats.likes != null)) ? `
+            <div class="reel-stats">
+              ${post.stats.views != null ? `<span class="reel-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>${formatCount(post.stats.views)}</span>` : ''}
+              ${post.stats.likes != null ? `<span class="reel-stat"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.35-9.5-8.5C.7 9 2 5.5 5.5 5c2-.3 3.6.7 4.5 2.2C10.9 5.7 12.5 4.7 14.5 5c3.5.5 4.8 4 3 7.5C19 16.65 12 21 12 21z"/></svg>${formatCount(post.stats.likes)}</span>` : ''}
+            </div>` : '';
+      return `
+        <button class="reel-card" data-id="${v.id}" type="button">
+          <div class="reel-thumb">
+            <video muted playsinline webkit-playsinline preload="metadata" src="/output/${encodeURIComponent(v.file)}"></video>
+            <div class="reel-thumb-badge" style="background:${post.pagePicture ? 'transparent' : colorFor(post.pageId)}">
+              ${post.pagePicture ? `<img src="${post.pagePicture}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>'}
+            </div>
+            ${statsHtml}
+          </div>
+          <div class="reel-title">${titleOf(v)}</div>
+          <div class="reel-time-grid">${post.pageName} · ${fmtTimeAgo(post.postedAt * 1000)}</div>
+        </button>
+      `;
+    }).join('');
+    grid.querySelectorAll('.reel-card').forEach(card => {
+      card.addEventListener('click', () => openDetail(card.dataset.id));
+    });
+  }
+
+  function render(){
+    if (!posted.length){
+      pageFilterEl.style.display = 'none';
+      contentEl.innerHTML = '';
+      emptyEl.style.display = 'flex';
+      return;
+    }
+    pageFilterEl.style.display = 'flex';
+    emptyEl.style.display = 'none';
+    renderGrid();
+  }
+
+  (async function init(){
+    let videos = [];
+    let postRecords = {};
+    try {
+      videos = await fetch('/api/videos').then(r => r.json());
+      if (!Array.isArray(videos)) videos = [];
+    } catch (e) { videos = []; }
+    try {
+      postRecords = await fetch('/api/facebook/posts').then(r => r.json());
+      if (!postRecords || typeof postRecords !== 'object') postRecords = {};
+    } catch (e) { postRecords = {}; }
+
+    posted = videos
+      .filter(v => postRecords[v.id])
+      .map(v => ({ v, post: postRecords[v.id] }));
+    posted.sort((a, b) => (b.post.postedAt || 0) - (a.post.postedAt || 0));
+
+    const seen = new Set();
+    pages = [];
+    posted.forEach(({ post }) => {
+      if (seen.has(post.pageId)) return;
+      seen.add(post.pageId);
+      pages.push({ id: post.pageId, name: post.pageName, picture: post.pagePicture });
+    });
+
+    renderPageFilter();
+    render();
+  })();
+</script>
+
+</body>
+</html>

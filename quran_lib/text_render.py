@@ -9,7 +9,7 @@ import math
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 try:
     import arabic_reshaper
@@ -136,6 +136,224 @@ def wrap_latin_lines(text: str, font: ImageFont.FreeTypeFont, max_width: int):
     return lines
 
 
+def _shadow_settings(h):
+    """Returns (enabled, color, spread_color, blur_px, offset_x_px, offset_y_px)
+    for the current THEME, sized off frame height `h`."""
+    THEME = theme_mod.THEME
+    enabled = THEME.get("text_shadow_enabled", False)
+    color = tuple(THEME.get("text_shadow_color", [0, 0, 0]))
+    spread_color = tuple(THEME.get("text_shadow_spread_color") or color)
+    blur_px = h * THEME.get("text_shadow_blur_frac", 0.006)
+    offset_x = h * THEME.get("text_shadow_offset_x_frac", 0.003)
+    offset_y = h * THEME.get("text_shadow_offset_y_frac", 0.004)
+    return enabled, color, spread_color, blur_px, offset_x, offset_y
+
+
+def _relative_luminance(rgb):
+    """WCAG relative luminance of an (r,g,b) triple, 0 (black) - 1 (white)."""
+    def chan(c):
+        s = c / 255
+        return s / 12.92 if s <= 0.03928 else ((s + 0.055) / 1.055) ** 2.4
+    r, g, b = rgb
+    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b)
+
+
+def _is_light_color(rgb):
+    return _relative_luminance(rgb) > 0.55
+
+
+def _shadow_layers(shadow_color, blur_px, offset_x, offset_y, h):
+    """Returns a list of (rgba_color, layer_blur_px, layer_offset_x, layer_offset_y)
+    describing how to paste a shadow. Mirrors frame_editor.html's
+    buildShadowCss(): a light shadow color reads as a dark smear on top of
+    light text, so light colors render as a soft centered glow (no
+    directional offset, two wider layered blur passes) instead of the
+    directional offset/blur drop shadow used for dark colors -- keeping the
+    exported frame in sync with what the editor's live preview shows."""
+    r, g, b = shadow_color
+    if _is_light_color(shadow_color):
+        glow_blur = blur_px * 1.8 + h * 0.008
+        return [
+            ((r, g, b, 242), glow_blur * 0.55, 0, 0),
+            ((r, g, b, 140), glow_blur, 0, 0),
+        ]
+    return [((r, g, b, 255), blur_px, offset_x, offset_y)]
+
+
+# Uthmani waqf/pause marks -- see quran_api.py's _attach_waqf_marks(), which
+# glues one of these onto the end of the previous word (no separating space)
+# for any fetched ayah that has one, so raqm's shaper positions it as a
+# combining mark stacked above that word instead of floating as its own
+# token. Repeated here (not imported from quran_api) to keep text_render.py
+# usable standalone/in tests without a network-facing dependency.
+_WAQF_MARK_CHARS = "ۖۗۘۙۚۛۜ"
+
+# How much further above the font's own built-in mark-anchor position to
+# nudge a trailing waqf mark, as a fraction of the word's font size. Some
+# bundled fonts' anchor sits close enough to the base letter to read as
+# touching/overlapping it -- see _composite_lifted_text().
+WAQF_MARK_LIFT_FRAC = 0.22
+
+# A tall-ish Arabic letter, used only to measure how far above a base
+# letter's own top a waqf mark's glyph naturally extends (see
+# _waqf_mark_extra_ascent_frac()) -- not part of any real word.
+_WAQF_MARK_ASCENT_PROBE_BASE = "ا"
+
+
+@functools.lru_cache(maxsize=64)
+def _waqf_mark_extra_ascent_frac(font_path: str, mark: str) -> float:
+    """How far above a base letter's own top this one waqf mark's glyph
+    extends, as a fraction of font size -- measured once per (font, mark)
+    at a large reference size and cached (bbox height scales ~linearly
+    with font size, so the fraction carries over to any size). Combined
+    with WAQF_MARK_LIFT_FRAC by arabic_line_height_with_waqf_pad() to make
+    sure a lifted mark never has less headroom above it than the line
+    above needs. These marks are stylized calligraphic ligatures (not
+    plain dots) and can genuinely be quite tall -- this measures the real
+    glyph rather than guessing."""
+    ref_size = 200
+    font = _cached_font(font_path, ref_size)
+    img = Image.new("L", (1, 1))
+    draw = ImageDraw.Draw(img)
+    base_kwargs = arabic_draw_args(_WAQF_MARK_ASCENT_PROBE_BASE)[1]
+    base_bbox = draw.textbbox((0, 0), _WAQF_MARK_ASCENT_PROBE_BASE, font=font, **base_kwargs)
+    full_text = _WAQF_MARK_ASCENT_PROBE_BASE + mark
+    full_kwargs = arabic_draw_args(full_text)[1]
+    full_bbox = draw.textbbox((0, 0), full_text, font=font, **full_kwargs)
+    return max(0.0, (base_bbox[1] - full_bbox[1]) / ref_size)
+
+
+def arabic_line_height_with_waqf_pad(arabic_size, base_mult, font_path):
+    """Returns the arabic_line_height_mult to actually use for this ayah's
+    Arabic block -- `base_mult` (the theme's own setting) bumped by enough
+    to guarantee a lifted waqf mark on ANY line never runs into the line
+    above it. The bump is computed from the worst case across all possible
+    waqf marks (not just the one(s) actually present in `text`), and is
+    applied unconditionally -- every ayah gets the same line height whether
+    or not it actually has a mark, so spacing never visibly shifts between
+    ayahs depending on whether one happens to carry a mark."""
+    worst = max(_waqf_mark_extra_ascent_frac(font_path, mark) for mark in _WAQF_MARK_CHARS)
+    return base_mult + WAQF_MARK_LIFT_FRAC + worst
+
+
+def _split_trailing_waqf_mark(word):
+    """If `word` (logical order -- i.e. as split on spaces, before any RTL
+    reshaping) ends in a waqf mark, returns (word_without_mark, mark_char).
+    Otherwise returns (word, None)."""
+    if word and word[-1] in _WAQF_MARK_CHARS:
+        return word[:-1], word[-1]
+    return word, None
+
+
+def _composite_lifted_text(mode, size, xy, text_full, text_base, font, fill, lift_px, **kwargs):
+    """Draws `text_full` at `xy` into a fresh `mode` ("L" or "RGBA") image of
+    `size`, same as a plain ImageDraw.text() call, except a trailing waqf
+    mark (if `text_base` is `text_full` with one split off -- pass identical
+    strings when there's none) is shifted `lift_px` further above the base
+    word than the font's own combining-mark anchor places it.
+
+    PIL/raqm expose no per-glyph position hook to nudge just one combining
+    mark directly, so this isolates it indirectly: render text_base alone
+    and text_full (base+mark) at the same `xy`, diff their alpha to pull out
+    just the mark's own pixels (the base glyphs render identically in both,
+    since a trailing non-spacing mark doesn't reflow anything before it),
+    then re-composite with that isolated mark shifted up."""
+    zero = 0 if mode == "L" else (0, 0, 0, 0)
+    full = Image.new(mode, size, zero)
+    ImageDraw.Draw(full).text(xy, text_full, font=font, fill=fill, **kwargs)
+    if text_base == text_full or lift_px <= 0:
+        return full
+    base = Image.new(mode, size, zero)
+    ImageDraw.Draw(base).text(xy, text_base, font=font, fill=fill, **kwargs)
+    full_a = full if mode == "L" else full.getchannel("A")
+    base_a = base if mode == "L" else base.getchannel("A")
+    mark_mask = ImageChops.subtract(full_a, base_a)
+    if mark_mask.getbbox() is None:
+        return full  # nothing isolated (unexpected) -- fall back to the plain render
+    mark_only = Image.new(mode, size, zero)
+    mark_only.paste(full, (0, 0), mark_mask)
+    mark_lifted = Image.new(mode, size, zero)
+    mark_lifted.paste(mark_only, (0, -round(lift_px)))
+    lifted = base.copy()
+    lifted.paste(mark_lifted, (0, 0), mark_lifted)
+    return lifted
+
+
+def _render_shadow_layer(size, mask_fn, color, blur_px):
+    """Renders one shadow layer as a flat `color` masked by a blurred alpha
+    shape. mask_fn(size) returns an "L"-mode mask, which is what actually
+    gets blurred -- NOT an RGBA image with `color` painted directly, which
+    is what every version of this used to do. Blurring RGBA directly mixes
+    the flat color into the implicit black RGB of the fully-transparent
+    pixels surrounding it (PIL's GaussianBlur has no idea those pixels are
+    "invisible" -- it just averages whatever's in the R/G/B channels there,
+    which defaults to 0), so a light shadow color's blurred edge comes out
+    gray/dark instead of fading to the color itself. Barely visible against
+    a dark background (a gray fringe still looks like glow), but glaring
+    against a light one (a bright color like white produces a visibly dark
+    ring). Blurring a single-channel mask has no such cross-channel
+    contamination."""
+    mask = mask_fn(size)
+    if blur_px > 0:
+        mask = mask.filter(ImageFilter.GaussianBlur(blur_px))
+    r, g, b, a = color
+    if a != 255:
+        mask = mask.point(lambda v: v * a // 255)
+    layer = Image.new("RGBA", size, (r, g, b, 0))
+    layer.putalpha(mask)
+    return layer
+
+
+def _paste_text_shadow(img: Image.Image, text, font, xy, layers, text_base=None, lift_px=0, **kwargs):
+    """Blurs and pastes shadow-colored copies of `text` behind wherever the
+    real glyph will be drawn -- but does NOT draw the real glyph itself, so
+    callers that draw their real text separately (e.g. per-word Arabic
+    glyphs, drawn later by draw_dynamic_layer) can bake just the shadow in
+    now. `layers` comes from _shadow_layers() -- usually one directional
+    layer, or two centered glow layers for light shadow colors. The overlay
+    is sized to the text's own bounding box (+ blur padding), not the full
+    frame, so this stays cheap even called once per word.
+
+    `text_base`/`lift_px`: when `text` ends in a waqf mark, pass `text_base`
+    as `text` with that mark split off (see _split_trailing_waqf_mark) and
+    `lift_px` > 0 to nudge the mark's shadow up along with the real glyph
+    (see _composite_lifted_text) -- otherwise the shadow would sit at the
+    font's own (un-lifted) anchor position while the glyph above it moved,
+    visibly detaching the two."""
+    if text_base is None:
+        text_base = text
+    draw = ImageDraw.Draw(img)
+    bbox = draw.textbbox(xy, text, font=font, **kwargs)
+    max_blur = max(layer[1] for layer in layers)
+    pad = int(max_blur * 3) + 4
+    region = [int(bbox[0]) - pad, int(bbox[1]) - pad, int(bbox[2]) + pad, int(bbox[3]) + pad]
+    rw, rh = region[2] - region[0], region[3] - region[1]
+    if rw <= 0 or rh <= 0:
+        return
+    local_xy = (xy[0] - region[0], xy[1] - region[1])
+    overlay = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+    for color, blur_px, offset_x, offset_y in layers:
+        def mask_fn(size, offset_x=offset_x, offset_y=offset_y):
+            off_xy = (local_xy[0] + offset_x, local_xy[1] + offset_y)
+            return _composite_lifted_text("L", size, off_xy, text, text_base, font, 255, lift_px, **kwargs)
+        layer_img = _render_shadow_layer((rw, rh), mask_fn, color, blur_px)
+        overlay = Image.alpha_composite(overlay, layer_img)
+    img.paste(overlay, (region[0], region[1]), overlay)
+
+
+def draw_text_with_shadow(img: Image.Image, draw: ImageDraw.ImageDraw, text, font, xy, fill,
+                           shadow_enabled, layers, **kwargs):
+    """Draws `text` at xy with `fill`, pasting a blurred shadow behind
+    it first when shadow_enabled -- used for elements drawn once per ayah
+    (header, badge number, translation lines), where drawing the shadow and
+    the real glyph together in one call is simplest."""
+    if shadow_enabled:
+        _paste_text_shadow(img, text, font, xy, layers, **kwargs)
+        draw = ImageDraw.Draw(img)  # paste() mutates img in place; re-grab a draw handle to be safe across Pillow versions
+    draw.text(xy, text, font=font, fill=fill, **kwargs)
+    return draw
+
+
 @functools.lru_cache(maxsize=64)
 def _cached_font(path_str: str, size: int) -> ImageFont.FreeTypeFont:
     """ImageFont.truetype() re-parses the font file from disk on every call;
@@ -151,11 +369,24 @@ def _cached_background_image(spec: str):
 
 
 @functools.lru_cache(maxsize=8)
-def _cached_gradient(size, top_color, bottom_color) -> Image.Image:
-    """vertical_gradient() does a 1920-row Python pixel loop -- cache the
-    result per (size, colors) since it's the same for every ayah that shares
-    a theme. Callers must .copy() the result before drawing on it."""
+def _cached_gradient(size, top_color, bottom_color, style="linear") -> Image.Image:
+    """Renders the theme's background gradient -- cache the result per
+    (size, colors, style) since it's the same for every ayah that shares a
+    theme. Callers must .copy() the result before drawing on it."""
+    if style == "radial":
+        return radial_gradient(size, top_color, bottom_color).convert("RGB")
+    if style == "diagonal":
+        return diagonal_gradient(size, top_color, bottom_color).convert("RGB")
     return vertical_gradient(size, top_color, bottom_color).convert("RGB")
+
+
+def theme_gradient(size) -> Image.Image:
+    """render_background()/render_outro_frame()'s single entry point for the
+    theme's gradient -- reads bg_top/bg_bottom/bg_gradient_style off THEME so
+    every caller doesn't have to."""
+    THEME = theme_mod.THEME
+    return _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"]),
+                             THEME.get("bg_gradient_style", "linear"))
 
 
 def vertical_gradient(size, top_color, bottom_color):
@@ -169,6 +400,47 @@ def vertical_gradient(size, top_color, bottom_color):
         b = int(top_color[2] + (bottom_color[2] - top_color[2]) * t)
         draw.point((0, y), fill=(r, g, b))
     return base.resize((w, h))
+
+
+# radial_gradient/diagonal_gradient render at a small fixed resolution (a
+# per-pixel Python loop, unlike vertical_gradient's cheap 1-column trick)
+# then upscale to the real frame size -- smooth enough for a soft color
+# gradient, and cheap since it only runs once per (size, colors, style)
+# thanks to _cached_gradient's lru_cache.
+_GRADIENT_BASE_N = 128
+
+
+def radial_gradient(size, top_color, bottom_color):
+    n = _GRADIENT_BASE_N
+    base = Image.new("RGB", (n, n))
+    px = base.load()
+    cx = cy = (n - 1) / 2
+    max_r = math.hypot(cx, cy)
+    for y in range(n):
+        for x in range(n):
+            t = min(math.hypot(x - cx, y - cy) / max_r, 1.0)
+            px[x, y] = (
+                int(top_color[0] + (bottom_color[0] - top_color[0]) * t),
+                int(top_color[1] + (bottom_color[1] - top_color[1]) * t),
+                int(top_color[2] + (bottom_color[2] - top_color[2]) * t),
+            )
+    return base.resize(size, Image.LANCZOS)
+
+
+def diagonal_gradient(size, top_color, bottom_color):
+    n = _GRADIENT_BASE_N
+    base = Image.new("RGB", (n, n))
+    px = base.load()
+    denom = 2 * (n - 1)
+    for y in range(n):
+        for x in range(n):
+            t = (x + y) / denom
+            px[x, y] = (
+                int(top_color[0] + (bottom_color[0] - top_color[0]) * t),
+                int(top_color[1] + (bottom_color[1] - top_color[1]) * t),
+                int(top_color[2] + (bottom_color[2] - top_color[2]) * t),
+            )
+    return base.resize(size, Image.LANCZOS)
 
 
 # Common install locations for a color-emoji font. None of these ship with
@@ -247,9 +519,10 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
     style = THEME["highlight_pointer_style"]
     position = THEME.get("highlight_pointer_position", "top")
     gap = THEME.get("highlight_pointer_gap_mult", 1.0)
+    size_mult = THEME.get("highlight_pointer_size_mult", 1.0)
     r, g, b = THEME["highlight_color"]
     outline = (0, 0, 0)
-    outline_width = max(1, round(font_size * 0.035))
+    outline_width = max(1, round(font_size * 0.035 * size_mult))
     if bottom_y is None:
         bottom_y = top_y + font_size * 1.12  # matches the highlight pill's bottom edge
 
@@ -270,7 +543,7 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
                 # arbitrary point size directly (see _emoji_font()).
                 glyph_img = Image.new("RGBA", (gw, gh), (0, 0, 0, 0))
                 ImageDraw.Draw(glyph_img).text((-bbox[0], -bbox[1]), glyph, font=font, embedded_color=True)
-                target_h = round(font_size * 1.1)
+                target_h = round(font_size * 1.1 * size_mult)
                 scale = target_h / native_size
                 new_w, new_h = max(1, round(gw * scale)), max(1, round(gh * scale))
                 glyph_img = glyph_img.resize((new_w, new_h), Image.LANCZOS)
@@ -285,8 +558,8 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
         # no emoji font/img available -- fall through to the vector marker below
 
     if style in ("hand", "arrow"):
-        s = font_size * 0.46
-        stem_h = font_size * 0.42 * gap
+        s = font_size * 0.46 * size_mult
+        stem_h = font_size * 0.42 * gap * size_mult
         stem_w = s * 0.6
         if position == "top":
             tip_y = top_y - font_size * 0.22 * gap
@@ -300,7 +573,7 @@ def draw_pointer(draw: ImageDraw.ImageDraw, x: float, top_y: float, font_size: f
         if style == "hand":
             draw.rectangle(stem_box, fill=(r, g, b), outline=outline, width=outline_width)
     elif style == "dot":
-        rad = font_size * 0.15
+        rad = font_size * 0.15 * size_mult
         cy = (top_y - font_size * 0.25 * gap) if position == "top" else (bottom_y + font_size * 0.25 * gap)
         draw.ellipse([x - rad, cy - rad, x + rad, cy + rad], fill=(r, g, b), outline=outline, width=outline_width)
 
@@ -386,6 +659,77 @@ def _draw_line_cap(target, x, y, direction, cap, size, color):
     elif cap == "arrow":
         tip_x = x + direction * size * 1.4
         target.polygon([(tip_x, y), (x, y - size), (x, y + size)], fill=color)
+
+
+def _paste_badge_shape_shadow(img: Image.Image, kind, data, border_width_px, layers, cx, cy, half):
+    """Blurs and pastes the badge shape's OUTLINE (not its fill) behind
+    where the real border will be drawn, once per layer in `layers` (see
+    _shadow_layers) -- gated by text_shadow_badge_border, independent of
+    whether the digit/other text elements have shadows on. `kind`/`data`
+    come from _badge_shape(); "ring" needs its own outer-radius math to
+    match _draw_badge_shape()'s own ring rendering."""
+    if kind not in ("ellipse", "ring", "rounded_rect", "polygon"):
+        return
+    max_blur = max(layer[1] for layer in layers)
+    pad = int(border_width_px + max_blur * 3) + 6
+    region = [int(cx - half - pad), int(cy - half - pad), int(cx + half + pad), int(cy + half + pad)]
+    rw, rh = region[2] - region[0], region[3] - region[1]
+    if rw <= 0 or rh <= 0:
+        return
+
+    overlay = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+    for color, blur_px, offset_x, offset_y in layers:
+        def shift(pt, ox=offset_x, oy=offset_y):
+            return (pt[0] - region[0] + ox, pt[1] - region[1] + oy)
+
+        def mask_fn(size, shift=shift):
+            mask = Image.new("L", size, 0)
+            odraw = ImageDraw.Draw(mask)
+            if kind == "ellipse":
+                odraw.ellipse([*shift((data[0], data[1])), *shift((data[2], data[3]))], outline=255, width=border_width_px)
+            elif kind == "ring":
+                ring_offset = border_width_px * 2
+                outer = [data[0] - ring_offset, data[1] - ring_offset, data[2] + ring_offset, data[3] + ring_offset]
+                odraw.ellipse([*shift((outer[0], outer[1])), *shift((outer[2], outer[3]))], outline=255, width=border_width_px)
+            elif kind == "rounded_rect":
+                rect, radius = data
+                odraw.rounded_rectangle([*shift((rect[0], rect[1])), *shift((rect[2], rect[3]))], radius=radius,
+                                         outline=255, width=border_width_px)
+            elif kind == "polygon":
+                odraw.polygon([shift(p) for p in data], outline=255, width=border_width_px)
+            return mask
+
+        layer_img = _render_shadow_layer((rw, rh), mask_fn, color, blur_px)
+        overlay = Image.alpha_composite(overlay, layer_img)
+    img.paste(overlay, (region[0], region[1]), overlay)
+
+
+def _paste_badge_line_shadow(img: Image.Image, cx, cy, line_half_len, line_width_px, line_cap_style,
+                              line_cap_size_px, layers):
+    """Blurs and pastes the badge's line accent (+ end caps) behind where
+    the real one will be drawn, once per layer in `layers` (see
+    _shadow_layers) -- gated by text_shadow_line, independent of the
+    badge's other shadow targets."""
+    max_blur = max(layer[1] for layer in layers)
+    pad = int(line_width_px + line_cap_size_px + max_blur * 3) + 6
+    region = [int(cx - line_half_len - pad), int(cy - pad), int(cx + line_half_len + pad), int(cy + pad)]
+    rw, rh = region[2] - region[0], region[3] - region[1]
+    if rw <= 0 or rh <= 0:
+        return
+    overlay = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+    for color, blur_px, offset_x, offset_y in layers:
+        def mask_fn(size, offset_x=offset_x, offset_y=offset_y):
+            mask = Image.new("L", size, 0)
+            odraw = ImageDraw.Draw(mask)
+            lcx, lcy = cx - region[0] + offset_x, cy - region[1] + offset_y
+            odraw.line([(lcx - line_half_len, lcy), (lcx + line_half_len, lcy)], fill=255, width=line_width_px)
+            _draw_line_cap(odraw, lcx - line_half_len, lcy, -1, line_cap_style, line_cap_size_px, 255)
+            _draw_line_cap(odraw, lcx + line_half_len, lcy, 1, line_cap_style, line_cap_size_px, 255)
+            return mask
+
+        layer_img = _render_shadow_layer((rw, rh), mask_fn, color, blur_px)
+        overlay = Image.alpha_composite(overlay, layer_img)
+    img.paste(overlay, (region[0], region[1]), overlay)
 
 
 def _draw_badge_shape(img, draw, style, cx, cy, half, fill_rgba, border_rgb, border_width_px,
@@ -491,9 +835,9 @@ def render_background(size) -> Image.Image:
             overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
             img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
         else:
-            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+            img = theme_gradient(size).copy()
     else:
-        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+        img = theme_gradient(size).copy()
     return img
 
 
@@ -520,6 +864,15 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
     # --- background ---
     img = render_background(size)
     draw = ImageDraw.Draw(img)
+    shadow_on, shadow_color, shadow_spread_color, shadow_blur, shadow_dx, shadow_dy = _shadow_settings(h)
+    text_shadow_layers = _shadow_layers(shadow_color, shadow_blur, shadow_dx, shadow_dy, h)
+    spread_shadow_layers = _shadow_layers(shadow_spread_color, shadow_blur, shadow_dx, shadow_dy, h)
+    header_shadow_on = shadow_on and THEME.get("text_shadow_header", True)
+    arabic_shadow_on = shadow_on and THEME.get("text_shadow_arabic", True)
+    badge_num_shadow_on = shadow_on and THEME.get("text_shadow_badge_number", True)
+    badge_border_shadow_on = shadow_on and THEME.get("text_shadow_badge_border", False)
+    badge_line_shadow_on = shadow_on and THEME.get("text_shadow_line", False)
+    translation_shadow_on = shadow_on and THEME.get("text_shadow_translation", True)
 
     # --- layout columns: side-by-side translation splits the width, text_align shifts within a column ---
     margin = int(w * THEME["margin_frac"])
@@ -543,22 +896,29 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
         if use_text_header:
             header_font = _cached_font(str(theme_mod.LATIN_FONT_REGULAR), int(h * THEME["header_size_frac"]))
             hb = draw.textbbox((0, 0), header_text, font=header_font)
-            draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_text,
-                       font=header_font, fill=tuple(THEME["header_color"]))
+            draw = draw_text_with_shadow(img, draw, header_text, header_font,
+                       ((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), tuple(THEME["header_color"]),
+                       header_shadow_on, text_shadow_layers)
         else:
             header_font = _cached_font(str(theme_mod.ARABIC_FONT_REGULAR), int(h * THEME["header_size_frac"]))
             header_display, header_kwargs = arabic_draw_args(header_text)
             hb = draw.textbbox((0, 0), header_display, font=header_font, **header_kwargs)
-            draw.text(((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), header_display,
-                       font=header_font, fill=tuple(THEME["header_color"]), **header_kwargs)
+            draw = draw_text_with_shadow(img, draw, header_display, header_font,
+                       ((w - (hb[2] - hb[0])) / 2, h * THEME["header_y_frac"]), tuple(THEME["header_color"]),
+                       header_shadow_on, text_shadow_layers, **header_kwargs)
 
     # Arabic verse text, sized down if long
     arabic_size = int(h * THEME["arabic_size_max_frac"])
     min_size = int(h * THEME["arabic_size_min_frac"])
+    # Bumped uniformly for every ayah (see arabic_line_height_with_waqf_pad())
+    # so a lifted waqf mark never runs into the line above, regardless of
+    # which line it lands on or whether this particular ayah has one.
+    arabic_line_height_mult = arabic_line_height_with_waqf_pad(
+        arabic_size, THEME["arabic_line_height_mult"], str(theme_mod.ARABIC_FONT_BOLD))
     while arabic_size > min_size:
         arabic_font = _cached_font(str(theme_mod.ARABIC_FONT_BOLD), arabic_size)
         lines = wrap_arabic_lines(verse.arabic, arabic_font, arabic_col_width, draw)
-        line_height = int(arabic_size * THEME["arabic_line_height_mult"])
+        line_height = int(arabic_size * arabic_line_height_mult)
         block_height = line_height * len(lines)
         if block_height < h * 0.42:
             break
@@ -589,13 +949,28 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
         line_layout.append((words, right_edge, y))
         cursor = right_edge
         for word in words:
+            wd_base_word, wd_mark = _split_trailing_waqf_mark(word)
             wd_display, wd_kwargs = arabic_draw_args(word)
+            wd_lift_px = arabic_size * WAQF_MARK_LIFT_FRAC if wd_mark else 0
+            if wd_mark:
+                wd_base_display, wd_base_kwargs = arabic_draw_args(wd_base_word)
+            else:
+                wd_base_display, wd_base_kwargs = wd_display, wd_kwargs
             wd_bbox = draw.textbbox((0, 0), wd_display, font=arabic_font, **wd_kwargs)
             wd_width = wd_bbox[2] - wd_bbox[0]
             left = cursor - wd_width
             word_boxes.append({"left": left, "right": cursor, "cx": left + wd_width / 2,
                                 "top": y, "font_size": arabic_size,
-                                "display": wd_display, "kwargs": wd_kwargs})
+                                "display": wd_display, "kwargs": wd_kwargs,
+                                "base_display": wd_base_display, "lift_px": wd_lift_px})
+            if arabic_shadow_on:
+                # Only the shadow is baked in here -- the real glyph is drawn
+                # per-frame by draw_dynamic_layer() (word highlighting changes
+                # 6x/word), but the shadow itself never changes frame to
+                # frame, so baking it once into the cached base image avoids
+                # redoing the blur on every frame.
+                _paste_text_shadow(img, wd_display, arabic_font, (left, y), text_shadow_layers,
+                                    text_base=wd_base_display, lift_px=wd_lift_px, **wd_kwargs)
             cursor -= wd_width + space_width
 
     # Word glyphs, highlight pill, and pointer are all per-frame (highlight_index/
@@ -674,6 +1049,14 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
             line_length_val = THEME.get("badge_line_length", 10)
             line_half_len_px = w * (line_length_val / 200.0)
 
+        if badge_border_shadow_on and style != "none" and border_width_px > 0:
+            kind, shape_data = _badge_shape(style, badge_cx, badge_cy, half)
+            _paste_badge_shape_shadow(img, kind, shape_data, border_width_px, spread_shadow_layers,
+                                       badge_cx, badge_cy, half)
+        if badge_line_shadow_on and line_width_px > 0:
+            _paste_badge_line_shadow(img, badge_cx, badge_cy, line_half_len_px if line_half_len_px is not None else half * 2.6,
+                                      line_width_px, line_cap_style, line_cap_size_px, spread_shadow_layers)
+
         img, draw = _draw_badge_shape(img, draw, style, badge_cx, badge_cy, half,
                                        fill_rgba, border_color, border_width_px,
                                        line_width_px, line_cap_style, line_cap_size_px, line_color,
@@ -683,8 +1066,9 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
         # (unlike the Arabic verse/header text above) so the bbox-based centering
         # below lands the number dead-center in the badge instead of skewed by
         # RTL shaping.
-        draw.text((badge_cx - text_w / 2 - bb[0], badge_cy - text_h / 2 - bb[1]), badge_display,
-                   font=badge_font, fill=tuple(THEME["badge_color"]))
+        draw = draw_text_with_shadow(img, draw, badge_display, badge_font,
+                   (badge_cx - text_w / 2 - bb[0], badge_cy - text_h / 2 - bb[1]), tuple(THEME["badge_color"]),
+                   badge_num_shadow_on, text_shadow_layers)
         badge_bottom = badge_cy + half
     else:
         badge_bottom = badge_top_y
@@ -726,16 +1110,25 @@ def build_ayah_layout(verse: Verse, surah_name_arabic: str, size, show_translati
             else:
                 x = trans_col_left + (trans_col_width_eff - line_w) / 2
             y = t_start_y + i * t_line_height
-            draw.text((x, y), line, font=trans_font, fill=tuple(THEME["translation_color"]))
+            draw = draw_text_with_shadow(img, draw, line, trans_font, (x, y), tuple(THEME["translation_color"]),
+                       translation_shadow_on, text_shadow_layers)
 
-    layout = {"arabic_font": arabic_font, "arabic_size": arabic_size, "word_boxes": word_boxes}
+    layout = {"arabic_font": arabic_font, "arabic_size": arabic_size, "word_boxes": word_boxes,
+              "arabic_shadow_on": arabic_shadow_on, "text_shadow_layers": text_shadow_layers}
     return img, layout
 
 
 def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1, pointer_pos=None) -> Image.Image:
     """Runs per frame (6x/word): copies the cached base image from
     build_ayah_layout() and draws just the highlight pill + word glyphs +
-    pointer on top. No re-measuring, no re-wrapping, no font reload."""
+    pointer on top. No re-measuring, no re-wrapping, no font reload.
+
+    highlight_index is a single word index (-1 = none, the default), or a
+    list of indices for a merged group -- two or more words recited fast
+    enough to highlight together as one beat instead of animating word to
+    word (see quran_lib/timing.py). A group's pill spans the union of its
+    words' boxes, drawn once per distinct line the group falls on (almost
+    always just one line -- one pill)."""
     THEME = theme_mod.THEME
     arabic_font = layout["arabic_font"]
     arabic_size = layout["arabic_size"]
@@ -743,22 +1136,44 @@ def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1
 
     img = base_image.copy()
 
+    raw_indices = highlight_index if isinstance(highlight_index, list) else [highlight_index]
+    highlight_set = {i for i in raw_indices if 0 <= i < len(word_boxes)}
+
     # --- the highlight pill needs alpha blending and must sit BEHIND the word text,
-    #     so composite it onto the background before drawing any text ---
-    if THEME["highlight_enabled"] and THEME["highlight_style"] == "pill" and 0 <= highlight_index < len(word_boxes):
-        box = word_boxes[highlight_index]
+    #     so composite it onto the background before drawing any text -- grouped by
+    #     line (top) so a merged multi-word highlight draws one pill per line instead
+    #     of one per word, reducing to today's single-box pill when there's just one ---
+    if THEME["highlight_enabled"] and THEME["highlight_style"] == "pill" and highlight_set:
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         odraw = ImageDraw.Draw(overlay)
-        pad_x = box["font_size"] * 0.14
-        top = box["top"] - box["font_size"] * 0.08
-        bottom = box["top"] + box["font_size"] * 1.12
         alpha = int(255 * THEME["highlight_bg_opacity"])
         r, g, b = THEME["highlight_color"]
-        odraw.rounded_rectangle(
-            [box["left"] - pad_x, top, box["right"] + pad_x, bottom],
-            radius=box["font_size"] * 0.24, fill=(r, g, b, alpha),
-        )
+        lines = {}
+        for i in highlight_set:
+            lines.setdefault(word_boxes[i]["top"], []).append(word_boxes[i])
+        for boxes in lines.values():
+            left = min(b["left"] for b in boxes)
+            right = max(b["right"] for b in boxes)
+            ref = boxes[0]
+            pad_x = ref["font_size"] * 0.14
+            top = ref["top"] - ref["font_size"] * 0.08
+            bottom = ref["top"] + ref["font_size"] * 1.12
+            odraw.rounded_rectangle(
+                [left - pad_x, top, right + pad_x, bottom],
+                radius=ref["font_size"] * 0.24, fill=(r, g, b, alpha),
+            )
         img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+        # The pill just painted over whatever shadow build_ayah_layout() baked
+        # in behind these words (the pill has to sit above the base image to
+        # read as a solid highlight), so re-paste their shadow on top of the
+        # pill, before the glyphs go on -- otherwise every highlighted word's
+        # shadow visibly disappears/thins out the instant it's highlighted.
+        if layout.get("arabic_shadow_on"):
+            layers = layout["text_shadow_layers"]
+            for i in highlight_set:
+                box = word_boxes[i]
+                _paste_text_shadow(img, box["display"], arabic_font, (box["left"], box["top"]), layers, **box["kwargs"])
 
     draw = ImageDraw.Draw(img)
 
@@ -766,7 +1181,7 @@ def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1
     #     by build_ayah_layout() (no re-measuring) ---
     for idx, box in enumerate(word_boxes):
         fill = tuple(THEME["arabic_color"])
-        if THEME["highlight_enabled"] and idx == highlight_index:
+        if THEME["highlight_enabled"] and idx in highlight_set:
             if THEME["highlight_style"] == "underline":
                 ly = box["top"] + arabic_size * 1.02
                 draw.line([(box["left"], ly), (box["right"], ly)],
@@ -774,6 +1189,25 @@ def draw_dynamic_layer(base_image: Image.Image, layout: dict, highlight_index=-1
                            width=max(1, int(arabic_size * 0.06)))
             elif THEME["highlight_style"] == "color":
                 fill = tuple(THEME["highlight_color"])
+        lift_px = box.get("lift_px", 0)
+        if lift_px:
+            # This word ends in a waqf mark -- nudge it above the font's own
+            # (sometimes too-tight) anchor position, same as the shadow
+            # baked behind it in build_ayah_layout(). See
+            # _composite_lifted_text() for how the isolated-mark compositing
+            # works.
+            xy = (box["left"], box["top"])
+            bbox = draw.textbbox(xy, box["display"], font=arabic_font, **box["kwargs"])
+            pad = int(lift_px) + 4
+            region = [int(bbox[0]) - pad, int(bbox[1]) - pad, int(bbox[2]) + pad, int(bbox[3]) + pad]
+            rw, rh = region[2] - region[0], region[3] - region[1]
+            if rw > 0 and rh > 0:
+                local_xy = (xy[0] - region[0], xy[1] - region[1])
+                layer = _composite_lifted_text("RGBA", (rw, rh), local_xy, box["display"], box["base_display"],
+                                                arabic_font, (*fill, 255), lift_px, **box["kwargs"])
+                img.paste(layer, (region[0], region[1]), layer)
+                draw = ImageDraw.Draw(img)  # paste() mutates img in place; re-grab a draw handle to be safe across Pillow versions
+                continue
         draw.text((box["left"], box["top"]), box["display"], font=arabic_font, fill=fill, **box["kwargs"])
 
     if THEME["highlight_enabled"] and THEME["highlight_pointer_enabled"] and pointer_pos is not None:
@@ -820,11 +1254,14 @@ def render_outro_frame(size, text="Thank you for watching") -> Image.Image:
             overlay = Image.new("RGBA", size, (0, 0, 0, int(255 * THEME["background_overlay_opacity"])))
             img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
         else:
-            img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+            img = theme_gradient(size).copy()
     else:
-        img = _cached_gradient(size, tuple(THEME["bg_top"]), tuple(THEME["bg_bottom"])).copy()
+        img = theme_gradient(size).copy()
 
     draw = ImageDraw.Draw(img)
+    shadow_on, shadow_color, _shadow_spread_color, shadow_blur, shadow_dx, shadow_dy = _shadow_settings(h)
+    text_shadow_layers = _shadow_layers(shadow_color, shadow_blur, shadow_dx, shadow_dy, h)
+    header_shadow_on = shadow_on and THEME.get("text_shadow_header", True)
     font_size = int(h * 0.032)
     font = _cached_font(str(theme_mod.LATIN_FONT_REGULAR), font_size)
     lines = wrap_latin_lines(text, font, int(w * (1 - 2 * THEME["margin_frac"])))
@@ -835,7 +1272,8 @@ def render_outro_frame(size, text="Thank you for watching") -> Image.Image:
         bbox = font.getbbox(line)
         line_w = bbox[2] - bbox[0]
         x = (w - line_w) / 2
-        draw.text((x, y), line, font=font, fill=tuple(THEME["header_color"]))
+        draw = draw_text_with_shadow(img, draw, line, font, (x, y), tuple(THEME["header_color"]),
+                   header_shadow_on, text_shadow_layers)
         y += line_height
 
     return img

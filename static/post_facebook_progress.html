@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>Posting to Facebook — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="/quran-data.js"></script>
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --danger:#B23B3B;
+    --success:#2F8F6A;
+    --fb:#1877F2;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a{ font-family:inherit; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    max-width:480px; margin:0 auto;
+    padding:20px 20px 40px;
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+  }
+
+  .topbar{
+    width:100%; display:flex; align-items:center; gap:12px;
+    margin-bottom:20px;
+  }
+  .topbar-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+    text-decoration:none;
+  }
+  .topbar-btn:active{ transform:scale(.93); }
+  .topbar-btn svg{ width:16px; height:16px; }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; }
+
+  #content{ width:100%; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    box-shadow:0 2px 6px rgba(20,24,58,.05);
+  }
+
+  /* ---------- status card (posting -> success/error) ---------- */
+  .status-card{ padding:16px; margin-bottom:24px; }
+  .status-row{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .status-avatar{
+    width:40px; height:40px; border-radius:50%; color:#fff; font-weight:800; font-size:13px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--fb);
+  }
+  .status-avatar svg{ width:19px; height:19px; }
+  .status-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+  .status-text{ flex:1; min-width:0; }
+  .status-title{ font-weight:800; font-size:14px; }
+  .status-sub{ font-size:11.5px; color:var(--ink-mute); font-weight:600; margin-top:1px; }
+  .status-spinner{ width:20px; height:20px; flex-shrink:0; color:var(--ink-mute); }
+  .status-spinner svg{ width:100%; height:100%; animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .status-card.success .status-avatar{ background:var(--success); }
+  .status-card.error .status-avatar{ background:var(--danger); }
+
+  .progress-track{ height:6px; border-radius:100px; background:var(--surface-2); overflow:hidden; }
+  .progress-fill{ height:100%; width:4%; background:var(--fb); transition:width .5s ease; }
+  .status-card.success .progress-fill{ background:var(--success); }
+  .status-card.error .progress-fill{ background:var(--danger); }
+
+  .status-actions{ display:none; gap:10px; margin-top:16px; }
+  .status-actions.show{ display:flex; }
+  .ready-btn{
+    flex:1; height:46px; border-radius:13px; border:none; cursor:pointer;
+    font-weight:800; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:7px;
+    text-decoration:none;
+  }
+  .ready-btn:active{ transform:scale(.97); }
+  .ready-btn-primary{ background:var(--ink); color:#F6F1E4; }
+  .ready-btn-secondary{ background:var(--surface-2); color:var(--ink); }
+
+  /* ---------- uploads grid ---------- */
+  .section-label{
+    font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--ink-mute); margin:0 2px 4px;
+  }
+  .section-hint{ font-size:11.5px; color:var(--ink-mute); font-weight:600; margin:0 2px 14px; line-height:1.5; }
+
+  .uploads-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .upload-card{
+    display:flex; flex-direction:column; gap:7px; border:none; background:none;
+    padding:0; cursor:pointer; text-align:left; font-family:inherit;
+  }
+  .upload-thumb{
+    position:relative; width:100%; aspect-ratio:9/16; border-radius:14px; overflow:hidden;
+    background:#000;
+  }
+  .upload-thumb video{ width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .upload-thumb-play{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(20,24,58,.35); color:#fff; pointer-events:none;
+  }
+  .upload-thumb-play svg{ width:20px; height:20px; }
+  .upload-stats{
+    position:absolute; left:0; right:0; bottom:0; padding:8px 8px 7px;
+    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    display:flex; gap:10px; pointer-events:none;
+  }
+  .upload-stat{ display:flex; align-items:center; gap:3px; color:#fff; font-size:10.5px; font-weight:800; }
+  .upload-stat svg{ width:11px; height:11px; }
+  .upload-title{
+    font-size:11.5px; font-weight:700; color:var(--ink); line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  .uploads-empty{ text-align:center; color:var(--ink-mute); font-size:12.5px; font-weight:600; padding:20px 0; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="topbar">
+    <a class="topbar-btn" id="backBtn" href="/" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="topbar-title">Posting to Facebook</div>
+  </div>
+
+  <div id="content">
+    <div class="card status-card" id="statusCard">
+      <div class="status-row">
+        <div class="status-avatar" id="statusAvatar">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>
+        </div>
+        <div class="status-text">
+          <div class="status-title" id="statusTitle">Posting to Page…</div>
+          <div class="status-sub" id="statusSub">Preparing video…</div>
+        </div>
+        <div class="status-spinner" id="statusSpinner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="status-actions" id="statusActions">
+        <button class="ready-btn ready-btn-secondary" id="retryBtn" type="button">Try again</button>
+        <a class="ready-btn ready-btn-secondary" id="viewPostLink" href="#" target="_blank" rel="noopener">View post</a>
+        <a class="ready-btn ready-btn-primary" id="doneBtn" href="/">Done</a>
+      </div>
+    </div>
+
+    <div class="section-label">Your recent uploads</div>
+    <div class="section-hint">From your video library — like/view counts here are illustrative until Facebook Insights is connected.</div>
+    <div class="uploads-grid" id="uploadsGrid"></div>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const jobId = params.get('jobId');
+  const sessionId = params.get('sessionId');
+  const videoId = params.get('videoId');
+  const pageId = params.get('pageId');
+  const referrer = params.get('from');
+
+  let page = null; // resolved from /api/facebook/pages once init() runs
+
+  const AVATAR_COLORS = ['#1877F2', '#AD8226', '#2F8F6A', '#B23B3B', '#6C5CE7'];
+  function hashString(s){
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function colorFor(id){ return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length]; }
+
+  let backUrl = '/post_facebook.html?';
+  const backParts = [];
+  if (jobId) backParts.push(`jobId=${encodeURIComponent(jobId)}`);
+  if (sessionId) backParts.push(`sessionId=${encodeURIComponent(sessionId)}`);
+  if (videoId) backParts.push(`videoId=${encodeURIComponent(videoId)}`);
+  if (referrer) backParts.push(`from=${encodeURIComponent(referrer)}`);
+  backUrl += backParts.join('&');
+  document.getElementById('backBtn').href = backUrl;
+
+  const statusCard = document.getElementById('statusCard');
+  const statusAvatar = document.getElementById('statusAvatar');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusSub = document.getElementById('statusSub');
+  const statusSpinner = document.getElementById('statusSpinner');
+  const progressFill = document.getElementById('progressFill');
+  const statusActions = document.getElementById('statusActions');
+  const viewPostLink = document.getElementById('viewPostLink');
+  const doneBtn = document.getElementById('doneBtn');
+  const retryBtn = document.getElementById('retryBtn');
+
+  doneBtn.href = referrer || '/';
+
+  const FB_ICON_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06z"/></svg>';
+
+  function setPageHeader(){
+    if (!page){
+      statusAvatar.innerHTML = FB_ICON_SVG;
+      statusAvatar.style.background = 'var(--fb)';
+      statusTitle.textContent = 'Posting to Facebook…';
+      return;
+    }
+    statusAvatar.innerHTML = page.picture ? `<img src="${page.picture}" alt="">` : FB_ICON_SVG;
+    statusAvatar.style.background = page.picture ? 'transparent' : colorFor(page.id);
+    statusTitle.textContent = `Posting to ${page.name}…`;
+  }
+  setPageHeader();
+
+  function setProgress(pct, label){
+    progressFill.style.width = pct + '%';
+    if (label) statusSub.textContent = label;
+  }
+
+  function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  function finish({ ok, message, sub, postUrl }){
+    statusSpinner.style.display = 'none';
+    statusCard.classList.add(ok ? 'success' : 'error');
+    statusAvatar.innerHTML = ok
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>';
+    statusTitle.textContent = message;
+    statusSub.textContent = sub || '';
+    if (ok) progressFill.style.width = '100%'; // on failure, leave the bar wherever the last step left it
+    statusActions.classList.add('show');
+    retryBtn.style.display = ok ? 'none' : 'flex';
+    if (ok && postUrl) viewPostLink.href = postUrl;
+    else viewPostLink.style.display = 'none';
+  }
+
+  // Puts the card back to its initial "posting…" look, then runs the whole
+  // thing again -- same steps + fetch as the first attempt.
+  function retry(){
+    statusCard.classList.remove('success', 'error');
+    statusSpinner.style.display = '';
+    setPageHeader();
+    setProgress(4, 'Preparing video…');
+    statusActions.classList.remove('show');
+    retryBtn.style.display = 'none';
+    viewPostLink.style.display = '';
+    runPost();
+  }
+  retryBtn.addEventListener('click', retry);
+
+  // Simulated upload steps run on a timer so the bar reads as real
+  // progress; the actual POST /api/facebook/post call runs in parallel
+  // and its outcome (currently always "not connected yet" -- no backend
+  // route exists) is what decides the final success/error state.
+  const STEPS = [
+    { pct: 18, label: 'Preparing video…', wait: 500 },
+    { pct: 55, label: 'Uploading to Facebook…', wait: 900 },
+    { pct: 85, label: 'Publishing…', wait: 600 },
+  ];
+
+  async function runSteps(){
+    for (const step of STEPS){
+      await sleep(step.wait);
+      setProgress(step.pct, step.label);
+    }
+  }
+
+  async function runPost(){
+    const stepsPromise = runSteps();
+    let caption = '';
+    try { caption = sessionStorage.getItem('fbPostCaption') || ''; } catch (e) { /* posts without a caption */ }
+    const fetchPromise = fetch('/api/facebook/post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, jobId, videoId, pageId, caption }),
+    }).then(async res => {
+      let json = null;
+      try { json = await res.json(); } catch (e) { /* non-JSON response, fall through to generic error */ }
+      if (!res.ok || !json || !json.ok){
+        throw new Error((json && json.error) || "Facebook posting isn't connected on this server yet.");
+      }
+      return json;
+    });
+
+    try {
+      const [, json] = await Promise.all([stepsPromise, fetchPromise]);
+      finish({
+        ok: true,
+        message: 'Posted to Facebook',
+        sub: page ? `Now live on ${page.name}.` : 'Now live on the Page.',
+        postUrl: json.postUrl,
+      });
+    } catch (e) {
+      await stepsPromise.catch(() => {});
+      finish({ ok: false, message: "Couldn't post to Facebook", sub: e.message });
+    }
+  }
+
+  // ---------- uploads grid (real video library, mocked engagement stats) ----------
+  function hashString(s){
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function mockStats(id){
+    const h = hashString(id);
+    const views = 350 + (h % 18000);
+    const likes = Math.round(views * (0.04 + (h % 100) / 900));
+    return { views, likes };
+  }
+  function formatCount(n){
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+
+  function renderUploadsGrid(videos){
+    const grid = document.getElementById('uploadsGrid');
+    if (!videos.length){
+      grid.outerHTML = '<div class="uploads-empty">No videos yet — generate one to see it here.</div>';
+      return;
+    }
+    grid.innerHTML = videos.map(v => {
+      const surahInfo = (window.SURAHS || []).find(s => s.n === v.surah);
+      const name = surahInfo ? surahInfo.en : (v.surah != null ? `Surah ${v.surah}` : 'Untitled');
+      const range = (v.ayahStart != null && v.ayahEnd != null)
+        ? (v.ayahStart === v.ayahEnd ? `Ayah ${v.ayahStart}` : `Ayahs ${v.ayahStart}–${v.ayahEnd}`)
+        : '';
+      const { views, likes } = mockStats(v.id);
+      return `
+        <button class="upload-card" data-id="${v.id}" type="button">
+          <div class="upload-thumb">
+            <video muted playsinline webkit-playsinline preload="metadata" src="/output/${encodeURIComponent(v.file)}"></video>
+            <div class="upload-thumb-play">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <div class="upload-stats">
+              <span class="upload-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                ${formatCount(views)}
+              </span>
+              <span class="upload-stat">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.35-9.5-8.5C.7 9 2 5.5 5.5 5c2-.3 3.6.7 4.5 2.2C10.9 5.7 12.5 4.7 14.5 5c3.5.5 4.8 4 3 7.5C19 16.65 12 21 12 21z"/></svg>
+                ${formatCount(likes)}
+              </span>
+            </div>
+          </div>
+          <div class="upload-title">${name}${range ? ' · ' + range : ''}</div>
+        </button>
+      `;
+    }).join('');
+    // Tapping a card opens the detail screen -- that's the only place a
+    // reel actually plays, so this grid stays a pure picker (see the
+    // index.html / facebook_reels.html library, which follows the same rule).
+    grid.querySelectorAll('.upload-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const from = encodeURIComponent(location.pathname + location.search);
+        location.href = `/facebook_reel_detail.html?id=${encodeURIComponent(card.dataset.id)}&from=${from}`;
+      });
+    });
+  }
+
+  (async function init(){
+    try {
+      const fetchedPages = await fetch('/api/facebook/pages').then(r => r.json());
+      page = (Array.isArray(fetchedPages) ? fetchedPages : []).find(p => p.id === pageId) || null;
+      setPageHeader();
+    } catch (e) { /* header just stays generic */ }
+
+    runPost();
+    try {
+      let videos = await fetch('/api/videos').then(r => r.json());
+      if (!Array.isArray(videos)) videos = [];
+      renderUploadsGrid(videos.slice(0, 8));
+    } catch (e) {
+      renderUploadsGrid([]);
+    }
+  })();
+</script>
+
+</body>
+</html>

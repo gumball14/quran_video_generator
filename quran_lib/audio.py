@@ -10,9 +10,12 @@ requested ayah range can be subclipped from ONE file instead of downloading
 and gluing together one file per ayah. See download_surah_audio() and
 get_surah_ayah_boundaries().
 """
+import hashlib
 import io
 import re
+import shutil
 import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -38,6 +41,74 @@ def download_ayah_audio(surah: int, ayah: int, reciter_key: str) -> Path:
     return out_path
 
 
+def download_audio_from_url(url: str, dest_dir: Path, stem: str) -> Path:
+    """Fetches a shareable video/audio link (Facebook Reels/videos,
+    Instagram, TikTok, YouTube, ...) via yt-dlp and keeps only its audio
+    track, saving it as dest_dir/"<stem>.<ext>" -- the same on-disk shape
+    a direct file upload gets in app.py, so the rest of the custom-audio
+    pipeline can't tell a download from an upload.
+
+    Downloads into a scratch tempdir first so a failed/partial fetch can't
+    clobber an existing file under dest_dir, then moves the finished file
+    into place (clearing any other extension previously saved under the
+    same stem, same as a re-upload would). Raises RuntimeError(message) --
+    using yt-dlp's own last error line when available -- on any failure;
+    callers turn that into a 400."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        out_template = str(tmp_path / "audio.%(ext)s")
+        try:
+            subprocess.run(
+                ["yt-dlp", "--no-playlist", "-x", "--audio-format", "mp3",
+                 "--max-filesize", "200M", "-o", out_template, url],
+                capture_output=True, text=True, check=True, timeout=180,
+            )
+        except FileNotFoundError:
+            raise RuntimeError("yt-dlp isn't installed on the server.")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("The download took too long and was cancelled.")
+        except subprocess.CalledProcessError as e:
+            last_line = next((l for l in reversed(e.stderr.splitlines()) if l.strip()),
+                              "yt-dlp couldn't fetch that URL.")
+            raise RuntimeError(last_line.removeprefix("ERROR: "))
+
+        produced = list(tmp_path.glob("audio.*"))
+        if not produced:
+            raise RuntimeError("Download finished but no audio was produced.")
+
+        for old in dest_dir.glob(f"{stem}.*"):
+            old.unlink(missing_ok=True)
+        dest_path = dest_dir / f"{stem}{produced[0].suffix.lower()}"
+        shutil.move(str(produced[0]), dest_path)
+        return dest_path
+
+
+def download_audio_from_url_cached(url: str, dest_dir: Path, stem: str) -> Path:
+    """Same as download_audio_from_url(), but keyed by the URL itself under
+    CACHE_DIR/url_audio/ -- a re-pasted URL (e.g. resuming a session, or a
+    second session for the same clip) copies the cached file straight into
+    dest_dir instead of re-running yt-dlp. No eviction/TTL -- same
+    keep-it-simple stance as download_ayah_audio()'s cache above."""
+    cache_dir = CACHE_DIR / "url_audio"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    cached = next(cache_dir.glob(f"{url_hash}.*"), None)
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for old in dest_dir.glob(f"{stem}.*"):
+        old.unlink(missing_ok=True)
+
+    if cached is not None:
+        dest_path = dest_dir / f"{stem}{cached.suffix}"
+        shutil.copy2(cached, dest_path)
+        return dest_path
+
+    dest_path = download_audio_from_url(url, dest_dir, stem)
+    shutil.copy2(dest_path, cache_dir / f"{url_hash}{dest_path.suffix}")
+    return dest_path
+
+
 def get_audio_duration(path: Path) -> float:
     result = subprocess.run(
         [
@@ -49,102 +120,11 @@ def get_audio_duration(path: Path) -> float:
     return float(result.stdout.strip())
 
 
-# How much silence to leave in place at each trimmed edge. 0 = cut right up
-# to the detected onset/offset of speech, so consecutive ayahs play back to
-# back with no gap at all once concatenated.
-_SILENCE_KEEP = 0.0
-
-
-def get_silence_trim_bounds(path: Path, keep_silence: float = _SILENCE_KEEP):
-    """Detects leading/trailing silence in an ayah's audio file and returns
-    (start, end) trim points -- the window to actually play, leaving
-    `keep_silence` seconds of padding at each trimmed edge. Returns
-    (0.0, full_duration) if no confident leading/trailing silence is found.
-
-    Each per-ayah file from everyayah.com typically has its own silence
-    padding baked in at both ends (sounds like a normal short pause when
-    played alone). When ayahs are placed back-to-back in the rendered video,
-    one ayah's trailing padding plus the next one's leading padding stack
-    into a noticeably longer gap than either file has on its own -- this is
-    used to shrink that stack back down before ayahs are concatenated."""
-    total_duration = get_audio_duration(path)
-    # -35dB (used by detect_basmala_split, which looks for a much more
-    # obvious silent gap *inside* the recitation) is too strict for the
-    # quieter, low-level noise floor typically present in these edge
-    # paddings -- it misses most of them. -20dB reliably catches the real
-    # edge padding without tripping on quiet passages mid-recitation.
-    result = subprocess.run(
-        ["ffmpeg", "-i", str(path), "-af", "silencedetect=noise=-20dB:d=0.15", "-f", "null", "-"],
-        capture_output=True, text=True,
-    )
-    # Walk start/end markers in the order ffmpeg printed them (silence_start
-    # always precedes its matching silence_end) to reconstruct silent
-    # intervals. A trailing silence_start with no matching silence_end means
-    # the silence runs all the way to EOF.
-    events = re.findall(r"silence_(start|end):\s*([0-9.]+)", result.stderr)
-    intervals = []
-    pending_start = None
-    for kind, val in events:
-        val = float(val)
-        if kind == "start":
-            pending_start = val
-        elif pending_start is not None:
-            intervals.append((pending_start, val))
-            pending_start = None
-    if pending_start is not None:
-        intervals.append((pending_start, total_duration))
-
-    start_trim = 0.0
-    if intervals and intervals[0][0] < 0.2:  # silence begins essentially at t=0
-        start_trim = max(0.0, min(intervals[0][1] - keep_silence, total_duration))
-
-    end_trim = total_duration
-    if intervals and intervals[-1][1] > total_duration - 0.2:  # silence runs to (near) EOF
-        end_trim = max(start_trim, min(intervals[-1][0] + keep_silence, total_duration))
-
-    return start_trim, end_trim
-
-
-def get_trimmed_ayah_audio(path: Path, keep_silence: float = _SILENCE_KEEP) -> Path:
-    """Returns a silence-trimmed copy of this ayah's audio, cached next to
-    the source file. Cuts with ffmpeg directly into a real file instead of
-    moviepy's in-memory AudioFileClip.subclipped(), which only seeks
-    compressed (mp3) audio approximately -- landing mid-frame at the cut
-    point can leave a faint blip/glitch right at the boundary between two
-    concatenated ayahs, which is audible as a stutter/restart rather than a
-    clean cut.
-
-    Re-encoded to WAV (pcm_s16le), not mp3: re-encoding the trimmed segment
-    back to mp3 runs it through libmp3lame again, which inserts its own
-    encoder "priming" delay -- a few dozen ms of silence -- at the start of
-    *every* file it writes, including this one. That silently reintroduces
-    almost exactly the kind of boundary glitch this function exists to
-    remove. WAV is uncompressed PCM, so there's no encoder delay and no
-    frame-alignment ambiguity -- the cut lands on an exact sample.
-
-    Returns the original path unchanged if there's nothing worth trimming."""
-    start, end = get_silence_trim_bounds(path, keep_silence)
-    total_duration = get_audio_duration(path)
-    if start <= 0.0 and end >= total_duration - 0.01:
-        return path
-
-    trimmed_path = path.with_name(f"{path.stem}_trimmed.wav")
-    if trimmed_path.exists() and trimmed_path.stat().st_size > 0:
-        return trimmed_path
-
-    subprocess.run(
-        ["ffmpeg", "-y", "-i", str(path), "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
-         "-acodec", "pcm_s16le", str(trimmed_path)],
-        capture_output=True, check=True,
-    )
-    return trimmed_path
-
-
 def get_custom_ayah_audio(path: Path, crop_start: float = 0.0, crop_end: float = None) -> Path:
     """Returns a cropped copy of a user-uploaded ayah audio file (see
     quran_lib/audio_sources.py), cached next to the source -- same lazy,
-    ffmpeg-direct-cut, WAV-output shape as get_trimmed_ayah_audio() and for
-    the same reason (moviepy's compressed-audio seeking can leave an
+    ffmpeg-direct-cut, WAV-output shape used everywhere else in this module
+    and for the same reason (moviepy's compressed-audio seeking can leave an
     audible blip right at the cut point; WAV has no such ambiguity).
 
     crop_end=None means "to the end of the file". Returns the original
@@ -236,10 +216,9 @@ def get_surah_audio_for_subclipping(surah: int, reciter_key: str):
     every ayah boundary -- often dozens of cut points in one file -- and
     moviepy's AudioFileClip.subclipped() only seeks compressed (mp3) audio
     approximately, so landing mid-frame at any one of those cuts can leave a
-    faint blip/glitch right at that ayah's edge. Same fix as
-    get_trimmed_ayah_audio() uses for per-ayah audio, applied once to the
-    whole surah instead of per cut. Returns None if the source mp3 isn't
-    available."""
+    faint blip/glitch right at that ayah's edge. Same WAV re-encode fix used
+    elsewhere in this module, applied once to the whole surah instead of per
+    cut. Returns None if the source mp3 isn't available."""
     mp3_path = download_surah_audio(surah, reciter_key)
     if mp3_path is None:
         return None
@@ -278,7 +257,28 @@ def _ensure_timings_extracted(reciter_key: str):
     return extract_dir
 
 
-def get_surah_ayah_boundaries(surah: int, reciter_key: str):
+def probe_remote_duration(url: str):
+    """Reads an audio URL's duration directly via ffprobe, WITHOUT
+    downloading or caching the file -- ffmpeg's http client only fetches
+    the small amount of data it actually needs to compute this (an
+    embedded duration tag, or a leading chunk plus the Content-Length
+    header to estimate bitrate), not the whole body. A ~115MB recording
+    (e.g. Al-Baqarah) resolves in about a second this way, instead of
+    pulling the entire file just to check compatibility. Returns None --
+    never raises -- on any failure (network, ffprobe, or a file ffprobe
+    can't read)."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", url],
+            capture_output=True, text=True, timeout=30,
+        )
+        return float(result.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError):
+        return None
+
+
+def get_surah_ayah_boundaries(surah: int, reciter_key: str, real_duration: float = None):
     """Returns {ayah_number: (start_sec, end_sec)} marking each ayah's span
     within the ONE continuous file download_surah_audio() returns for this
     surah/reciter -- boundaries only, never a reason to cut a second file.
@@ -298,15 +298,26 @@ def get_surah_ayah_boundaries(surah: int, reciter_key: str):
     Returns None -- never raises -- if this reciter/surah isn't covered, the
     timing file doesn't parse into a recognized shape, or it doesn't match
     the real audio's duration, so callers can fall back to the per-ayah
-    pipeline unconditionally."""
+    pipeline unconditionally.
+
+    real_duration, if given, is used directly for the cross-check instead
+    of downloading the full continuous recording just to read its length --
+    pass probe_remote_duration()'s result here when you only need to
+    verify compatibility (e.g. the timing editor's reciter picker), not
+    actually play the audio, to avoid a wasted multi-hundred-MB download on
+    long surahs. Left as None (the default), this downloads via
+    download_surah_audio() as before -- build_video() needs the actual
+    file regardless, so it's unaffected."""
     source = RANGE_AUDIO_SOURCES.get(reciter_key)
     ayah_count = SURAH_AYAH_COUNTS.get(surah)
     if source is None or ayah_count is None:
         return None
 
-    audio_path = download_surah_audio(surah, reciter_key)
-    if audio_path is None:
-        return None
+    if real_duration is None:
+        audio_path = download_surah_audio(surah, reciter_key)
+        if audio_path is None:
+            return None
+        real_duration = get_audio_duration(audio_path)
 
     extract_dir = _ensure_timings_extracted(reciter_key)
     if extract_dir is None:
@@ -337,7 +348,6 @@ def get_surah_ayah_boundaries(surah: int, reciter_key: str):
     # The last ayah's end should land at (or a little before, for trailing
     # padding) the real file's duration -- a large gap either way means the
     # timing file doesn't actually describe this recording.
-    real_duration = get_audio_duration(audio_path)
     if not (0 <= real_duration - prev_end <= 5.0):
         return None
 

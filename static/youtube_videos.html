@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E4">
+<title>YouTube Videos — Ayah Frame Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="/quran-data.js"></script>
+<style>
+
+  :root{
+    --bg:#F6F1E4;
+    --surface:#FFFDF6;
+    --surface-2:#ECE3CC;
+    --ink:#14183A;
+    --ink-mute:#6C7094;
+    --gold:#AD8226;
+    --line:rgba(20,24,58,.14);
+    --yt:#FF0000;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 45% at 50% -8%, rgba(173,130,38,.09), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button, a{ font-family:inherit; -webkit-user-select:none; user-select:none; }
+
+  .screen{
+    min-height:100dvh;
+    display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto;
+    padding:20px 20px 32px;
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+  }
+
+  .topbar{ width:100%; display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .topbar-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--surface); box-shadow:0 2px 6px rgba(20,24,58,.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+    text-decoration:none;
+  }
+  .topbar-btn:active{ transform:scale(.93); }
+  .topbar-btn svg{ width:16px; height:16px; }
+  .topbar-title{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; flex:1; min-width:0; }
+
+  .test-mode-banner{
+    display:flex; align-items:flex-start; gap:10px; width:100%;
+    background:rgba(173,130,38,.1); border:1px solid rgba(173,130,38,.25);
+    border-radius:14px; padding:10px 13px; margin:14px 0 4px;
+    font-size:11.5px; font-weight:600; color:#7A5C1B; line-height:1.5;
+  }
+  .test-mode-banner svg{ width:14px; height:14px; flex-shrink:0; margin-top:1px; color:var(--gold); }
+
+  /* ---------- grid view ---------- */
+  .videos-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; }
+  .video-card{
+    display:flex; flex-direction:column; gap:7px; border:none; background:none; cursor:pointer;
+    padding:0; text-align:left; -webkit-user-select:none; user-select:none;
+  }
+  .video-thumb{
+    position:relative; width:100%; aspect-ratio:9/16; border-radius:14px; overflow:hidden; background:#000;
+  }
+  .video-thumb video{ width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .video-thumb-badge{
+    position:absolute; top:8px; left:8px; width:22px; height:22px; border-radius:50%; background:var(--yt);
+    display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .video-thumb-badge svg{ width:11px; height:11px; }
+  .video-stats{
+    position:absolute; left:0; right:0; bottom:0; padding:8px 8px 7px;
+    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    display:flex; gap:10px; pointer-events:none;
+  }
+  .video-stat{ display:flex; align-items:center; gap:3px; color:#fff; font-size:10.5px; font-weight:800; }
+  .video-stat svg{ width:11px; height:11px; }
+  .video-title{
+    font-size:11.5px; font-weight:700; color:var(--ink); line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .video-time-grid{ font-size:10px; color:var(--ink-mute); font-weight:600; }
+
+  .videos-empty{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:48px 10px; color:var(--ink-mute);
+  }
+  .videos-empty svg{ width:30px; height:30px; margin-bottom:10px; }
+  .videos-empty p{ font-size:12.5px; margin:0; line-height:1.5; max-width:26ch; }
+
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="topbar">
+    <a class="topbar-btn" href="/" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="topbar-title">YouTube Videos</div>
+    <a class="topbar-btn" href="/youtube_account.html?returnTo=%2Fyoutube_videos.html" aria-label="YouTube account">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+    </a>
+  </div>
+
+  <div class="test-mode-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>
+    <span>Test mode — nothing here is posted to real YouTube.</span>
+  </div>
+
+  <div id="videosContent"></div>
+
+  <div class="videos-empty" id="videosEmpty" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#6C7094" stroke-width="1.4"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9l6 3-6 3V9z"/></svg>
+    <p>No videos yet. Post a video to YouTube to see it here.</p>
+  </div>
+</div>
+
+<script>
+  function formatCount(n){
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+  function fmtTimeAgo(ms){
+    const mins = Math.floor((Date.now() - ms) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return `${Math.floor(days / 7)}w ago`;
+  }
+  function titleOf(v){
+    const s = (window.SURAHS || []).find(x => x.n === v.surah);
+    const name = s ? s.en : (v.surah != null ? `Surah ${v.surah}` : 'Untitled');
+    const range = (v.ayahStart != null && v.ayahEnd != null)
+      ? (v.ayahStart === v.ayahEnd ? `Ayah ${v.ayahStart}` : `Ayahs ${v.ayahStart}–${v.ayahEnd}`)
+      : '';
+    return range ? `${name} · ${range}` : name;
+  }
+
+  let posted = []; // videos merged with their YouTube post record
+
+  const contentEl = document.getElementById('videosContent');
+  const emptyEl = document.getElementById('videosEmpty');
+
+  function openDetail(id){
+    location.href = `/youtube_video_detail.html?id=${encodeURIComponent(id)}`;
+  }
+
+  function renderGrid(){
+    contentEl.innerHTML = `<div class="videos-grid" id="videosGrid"></div>`;
+    const grid = document.getElementById('videosGrid');
+    grid.innerHTML = posted.map(({ v, post }) => {
+      const stats = post.stats || {};
+      const statsHtml = (stats.views != null || stats.likes != null) ? `
+            <div class="video-stats">
+              ${stats.views != null ? `<span class="video-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>${formatCount(stats.views)}</span>` : ''}
+              ${stats.likes != null ? `<span class="video-stat"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.35-9.5-8.5C.7 9 2 5.5 5.5 5c2-.3 3.6.7 4.5 2.2C10.9 5.7 12.5 4.7 14.5 5c3.5.5 4.8 4 3 7.5C19 16.65 12 21 12 21z"/></svg>${formatCount(stats.likes)}</span>` : ''}
+            </div>` : '';
+      return `
+        <button class="video-card" data-id="${v.id}" type="button">
+          <div class="video-thumb">
+            <video muted playsinline webkit-playsinline preload="metadata" src="/output/${encodeURIComponent(v.file)}"></video>
+            <div class="video-thumb-badge">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2s-.2-1.6-.85-2.3c-.8-.9-1.7-.9-2.1-1C15.9 3.7 12 3.7 12 3.7h-.05s-3.9 0-6.65.2c-.4.05-1.3.05-2.1 1-.65.7-.85 2.3-.85 2.3S2.15 9.1 2.15 11v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.85 2.3c.8.9 1.85.85 2.3.95 1.7.15 7.2.2 7.2.2s3.9 0 6.65-.2c.4-.05 1.3-.05 2.1-1 .65-.7.85-2.3.85-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8zM9.95 15.3V8.7l6 3.3-6 3.3z"/></svg>
+            </div>
+            ${statsHtml}
+          </div>
+          <div class="video-title">${titleOf(v)}</div>
+          <div class="video-time-grid">${post.channelName} · ${fmtTimeAgo(post.postedAt * 1000)}</div>
+        </button>
+      `;
+    }).join('');
+    grid.querySelectorAll('.video-card').forEach(card => {
+      card.addEventListener('click', () => openDetail(card.dataset.id));
+    });
+  }
+
+  function render(){
+    if (!posted.length){
+      contentEl.innerHTML = '';
+      emptyEl.style.display = 'flex';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    renderGrid();
+  }
+
+  (async function init(){
+    let videos = [];
+    let postRecords = {};
+    try {
+      videos = await fetch('/api/videos').then(r => r.json());
+      if (!Array.isArray(videos)) videos = [];
+    } catch (e) { videos = []; }
+    try {
+      postRecords = await fetch('/api/youtube/posts').then(r => r.json());
+      if (!postRecords || typeof postRecords !== 'object') postRecords = {};
+    } catch (e) { postRecords = {}; }
+
+    posted = videos
+      .filter(v => postRecords[v.id])
+      .map(v => ({ v, post: postRecords[v.id] }));
+    posted.sort((a, b) => (b.post.postedAt || 0) - (a.post.postedAt || 0));
+
+    render();
+  })();
+</script>
+
+</body>
+</html>

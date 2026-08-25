@@ -30,7 +30,6 @@ from .audio import (
     get_custom_ayah_audio,
     get_surah_audio_for_subclipping,
     get_surah_ayah_boundaries,
-    get_trimmed_ayah_audio,
 )
 from .text_render import render_verse_frame, build_ayah_layout, draw_dynamic_layer, render_background
 from .timing import get_ayah_frames
@@ -57,16 +56,6 @@ def _pointer_glide_steps(seg_dur):
 # highlight does) and confines the motion to a short, still-smooth window
 # that still lands exactly on the next word as the segment ends.
 _POINTER_HOLD_FRAC = 0.6
-
-# Deliberate silence inserted between two ayahs' own (fully-trimmed) audio.
-# Cutting the gap to exactly 0s removed the risk of a long stacked pause, but
-# also removed the ear's only cue that a new verse has started -- Quranic
-# ayat often begin with a short, common word (e.g. several oath verses in a
-# row starting with "wa" -- "and"), and with zero separation that word lands
-# right on the previous ayah's tail and reads as a stutter/repeat rather than
-# a new verse beginning. This restores just enough of a pause for that
-# without reintroducing the original too-long-gap problem.
-_MIN_INTER_AYAH_GAP = 0.15
 
 
 def _glide_positions(cur_pos, next_pos, seg_dur):
@@ -164,6 +153,39 @@ def _add_word_highlighted_scene(render_verse, surah_name_arabic, surah_name_text
     return sub_clips, duration
 
 
+def _clamp_frames_to_duration(frames, duration):
+    """The timing editor (static/timing.html) times its markers against the
+    BROWSER's decoded audio length (HTMLMediaElement.duration), while this
+    module measures the same file with ffprobe (get_audio_duration) -- for
+    mp3 these two routinely disagree by tens of milliseconds, since
+    different decoders trim a different number of encoder-delay/padding
+    samples. Left alone, a frame (or its last highlight word) can claim to
+    run past what ffprobe says the file actually has, while the audio
+    handed to build_video()'s caller gets cropped at that shorter, real
+    length -- the video keeps highlighting/holding text for time the audio
+    no longer has. That per-ayah slip is small on its own, but it shows up
+    on every manually-timed ayah, so a long multi-ayah range visibly drifts
+    more than a single one does. Clamping the frames themselves (not just
+    the audio crop) to the same ffprobe duration keeps the two in lockstep."""
+    clamped = []
+    for frame in frames:
+        if frame["start"] >= duration:
+            break
+        new_frame = dict(frame)
+        new_frame["end"] = min(frame["end"], duration)
+        if "highlight_words" in frame:
+            words = []
+            for wt in frame["highlight_words"]:
+                if wt["start"] >= duration:
+                    break
+                new_wt = dict(wt)
+                new_wt["end"] = min(wt["end"], duration)
+                words.append(new_wt)
+            new_frame["highlight_words"] = words
+        clamped.append(new_frame)
+    return clamped
+
+
 def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, show_translation,
                              fallback_translation, verse_number_for_filenames):
     """Renders one scene from an explicit list of timing-manifest frames
@@ -181,9 +203,19 @@ def _add_manual_frame_scene(frames, surah_name_arabic, surah_name_text, size, sh
     pointer_on = THEME["highlight_pointer_enabled"]
     sub_clips = []
 
-    def box_pos(layout, idx):
-        box = layout["word_boxes"][idx]
-        return {"x": box["cx"], "top": box["top"], "font_size": box["font_size"]}
+    def box_pos(layout, idxs):
+        """Pointer target for one highlight_words entry -- idxs is a single
+        word index, or a list of them for a merged group (two-or-more words
+        recited fast enough to highlight as one beat, see quran_lib/timing.py).
+        For a group, targets the midpoint of the union of their boxes; top/
+        font_size come from the first index, since a merged group sits on one
+        wrapped line in the overwhelmingly common case. Reduces to exactly
+        today's single-word math when idxs is a lone int."""
+        boxes = [layout["word_boxes"][i] for i in idxs] if isinstance(idxs, list) else [layout["word_boxes"][idxs]]
+        left = min(b["left"] for b in boxes)
+        right = max(b["right"] for b in boxes)
+        first = boxes[0]
+        return {"x": (left + right) / 2, "top": first["top"], "font_size": first["font_size"]}
 
     def emit(base_img, layout, highlight_idx, pointer_pos, dur):
         if dur <= 0:
@@ -334,7 +366,6 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                     manual_frames = sorted(basmala_frames + manual_frames, key=lambda f: f["start"])
 
             scene_origin = cursor  # where THIS scene's audio needs to start playing
-            used_range_audio = False
 
             # Phase 3: a per-ayah custom-audio override (user upload + crop,
             # see quran_lib/audio_sources.py) takes priority over BOTH the
@@ -370,6 +401,11 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                     )
                 duration = get_audio_duration(scene_audio_path)
                 manual_start, manual_end = manual_frames[0]["start"], manual_frames[-1]["end"]
+                if manual_end > duration:
+                    # see _clamp_frames_to_duration()'s docstring -- the editor's
+                    # browser-measured duration overshot ffprobe's real one.
+                    manual_frames = _clamp_frames_to_duration(manual_frames, duration)
+                    manual_end = manual_frames[-1]["end"]
                 print(f"  {label}: rendering {len(manual_frames)} manually-timed frame(s) "
                       f"(using {manual_start:.1f}s-{manual_end:.1f}s of {duration:.1f}s audio)…")
                 sub_clips, scene_duration = _add_manual_frame_scene(
@@ -377,31 +413,24 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                     render_verse.translation, verse.number,
                 )
                 # only the marked window of audio plays -- anything before the first frame
-                # or after the last one (e.g. unmarked lead-in/trailing silence) is trimmed.
-                # Cut with get_custom_ayah_audio's ffmpeg-direct crop into a real WAV file,
-                # not moviepy's in-memory AudioFileClip.subclipped() on the still-compressed
+                # or after the last one plays as recorded, unmodified. Cut with
+                # get_custom_ayah_audio's ffmpeg-direct crop into a real WAV file, not
+                # moviepy's in-memory AudioFileClip.subclipped() on the still-compressed
                 # (mp3) source -- that only seeks mp3 audio approximately, same as the
-                # problem get_trimmed_ayah_audio/get_custom_ayah_audio/
-                # get_surah_audio_for_subclipping already exist to avoid on every other
-                # audio path in this module. Landing mid-frame at manual_start/manual_end
-                # left an audible blip/delay right at the cut, i.e. exactly at a manually
-                # timed frame or ayah boundary.
+                # problem get_custom_ayah_audio/get_surah_audio_for_subclipping already
+                # exist to avoid on every other audio path in this module. Landing
+                # mid-frame at manual_start/manual_end left an audible blip/delay right
+                # at the cut, i.e. exactly at a manually timed frame or ayah boundary.
                 cropped_audio_path = get_custom_ayah_audio(
                     scene_audio_path, manual_start, min(manual_end, duration)
                 )
-                a_clip = AudioFileClip(str(cropped_audio_path)).with_start(scene_origin)
+                a_clip = AudioFileClip(str(cropped_audio_path))
             elif custom_audio_path is not None:
                 # Custom audio with no manual word-timing for this ayah --
                 # automatic per-word highlight pacing (same rendering as the
                 # plain per-ayah fallback below), just sourced from the
-                # already-cropped upload instead of a download. No extra
-                # silence-trim is applied on top: the crop IS the user's
-                # intended exact window, unlike a raw everyayah.com download.
-                # Uses the synthetic _MIN_INTER_AYAH_GAP afterward (see the
-                # gap calculation below) -- a one-off upload has no
-                # guaranteed-contiguous neighboring ayah the way range-audio
-                # slices do, so it's treated like the per-ayah fallback path,
-                # not like range audio.
+                # already-cropped upload instead of a download. The crop IS
+                # the user's intended exact window -- played as-is.
                 duration = get_audio_duration(custom_audio_path)
                 print(f"  {label}: rendering frame ({duration:.1f}s, from uploaded audio)…")
                 if THEME["highlight_enabled"]:
@@ -413,18 +442,14 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                                                    surah_name_text=surah_name_text)
                     sub_clips = [ImageClip(np.array(frame)).with_duration(duration)]
                     scene_duration = duration
-                a_clip = AudioFileClip(str(custom_audio_path)).with_start(scene_origin)
+                a_clip = AudioFileClip(str(custom_audio_path))
             elif range_boundaries and render_verse.number in range_boundaries:
                 # This ayah's own span within the ONE continuous surah
                 # recording fetched above -- subclipped by time, never a
-                # separately downloaded or cut file. Unlike the per-ayah
-                # fallback below, nothing here is trimmed: consecutive
-                # ayahs' windows are exactly contiguous (ayah N's end ==
-                # ayah N+1's start), so playing them back to back with NO
-                # extra gap reproduces the reciter's own natural pause
-                # exactly as spoken -- adding _MIN_INTER_AYAH_GAP on top
-                # would just make an already-real pause artificially longer.
-                used_range_audio = True
+                # separately downloaded or cut file. Consecutive ayahs'
+                # windows are exactly contiguous (ayah N's end == ayah N+1's
+                # start), reproducing the reciter's own natural pause exactly
+                # as spoken.
                 start, end = range_boundaries[render_verse.number]
                 duration = end - start
                 print(f"  {label}: rendering frame ({duration:.1f}s, from the continuous surah audio)…")
@@ -437,26 +462,16 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                                                    surah_name_text=surah_name_text)
                     sub_clips = [ImageClip(np.array(frame)).with_duration(duration)]
                     scene_duration = duration
-                a_clip = (
-                    AudioFileClip(str(range_audio_wav_path))
-                    .subclipped(start, end)
-                    .with_start(scene_origin)
-                )
+                a_clip = AudioFileClip(str(range_audio_wav_path)).subclipped(start, end)
             else:
                 # No manual timing and no continuous-surah audio for this ayah
-                # -- fall back to today's per-ayah download, trimmed of its own
-                # leading/trailing silence padding before placing it (otherwise
-                # one ayah's trailing pause plus the next one's leading pause
-                # stack into an audibly long gap between recitations that
-                # neither file has on its own). Cut via a real re-encoded file
-                # (not an in-memory subclip) so the boundary is sample-accurate
-                # -- see get_trimmed_ayah_audio.
+                # -- fall back to the plain per-ayah download, played exactly
+                # as downloaded with no trimming or modification.
                 print(f"  {label}: downloading audio…")
                 audio_path = download_ayah_audio(
                     surah=surah_number, ayah=render_verse.number, reciter_key=reciter_key
                 )
-                trimmed_audio_path = get_trimmed_ayah_audio(audio_path)
-                duration = get_audio_duration(trimmed_audio_path)
+                duration = get_audio_duration(audio_path)
                 if THEME["highlight_enabled"]:
                     print(f"  {label}: rendering frame ({duration:.1f}s)…")
                     sub_clips, scene_duration = _add_word_highlighted_scene(
@@ -468,7 +483,9 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
                                                    surah_name_text=surah_name_text)
                     sub_clips = [ImageClip(np.array(frame)).with_duration(duration)]
                     scene_duration = duration
-                a_clip = AudioFileClip(str(trimmed_audio_path)).with_start(scene_origin)
+                a_clip = AudioFileClip(str(audio_path))
+
+            effective_origin = scene_origin
 
             # Concatenate this ayah's own sub-clips into ONE clip (cheap --
             # they're already sequential/non-overlapping) instead of handing
@@ -477,16 +494,17 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
             # frame's timestamp across the WHOLE video. Only `len(verses)`
             # clips ever reach the top-level composite now.
             ayah_clip = concatenate_videoclips(sub_clips, method="chain") if len(sub_clips) > 1 else sub_clips[0]
-            # This clip starts exactly when its OWN audio starts (scene_origin)
-            # -- never earlier. Starting it early (the previous approach) made
-            # the next ayah's text finish fading in and just sit there for
-            # fade_duration seconds *before* its recitation actually began,
-            # which read as the audio "restarting" once it finally kicked in.
-            # Instead, the dissolve trails the audio boundary: this clip fades
-            # IN starting at its own (audio-synced) start, while the PREVIOUS
-            # clip is retroactively extended and faded OUT over the same
-            # window so there's still something under it to dissolve against.
-            ayah_clip = ayah_clip.with_start(scene_origin)
+            # This clip starts exactly when its OWN audio starts
+            # (effective_origin) -- never earlier. Starting it early (an
+            # earlier approach) made the next ayah's text finish fading in
+            # and just sit there for fade_duration seconds *before* its
+            # recitation actually began, which read as the audio
+            # "restarting" once it finally kicked in. Instead, the dissolve
+            # trails the audio boundary: this clip fades IN starting at its
+            # own (audio-synced) start, while the PREVIOUS clip is
+            # retroactively extended and faded OUT over the same window so
+            # there's still something under it to dissolve against.
+            ayah_clip = ayah_clip.with_start(effective_origin)
             if idx > 0:
                 ayah_clip = ayah_clip.with_effects([vfx.CrossFadeIn(fade_duration)])
                 prev_clip = clips[-1]
@@ -532,14 +550,14 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
             clips.append(ayah_clip)
             clip_is_chained.append(len(sub_clips) > 1)
 
-            # Manual timing-manifest frames are hand-tuned by whoever built the
-            # manifest, including where each frame ends -- respect that exactly.
-            # Range-audio ayahs are contiguous slices of one real, unedited
-            # recording, so their natural inter-ayah pause is already intact
-            # -- no gap needed. Only the per-ayah fallback trims each file's
-            # own silence to zero and needs a synthetic pause added back.
-            gap = _MIN_INTER_AYAH_GAP if not (manual_frames or used_range_audio) else 0.0
-            cursor = scene_origin + scene_duration + gap
+            # No inserted gap and no overlap -- each ayah's audio is
+            # unmodified (nothing trimmed off its start or end) and starts
+            # exactly at its scheduled position, so placing them back to
+            # back already reproduces the reciter's own natural pauses
+            # exactly as recorded.
+            a_clip = a_clip.with_start(effective_origin)
+
+            cursor = scene_origin + scene_duration
             audio_clips.append(a_clip)
 
     # outro_enabled=None (the default) defers to the theme's toggle, so the
@@ -549,7 +567,7 @@ def build_video(verses, surah_name_arabic, surah_number, reciter_key, size, outp
     effective_outro = THEME["outro_enabled"] if outro_enabled is None else outro_enabled
     if effective_outro and THEME["outro_duration"] > 0:
         # plain background, no text -- crossfades in over the last ayah's tail
-        # exactly like one ayah crossfades into the next (see `overlap` above)
+        # exactly like one ayah's on-screen text crossfades into the next's
         print(f"  Outro: rendering closing screen ({THEME['outro_duration']:.1f}s)…")
         outro_img = render_background(size)
         outro_clip = ImageClip(np.array(outro_img)).with_duration(THEME["outro_duration"] + fade_duration)

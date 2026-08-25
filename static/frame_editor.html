@@ -18,6 +18,18 @@
     font-weight:400;
     font-display:swap;
   }
+  @font-face{
+    font-family:'Scheherazade New';
+    src:url('/fonts/ScheherazadeNew-Regular.ttf') format('truetype');
+    font-weight:400;
+    font-display:swap;
+  }
+  @font-face{
+    font-family:'Scheherazade New';
+    src:url('/fonts/ScheherazadeNew-Bold.ttf') format('truetype');
+    font-weight:700;
+    font-display:swap;
+  }
 
   :root{
     --bg:#F6F1E4;
@@ -59,7 +71,7 @@
   .topbar{
     flex-shrink:0;
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 14px 6px; gap:8px; z-index:5;
+    padding:14px 14px 0; gap:8px; z-index:5;
   }
   .topbar-left{ display:flex; align-items:center; gap:11px; min-width:0; }
   .icon-btn{
@@ -83,8 +95,8 @@
   /* ================= PREVIEW (fills the screen) ================= */
   .preview-area{
     flex:1; min-height:0; position:relative;
-    display:flex; align-items:center; justify-content:center;
-    padding:6px 20px;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:0 20px 6px;
   }
 
   .frame-shell{
@@ -220,7 +232,7 @@
 
   .fc-arabic{
     font-family:'Amiri', serif; font-weight:700; direction:rtl; line-height:1.55;
-    font-size:5.2cqw; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.35);
+    font-size:5.2cqw; color:#fff;
   }
   .fc-translation{
     font-size:2.3cqw; font-style:italic; color:rgba(255,255,255,.8); line-height:1.45; max-width:92%;
@@ -294,7 +306,7 @@
     border-radius:22px 22px 0 0;
     border:1px solid var(--line); border-bottom:none;
     box-shadow:0 -18px 40px -20px rgba(20,24,58,.35);
-    max-height:70vh;
+    max-height:80vh;
     display:flex; flex-direction:column;
     transform:translateY(100%);
     transition:transform .28s cubic-bezier(.32,.72,0,1);
@@ -348,13 +360,71 @@
   .segmented button:active{ transform:scale(.97); }
 
   .swatch-row{ display:flex; align-items:center; gap:10px; }
-  .colorpick{ width:38px; height:38px; border-radius:11px; overflow:hidden; flex-shrink:0; border:1px solid var(--line); position:relative; }
-  .colorpick input[type="color"]{ position:absolute; inset:-4px; width:calc(100% + 8px); height:calc(100% + 8px); border:none; padding:0; cursor:pointer; background:none; }
+  .colorpick{
+    width:38px; height:38px; border-radius:11px; flex-shrink:0; border:1px solid var(--line); padding:0;
+    cursor:pointer; box-shadow:0 2px 6px rgba(20,24,58,.06);
+  }
+  .colorpick:active{ transform:scale(.94); }
+
+  /* ================= CUSTOM COLOR DIALOG ================= */
+  .color-dialog-backdrop{
+    position:fixed; inset:0; background:rgba(20,24,58,.45);
+    opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:60;
+  }
+  .color-dialog-backdrop.open{ opacity:1; pointer-events:auto; }
+  .color-dialog{
+    position:fixed; left:50%; top:50%; z-index:61; width:min(340px, calc(100vw - 32px));
+    background:var(--bg); border-radius:22px; border:1px solid var(--line);
+    box-shadow:0 24px 50px -20px rgba(20,24,58,.5);
+    transform:translate(-50%,-50%) scale(.94); opacity:0; pointer-events:none;
+    transition:transform .18s ease, opacity .18s ease;
+    max-height:86vh; display:flex; flex-direction:column;
+  }
+  .color-dialog.open{ transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
+  .color-dialog-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px 10px; flex-shrink:0; }
+  .color-dialog-title{ font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; }
+  .color-dialog-body{ padding:4px 18px 18px; overflow-y:auto; }
+  .sv-square{
+    width:100%; height:170px; border-radius:14px; position:relative; cursor:crosshair;
+    touch-action:none; margin-bottom:14px;
+  }
+  .sv-thumb{
+    position:absolute; width:20px; height:20px; border-radius:50%; border:2.5px solid #fff;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.4);
+    transform:translate(-50%,-50%); pointer-events:none;
+  }
+  .hue-slider{
+    width:100%; height:20px; border-radius:100px; position:relative; cursor:pointer; touch-action:none;
+    background:linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    margin-bottom:14px;
+  }
+  .hue-thumb{
+    position:absolute; top:50%; width:24px; height:24px; border-radius:50%; background:#fff;
+    border:3px solid var(--surface); box-shadow:0 0 0 1.5px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.3);
+    transform:translate(-50%,-50%); pointer-events:none;
+  }
+  .color-dialog-actions{ padding:6px 18px calc(env(safe-area-inset-bottom,0px) + 16px); flex-shrink:0; }
+  .color-dialog-actions .save-btn{ width:100%; justify-content:center; }
   .hex-input{
     flex:1; height:38px; border-radius:11px; border:1px solid var(--line); background:var(--surface-2);
     padding:0 12px; font-size:12.5px; font-weight:700; color:var(--ink); letter-spacing:.3px;
   }
   .hex-input:focus{ outline:none; border-color:var(--gold-soft); }
+
+  /* ---- saved colors: per-field swatch history, so a repeat pick on Android
+     doesn't have to go through the native color picker every time ---- */
+  .saved-colors{ display:flex; align-items:center; gap:7px; margin-top:8px; flex-wrap:wrap; }
+  .saved-color-swatch{
+    width:24px; height:24px; border-radius:8px; flex-shrink:0; padding:0; cursor:pointer;
+    border:1px solid var(--line); box-shadow:0 1px 3px rgba(20,24,58,.1);
+  }
+  .saved-color-swatch:active{ transform:scale(.9); }
+  .saved-color-add{
+    width:24px; height:24px; border-radius:8px; flex-shrink:0; cursor:pointer;
+    border:1px dashed var(--line); background:var(--surface-2); color:var(--ink-mute);
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; line-height:1;
+  }
+  .saved-color-add:active{ transform:scale(.9); }
 
   .text-input{
     width:100%; border-radius:11px; border:1px solid var(--line); background:var(--surface-2);
@@ -400,6 +470,26 @@
   .file-btn:active{ transform:scale(.97); }
   .file-name{ font-size:11px; color:var(--ink-mute); font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+  /* ---- per-panel mini preview: a small standalone swatch of just that
+     element, so a style is visible while it's being edited even if
+     "Elements" has that element's visibility switched off in the real
+     frame (which the main preview above the sheet honors) ---- */
+  .mini-preview{
+    position:sticky; top:-14px; z-index:5; margin:-14px -18px 12px; padding-top:14px;
+    /* negative margin/top pulls it flush against the sheet's own top edge and
+       cancels sheet-body's padding, so it reads as a true sticky header
+       instead of a card that stops short of the edge while scrolling */
+  }
+  .mini-preview-inner{
+    border-radius:0 0 14px 14px; overflow:hidden;
+    background:linear-gradient(160deg,#3c3660,#14183A); background-size:cover; background-position:center;
+    padding:18px 14px; display:flex; align-items:center; justify-content:center; position:relative;
+    container-type:inline-size; min-height:64px;
+    box-shadow:0 6px 14px -8px rgba(20,24,58,.3);
+  }
+  .mini-preview-badge-row{ display:flex; }
+  .fc-pointer{ position:absolute; pointer-events:none; z-index:2; font-size:6cqw; line-height:1; transform:translate(-50%,-50%); text-shadow:0 1px 4px rgba(0,0,0,.5); display:none; }
+
   .lock-note{ display:flex; gap:9px; padding:11px; border-radius:12px; background:var(--surface-2); font-size:10.5px; color:var(--ink-mute); line-height:1.5; }
   .lock-note svg{ width:14px; height:14px; flex-shrink:0; margin-top:1px; color:var(--gold-soft); }
 
@@ -433,6 +523,7 @@
           <div class="fc-badge-row" id="fcBadgeRow"><div class="fc-badge style-ornament" id="fcBadge"><span class="fc-badge-line fc-badge-line-left"><span class="fc-badge-cap"></span></span><span class="fc-badge-line fc-badge-line-right"><span class="fc-badge-cap"></span></span><span class="fc-badge-num" id="fcBadgeNum">1</span></div></div>
           <div class="fc-textblock align-center" id="fcTextblock">
             <div class="fc-arabic" id="fcArabic">بِسْمِ اللَّهِ <span class="fc-word" id="fcWord">الرَّحْمَٰنِ</span> الرَّحِيمِ</div>
+            <span class="fc-pointer" id="fcPointer"></span>
             <div class="fc-translation" id="fcTranslation">In the name of Allah, the Most Gracious</div>
           </div>
         </div>
@@ -491,6 +582,10 @@
       <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L18 6l3 3-8.5 8.5-3.5.5.5-3.5z"/><path d="M4 20l3.5-1.5L4 15z"/></svg></div>
       <div class="tool-label">Highlight</div>
     </button>
+    <button class="tool-btn" data-tab="shadow">
+      <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M16.5 16.5a7 7 0 10-9-9" stroke-dasharray="1.5 3"/></svg></div>
+      <div class="tool-label">Shadow</div>
+    </button>
     <button class="tool-btn" data-tab="motion">
       <div class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div>
       <div class="tool-label">Motion</div>
@@ -524,14 +619,20 @@
         </div>
 
         <div id="bgGradientFields" class="field">
-          <div class="field-label">Top color</div>
+          <div class="field-label">Gradient shape</div>
+          <div class="segmented" id="bgGradientStyleSeg">
+            <button class="active" data-value="linear">Linear</button>
+            <button data-value="diagonal">Diagonal</button>
+            <button data-value="radial">Radial</button>
+          </div>
+          <div class="field-label" style="margin-top:12px;">Top color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="bgTop" value="#FCEBC7"></div>
+            <button type="button" class="colorpick" id="bgTop" style="background:#FCEBC7;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="bgTopHex" value="#FCEBC7" spellcheck="false">
           </div>
           <div class="field-label" style="margin-top:12px;">Bottom color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="bgBottom" value="#C9973A"></div>
+            <button type="button" class="colorpick" id="bgBottom" style="background:#C9973A;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="bgBottomHex" value="#C9973A" spellcheck="false">
           </div>
         </div>
@@ -539,7 +640,7 @@
         <div id="bgSolidFields" class="field" style="display:none;">
           <div class="field-label">Background color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="bgSolid" value="#1E3A3A"></div>
+            <button type="button" class="colorpick" id="bgSolid" style="background:#1E3A3A;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="bgSolidHex" value="#1E3A3A" spellcheck="false">
           </div>
         </div>
@@ -570,6 +671,7 @@
 
     <!-- SURAH NAME -->
     <div class="panel" data-panel="name">
+      <div class="mini-preview"><div class="mini-preview-inner"><div class="fc-header" id="miniHeader" style="padding-top:0;">Al-Fātiḥah</div></div></div>
       <div class="card">
         <div class="card-title">Surah name</div>
         <div class="field" style="margin-top:0;">
@@ -582,7 +684,7 @@
         <div class="field">
           <div class="field-label">Color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="headerColor" value="#FFFFFF"></div>
+            <button type="button" class="colorpick" id="headerColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="headerColorHex" value="#FFFFFF" spellcheck="false">
           </div>
         </div>
@@ -599,6 +701,9 @@
 
     <!-- AYAH NUMBER -->
     <div class="panel" data-panel="number">
+      <div class="mini-preview"><div class="mini-preview-inner">
+        <div class="mini-preview-badge-row"><div class="fc-badge style-ornament" id="miniBadge"><span class="fc-badge-line fc-badge-line-left"><span class="fc-badge-cap"></span></span><span class="fc-badge-line fc-badge-line-right"><span class="fc-badge-cap"></span></span><span class="fc-badge-num" id="miniBadgeNum">1</span></div></div>
+      </div></div>
       <div class="card">
         <div class="card-title">Ayah number</div>
         <div class="field" style="margin-top:0;">
@@ -612,7 +717,7 @@
         <div class="field">
           <div class="field-label">Number color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="badgeColor" value="#FFFFFF"></div>
+            <button type="button" class="colorpick" id="badgeColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="badgeColorHex" value="#FFFFFF" spellcheck="false">
           </div>
         </div>
@@ -644,7 +749,7 @@
         <div class="field" style="margin-top:0;">
           <div class="field-label">Border color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="badgeBorderColor" value="#FFFFFF"></div>
+            <button type="button" class="colorpick" id="badgeBorderColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="badgeBorderColorHex" value="#FFFFFF" spellcheck="false">
           </div>
         </div>
@@ -663,7 +768,7 @@
           <div class="field">
             <div class="field-label">Fill color</div>
             <div class="swatch-row">
-              <div class="colorpick"><input type="color" id="badgeFillColor" value="#FFFFFF"></div>
+              <button type="button" class="colorpick" id="badgeFillColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
               <input class="hex-input mono" id="badgeFillColorHex" value="#FFFFFF" spellcheck="false">
             </div>
           </div>
@@ -706,12 +811,13 @@
 
     <!-- ARABIC VERSE -->
     <div class="panel" data-panel="arabic">
+      <div class="mini-preview"><div class="mini-preview-inner"><div class="fc-arabic" id="miniArabic" style="text-align:center;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div></div></div>
       <div class="card">
         <div class="card-title">Arabic verse</div>
         <div class="field" style="margin-top:0;">
           <div class="field-label">Color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="arabicColor" value="#FFFFFF"></div>
+            <button type="button" class="colorpick" id="arabicColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="arabicColorHex" value="#FFFFFF" spellcheck="false">
           </div>
         </div>
@@ -723,17 +829,22 @@
           <div class="slider-top"><div class="row-label">Position — vertical center on screen</div><div class="slider-val" id="arabicYVal">0.36</div></div>
           <input type="range" id="arabicY" min="0.15" max="0.7" step="0.005" value="0.36">
         </div>
+        <div class="slider-row">
+          <div class="slider-top"><div class="row-label">Line height</div><div class="slider-val" id="arabicLineHeightVal">1.55</div></div>
+          <input type="range" id="arabicLineHeight" min="1" max="2.5" step="0.05" value="1.55">
+        </div>
       </div>
     </div>
 
     <!-- TRANSLATION -->
     <div class="panel" data-panel="translation">
+      <div class="mini-preview"><div class="mini-preview-inner"><div class="fc-translation" id="miniTranslation" style="text-align:center; max-width:100%;">In the name of Allah, the Most Gracious</div></div></div>
       <div class="card">
         <div class="card-title">Translation</div>
         <div class="field" style="margin-top:0;">
           <div class="field-label">Color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="translationColor" value="#FFFFFF"></div>
+            <button type="button" class="colorpick" id="translationColor" style="background:#FFFFFF;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="translationColorHex" value="#FFFFFF" spellcheck="false">
           </div>
         </div>
@@ -756,7 +867,7 @@
     <div class="panel" data-panel="fonts">
       <div class="card">
         <div class="card-title">Arabic font</div>
-        <div class="font-hint" style="margin-top:0;">Previews live here, but only Amiri Quran and Noto Naskh Arabic (marked "bundled") are actually rendered by the generator — other picks preview in the editor but render with the default Arabic font in the exported video.</div>
+        <div class="font-hint" style="margin-top:0;">Previews live here, but only fonts marked "bundled" (Amiri Quran, Noto Naskh, Scheherazade) are actually rendered by the generator — other picks preview in the editor but render with the default Arabic font in the exported video.</div>
         <div class="font-grid" id="arabicFontGrid"></div>
       </div>
       <div class="card">
@@ -774,7 +885,7 @@
           <button class="active" data-value="vertical">Vertical</button>
           <button data-value="horizontal">Horizontal</button>
         </div>
-        <div class="font-hint" style="margin:10px 0 0;">Preview only — pick the actual output orientation on the "New video" screen.</div>
+        <div class="font-hint" style="margin:10px 0 0;">Saved with this style -- selecting it on the "New video" screen sets the output orientation.</div>
       </div>
       <div class="card">
         <div class="card-title">Text alignment</div>
@@ -822,6 +933,7 @@
 
     <!-- HIGHLIGHT -->
     <div class="panel" data-panel="highlight">
+      <div class="mini-preview"><div class="mini-preview-inner"><div class="fc-arabic" id="miniHighlight" style="text-align:center; font-size:7cqw;">بِسْمِ اللَّهِ <span class="fc-word" id="miniHighlightWord">الرَّحْمَٰنِ</span> الرَّحِيمِ</div><span class="fc-pointer" id="miniPointer"></span></div></div>
       <div class="card">
         <div class="card-title">Word-by-word highlighting</div>
         <div class="row" style="padding-top:0;">
@@ -840,7 +952,7 @@
         <div class="field">
           <div class="field-label">Highlight color</div>
           <div class="swatch-row">
-            <div class="colorpick"><input type="color" id="highlightColor" value="#AD8226"></div>
+            <button type="button" class="colorpick" id="highlightColor" style="background:#AD8226;" aria-label="Pick color"></button>
             <input class="hex-input mono" id="highlightColorHex" value="#AD8226" spellcheck="false">
           </div>
         </div>
@@ -878,6 +990,80 @@
           <div class="slider-top"><div class="row-label">Pointer gap</div><div class="slider-val" id="highlightPointerGapVal">1.00</div></div>
           <input type="range" id="highlightPointerGap" min="0.3" max="2.5" step="0.05" value="1.00">
         </div>
+        <div class="slider-row" id="highlightPointerSizeRow" style="display:none;">
+          <div class="slider-top"><div class="row-label">Pointer size</div><div class="slider-val" id="highlightPointerSizeVal">1.00</div></div>
+          <input type="range" id="highlightPointerSize" min="0.4" max="2.5" step="0.05" value="1.00">
+        </div>
+      </div>
+    </div>
+
+    <!-- SHADOW -->
+    <div class="panel" data-panel="shadow">
+      <div class="card">
+        <div class="row" style="padding-top:0;">
+          <div class="row-label">Shadow</div>
+          <label class="switch"><input type="checkbox" id="shadowEnabled"><span class="switch-track"></span></label>
+        </div>
+        <div class="font-hint" style="margin:4px 0 0;">Casts a soft effect behind whichever elements are switched on below. Light shadow colors glow; dark shadow colors cast a drop shadow.</div>
+        <div id="shadowFields" style="display:none;">
+          <div class="field">
+            <div class="field-label">Shadow color</div>
+            <div class="swatch-row">
+              <button type="button" class="colorpick" id="shadowColor" style="background:#000000;" aria-label="Pick color"></button>
+              <input class="hex-input mono" id="shadowColorHex" value="#000000" spellcheck="false">
+            </div>
+            <div class="font-hint" style="margin:6px 0 0;">Applies to the text elements below.</div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Blur radius</div><div class="slider-val" id="shadowBlurVal">0.60</div></div>
+            <input type="range" id="shadowBlur" min="0" max="3" step="0.05" value="0.6">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Offset — horizontal</div><div class="slider-val" id="shadowOffsetXVal">0.30</div></div>
+            <input type="range" id="shadowOffsetX" min="-3" max="3" step="0.05" value="0.3">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><div class="row-label">Offset — vertical</div><div class="slider-val" id="shadowOffsetYVal">0.40</div></div>
+            <input type="range" id="shadowOffsetY" min="-3" max="3" step="0.05" value="0.4">
+          </div>
+        </div>
+      </div>
+      <div class="card" id="shadowTargetsCard" style="display:none;">
+        <div class="card-title" style="margin-bottom:2px;">Applies to</div>
+        <div class="row">
+          <div class="row-label">Arabic verse</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetArabic" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Translation</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetTranslation" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Surah name</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetHeader" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Ayah number</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetBadgeNumber" checked><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Badge border</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetBadgeBorder"><span class="switch-track"></span></label>
+        </div>
+        <div class="row">
+          <div class="row-label">Divider (line accent)</div>
+          <label class="switch"><input type="checkbox" id="shadowTargetLine"><span class="switch-track"></span></label>
+        </div>
+      </div>
+      <div class="card" id="spreadShadowCard" style="display:none;">
+        <div class="field">
+          <div class="field-label">Spread shadow color</div>
+          <div class="swatch-row">
+            <button type="button" class="colorpick" id="spreadShadowColor" style="background:#000000;" aria-label="Pick color"></button>
+            <input class="hex-input mono" id="spreadShadowColorHex" value="#000000" spellcheck="false">
+          </div>
+          <div class="font-hint" style="margin:6px 0 0;">Colors the badge border and divider shadow only — independent from the text shadow color above.</div>
+        </div>
       </div>
     </div>
 
@@ -913,6 +1099,33 @@
 
 <input type="file" id="bgImageInput" accept="image/*" style="display:none;">
 
+<!-- CUSTOM COLOR DIALOG (shared by every color field) -->
+<div class="color-dialog-backdrop" id="colorDialogBackdrop"></div>
+<div class="color-dialog" id="colorDialog">
+  <div class="color-dialog-head">
+    <div class="color-dialog-title">Pick a color</div>
+    <button class="sheet-close" id="colorDialogClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="color-dialog-body">
+    <div class="sv-square" id="svSquare"><div class="sv-thumb" id="svThumb"></div></div>
+    <div class="hue-slider" id="hueSlider"><div class="hue-thumb" id="hueThumb"></div></div>
+    <div class="swatch-row">
+      <button type="button" class="colorpick" id="colorDialogPreview" aria-label="Current color"></button>
+      <input class="hex-input mono" id="colorDialogHex" spellcheck="false">
+    </div>
+    <div class="field-label" style="margin-top:16px;">Saved colors</div>
+    <div class="saved-colors" id="colorDialogSaved"></div>
+  </div>
+  <div class="color-dialog-actions">
+    <button class="save-btn" id="colorDialogDone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      Done
+    </button>
+  </div>
+</div>
+
 <script src="/quran-data.js"></script>
 <script>
 
@@ -923,8 +1136,26 @@
     // the Arabic font for the header) -- the real-preview toggle below
     // needs this so it doesn't feed Latin text through an Arabic-only font.
     long:{ header:'Al-Fātiḥah', headerArabic:'سُورَةُ ٱلْفَاتِحَةِ', badge:'1', arabic:'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', highlightWord:'الرَّحْمَٰنِ', translation:'In the name of Allah, the Most Gracious' },
-    short:{ header:'Al-Ikhlāṣ', headerArabic:'سُورَةُ ٱلْإِخْلَاصِ', badge:'1', arabic:'قُلْ هُوَ اللَّهُ أَحَدٌ', highlightWord:'اللَّهُ', translation:'Say, He is Allah, the One' }
+    short:{ header:'Al-Ikhlāṣ', headerArabic:'سُورَةُ ٱلْإِخْلَاصِ', badge:'1', arabic:'قُلْ هُوَ اللَّهُ أَحَدٌ', highlightWord:'اللَّهُ', translation:'Say, He is Allah, the One' },
+    // Ayat al-Kursi (2:255) -- much longer than the other two samples, so
+    // it's the one to reach for when checking multi-line wrapping/highlight
+    // pacing/pointer behavior on a long ayah instead of a short one.
+    kursi:{ header:'Al-Baqarah', headerArabic:'سُورَةُ ٱلْبَقَرَةِ', badge:'255',
+      arabic:'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ مَنْ ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلَّا بِإِذْنِهِ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ وَلَا يُحِيطُونَ بِشَيْءٍ مِنْ عِلْمِهِ إِلَّا بِمَا شَاءَ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ وَلَا يَئُودُهُ حِفْظُهُمَا وَهُوَ الْعَلِيُّ الْعَظِيمُ',
+      highlightWord:'الْحَيُّ',
+      translation:'Allah! There is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep. To Him belongs whatever is in the heavens and whatever is on the earth. Who is it that can intercede with Him except by His permission? He knows what is before them and what will be after them, and they encompass not a thing of His knowledge except for what He wills. His Kursi extends over the heavens and the earth, and their preservation tires Him not. And He is the Most High, the Most Great.' },
+    // Al-Baqarah 2:186 -- has two Uthmani waqf/pause marks (ۖ) baked onto
+    // the end of "قَرِيبٌۖ" and "دَعَانِۖ", exactly as quran_api.py's
+    // _attach_waqf_marks() leaves them for real fetched ayahs (mark glued
+    // directly onto the previous word, no separating space) -- lets the
+    // Shadow/Arabic/Highlight panels be checked against a pause mark
+    // without needing a live API fetch.
+    waqf:{ header:'Al-Baqarah', headerArabic:'سُورَةُ ٱلْبَقَرَةِ', badge:'186',
+      arabic:'وَإِذَا سَأَلَكَ عِبَادِى عَنِّى فَإِنِّى قَرِيبٌۖ أُجِيبُ دَعْوَةَ ٱلدَّاعِ إِذَا دَعَانِۖ فَلْيَسْتَجِيبُوا۟ لِى وَلْيُؤْمِنُوا۟ بِى لَعَلَّهُمْ يَرْشُدُونَ',
+      highlightWord:'قَرِيبٌۖ',
+      translation:'And when My servants ask you, [O Muhammad], concerning Me - indeed I am near. I respond to the invocation of the supplicant when he calls upon Me.' }
   };
+  const sampleOrder = ['long', 'short', 'kursi', 'waqf'];
   let sampleKey = 'long';
 
   // ---------- fonts (universal: one Arabic font, one text font) ----------
@@ -936,7 +1167,7 @@
     { value:'Amiri Quran', label:'Amiri Quran', bundled:true, regular:'fonts/AmiriQuran.ttf', bold:'fonts/AmiriQuran.ttf' },
     { value:'Noto Naskh Arabic', label:'Noto Naskh', bundled:true, regular:'fonts/NotoNaskhArabic-Regular.ttf', bold:'fonts/NotoNaskhArabic-Bold.ttf' },
     { value:'Amiri', label:'Amiri' },
-    { value:'Scheherazade New', label:'Scheherazade' },
+    { value:'Scheherazade New', label:'Scheherazade', bundled:true, regular:'fonts/ScheherazadeNew-Regular.ttf', bold:'fonts/ScheherazadeNew-Bold.ttf' },
     { value:'Aref Ruqaa', label:'Aref Ruqaa' },
     { value:'Reem Kufi', label:'Reem Kufi' },
     { value:'Lateef', label:'Lateef' }
@@ -963,7 +1194,7 @@
     return {
       orientation:'vertical',
       bgStyle:'gradient',
-      bgTop:'#FCEBC7', bgBottom:'#C9973A', bgSolid:'#1E3A3A',
+      bgTop:'#FCEBC7', bgBottom:'#C9973A', bgSolid:'#1E3A3A', bgGradientStyle:'linear',
       overlayOpacity:0.45, bgImageDataUrl:null, bgImageName:null,
       align:'center', transPos:'below',
       margin:0.09,
@@ -974,10 +1205,12 @@
       textStyle:{
         header:{ size:2.1, color:'#FFFFFF', y:0.06 },
         badge:{ size:2.3, color:'#FFFFFF', gap:0.03, borderColor:'#FFFFFF', borderWidth:0.15, fillEnabled:true, fillColor:'#FFFFFF', fillOpacity:0.14, lineEnabled:false, lineCapStyle:'dot', lineWidth:0.15, lineLength:10, lineCapSize:0.30 },
-        arabic:{ size:5.2, color:'#FFFFFF', y:0.36 },
+        arabic:{ size:5.2, color:'#FFFFFF', y:0.36, lineHeight:1.55 },
         translation:{ size:2.3, color:'#FFFFFF', opacity:0.8, gap:0.05 }
       },
-      highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerPosition:'top', pointerGap:1.0 },
+      highlight:{ enabled:false, style:'pill', color:'#AD8226', opacity:0.85, pace:2.2, pointer:false, pointerStyle:'hand', pointerPosition:'top', pointerGap:1.0, pointerSize:1.0 },
+      shadow:{ enabled:false, color:'#000000', spreadColor:'#000000', blur:0.6, offsetX:0.3, offsetY:0.4,
+        targets:{ arabic:true, translation:true, header:true, badgeNumber:true, badgeBorder:false, line:false } },
       fadeDuration:0.6, kenBurns:false,
       outroEnabled:false, outroDuration:2.0
     };
@@ -991,10 +1224,12 @@
   // them yet.
   function themeToState(theme){
     const s = defaultState();
+    s.orientation = theme.orientation === 'horizontal' ? 'horizontal' : 'vertical';
     s.bgStyle = theme.background_style || s.bgStyle;
     s.bgTop = rgbToHex(theme.bg_top);
     s.bgBottom = rgbToHex(theme.bg_bottom);
     s.bgSolid = rgbToHex(theme.bg_solid);
+    s.bgGradientStyle = theme.bg_gradient_style || s.bgGradientStyle;
     s.overlayOpacity = theme.background_overlay_opacity ?? s.overlayOpacity;
     s.bgImageDataUrl = (theme.background_image && theme.background_image.startsWith('data:')) ? theme.background_image : null;
     s.align = theme.text_align || s.align;
@@ -1029,6 +1264,7 @@
     s.textStyle.arabic.color = rgbToHex(theme.arabic_color);
     if (theme.arabic_size_max_frac != null) s.textStyle.arabic.size = +(theme.arabic_size_max_frac * 100).toFixed(2);
     if (theme.arabic_center_y_frac != null) s.textStyle.arabic.y = theme.arabic_center_y_frac;
+    if (theme.arabic_line_height_mult != null) s.textStyle.arabic.lineHeight = theme.arabic_line_height_mult;
 
     s.textStyle.translation.color = rgbToHex(theme.translation_color);
     if (theme.translation_size_frac != null) s.textStyle.translation.size = +(theme.translation_size_frac * 100).toFixed(2);
@@ -1043,6 +1279,20 @@
     s.highlight.pointerStyle = theme.highlight_pointer_style || s.highlight.pointerStyle;
     s.highlight.pointerPosition = theme.highlight_pointer_position || s.highlight.pointerPosition;
     s.highlight.pointerGap = theme.highlight_pointer_gap_mult ?? s.highlight.pointerGap;
+    s.highlight.pointerSize = theme.highlight_pointer_size_mult ?? s.highlight.pointerSize;
+
+    s.shadow.enabled = theme.text_shadow_enabled ?? s.shadow.enabled;
+    if (theme.text_shadow_color) s.shadow.color = rgbToHex(theme.text_shadow_color);
+    s.shadow.spreadColor = theme.text_shadow_spread_color ? rgbToHex(theme.text_shadow_spread_color) : s.shadow.color;
+    if (theme.text_shadow_blur_frac != null) s.shadow.blur = +(theme.text_shadow_blur_frac * 100).toFixed(2);
+    if (theme.text_shadow_offset_x_frac != null) s.shadow.offsetX = +(theme.text_shadow_offset_x_frac * 100).toFixed(2);
+    if (theme.text_shadow_offset_y_frac != null) s.shadow.offsetY = +(theme.text_shadow_offset_y_frac * 100).toFixed(2);
+    s.shadow.targets.arabic = theme.text_shadow_arabic ?? s.shadow.targets.arabic;
+    s.shadow.targets.translation = theme.text_shadow_translation ?? s.shadow.targets.translation;
+    s.shadow.targets.header = theme.text_shadow_header ?? s.shadow.targets.header;
+    s.shadow.targets.badgeNumber = theme.text_shadow_badge_number ?? s.shadow.targets.badgeNumber;
+    s.shadow.targets.badgeBorder = theme.text_shadow_badge_border ?? s.shadow.targets.badgeBorder;
+    s.shadow.targets.line = theme.text_shadow_line ?? s.shadow.targets.line;
 
     s.fadeDuration = theme.fade_duration ?? s.fadeDuration;
     s.kenBurns = theme.ken_burns ?? s.kenBurns;
@@ -1060,8 +1310,10 @@
     // default Arabic font here, same as the font-hint text warns.
     const arabicFont = arabicFonts.find(f => f.value === s.fonts.arabic && f.bundled);
     return {
+      orientation: s.orientation,
       background_style: s.bgStyle,
       bg_top: hexToRgb(s.bgTop), bg_bottom: hexToRgb(s.bgBottom), bg_solid: hexToRgb(s.bgSolid),
+      bg_gradient_style: s.bgGradientStyle,
       arabic_color: hexToRgb(ts.arabic.color), translation_color: hexToRgb(ts.translation.color),
       header_color: hexToRgb(ts.header.color), badge_color: hexToRgb(ts.badge.color),
       arabic_font_regular: arabicFont ? arabicFont.regular : "fonts/NotoNaskhArabic-Regular.ttf",
@@ -1069,7 +1321,7 @@
       latin_font: "fonts/NotoSans-Regular.ttf",
       margin_frac: s.margin, header_y_frac: ts.header.y, header_size_frac: ts.header.size / 100,
       arabic_center_y_frac: ts.arabic.y, arabic_size_max_frac: arabicMax, arabic_size_min_frac: +(arabicMax * 0.577).toFixed(4),
-      arabic_line_height_mult: 1.55,
+      arabic_line_height_mult: ts.arabic.lineHeight,
       translation_gap_frac: ts.translation.gap, translation_size_frac: ts.translation.size / 100,
       translation_position: s.transPos, text_align: s.align,
       show_header: s.showHeader, header_script: s.headerScript, show_badge: s.showBadge, show_translation: s.showTranslation,
@@ -1078,6 +1330,18 @@
       background_image: s.bgStyle === 'image' ? (s.bgImageDataUrl || null) : null,
       background_video: null,
       background_overlay_opacity: s.overlayOpacity,
+      text_shadow_enabled: s.shadow.enabled,
+      text_shadow_arabic: s.shadow.targets.arabic,
+      text_shadow_translation: s.shadow.targets.translation,
+      text_shadow_header: s.shadow.targets.header,
+      text_shadow_badge_number: s.shadow.targets.badgeNumber,
+      text_shadow_badge_border: s.shadow.targets.badgeBorder,
+      text_shadow_line: s.shadow.targets.line,
+      text_shadow_color: hexToRgb(s.shadow.color),
+      text_shadow_spread_color: hexToRgb(s.shadow.spreadColor),
+      text_shadow_blur_frac: s.shadow.blur / 100,
+      text_shadow_offset_x_frac: s.shadow.offsetX / 100,
+      text_shadow_offset_y_frac: s.shadow.offsetY / 100,
       fade_duration: s.fadeDuration, ken_burns: s.kenBurns,
       outro_enabled: s.outroEnabled, outro_duration: s.outroDuration,
       highlight_enabled: s.highlight.enabled, highlight_style: s.highlight.style,
@@ -1086,6 +1350,7 @@
       highlight_pointer_enabled: s.highlight.pointer, highlight_pointer_style: s.highlight.pointerStyle,
       highlight_pointer_position: s.highlight.pointerPosition,
       highlight_pointer_gap_mult: s.highlight.pointerGap,
+      highlight_pointer_size_mult: s.highlight.pointerSize,
       badge_style: s.badgeStyle,
       badge_numeral_style: s.badgeNumeralStyle,
       badge_position: s.badgePosition,
@@ -1181,6 +1446,19 @@
     const b = parseInt(h.substring(4,6),16) || 0;
     return `rgba(${r},${g},${b},${alpha})`;
   }
+  // Perceptual (WCAG relative) luminance of a hex color, 0 (black) - 1 (white).
+  // Used to decide whether a shadow color should render as a bright glow
+  // or a conventional dark drop shadow.
+  function relativeLuminance(hex){
+    const [r, g, b] = hexToRgb(hex).map(c => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function isLightColor(hex){
+    return relativeLuminance(hex) > 0.55;
+  }
   function renderBadgeStyleGrid(){
     el('badgeStyleGrid').innerHTML = badgeStyles.map(s => `
       <button class="badge-style-btn${s.value === state.badgeStyle ? ' active' : ''}" data-value="${s.value}">
@@ -1241,9 +1519,42 @@
   }
   window.addEventListener('resize', sizePreview);
 
+  // ---------- pointer indicator (CSS approximation, shown instantly --
+  // the pixel-accurate version comes from the real server preview, but that
+  // takes a debounced round trip, so this gives immediate feedback in both
+  // the main preview and the Highlight panel's own mini preview) ----------
+  const POINTER_GLYPHS = {
+    hand: pos => pos === 'top' ? '👇' : '👆',
+    arrow: pos => pos === 'top' ? '▲' : '▼',
+    dot: () => '●',
+  };
+  function updatePointerIndicator(pointerEl, wordEl, containerEl){
+    const active = state.highlight.enabled && state.highlight.pointer && wordEl.textContent;
+    if (!active){ pointerEl.style.display = 'none'; return; }
+    const wordRect = wordEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+    if (wordRect.width === 0 && wordRect.height === 0){ pointerEl.style.display = 'none'; return; }
+    const cx = wordRect.left + wordRect.width / 2 - containerRect.left;
+    const gapPx = wordRect.height * 0.55 * state.highlight.pointerGap;
+    const top = state.highlight.pointerPosition === 'top'
+      ? wordRect.top - containerRect.top - gapPx
+      : wordRect.bottom - containerRect.top + gapPx;
+    pointerEl.style.display = 'block';
+    pointerEl.style.left = cx + 'px';
+    pointerEl.style.top = top + 'px';
+    pointerEl.style.color = state.highlight.color;
+    pointerEl.style.fontSize = (6 * state.highlight.pointerSize) + 'cqw';
+    const glyphFn = POINTER_GLYPHS[state.highlight.pointerStyle] || POINTER_GLYPHS.hand;
+    pointerEl.textContent = glyphFn(state.highlight.pointerPosition);
+  }
+
   function render(){
     let bg;
-    if (state.bgStyle === 'gradient') bg = `linear-gradient(165deg, ${state.bgTop}, ${state.bgBottom})`;
+    if (state.bgStyle === 'gradient'){
+      if (state.bgGradientStyle === 'radial') bg = `radial-gradient(circle at 50% 50%, ${state.bgTop}, ${state.bgBottom})`;
+      else if (state.bgGradientStyle === 'diagonal') bg = `linear-gradient(135deg, ${state.bgTop}, ${state.bgBottom})`;
+      else bg = `linear-gradient(180deg, ${state.bgTop}, ${state.bgBottom})`;
+    }
     else if (state.bgStyle === 'solid') bg = state.bgSolid;
     else if (state.bgStyle === 'video') bg = `linear-gradient(165deg, #3a3a3a, #111)`;
     if (state.bgStyle === 'image'){
@@ -1263,6 +1574,40 @@
     fcOverlay.style.opacity = (state.bgStyle === 'image') ? state.overlayOpacity : 0;
 
     sizePreview();
+
+    // ---- text shadow (per-element target toggles; scaled off the preview
+    // canvas's real pixel height so it lines up with the theme's
+    // height-fraction-based values the real server render uses).
+    // A light shadow color reads as a dark smear on top of light text, so
+    // instead we treat light colors as a soft centered glow (no directional
+    // offset, wider layered blur) and reserve the offset/blur drop-shadow
+    // look for dark colors. ----
+    const canvasH = frameCanvas.getBoundingClientRect().height || 0;
+    const buildShadowCss = (hex) => {
+      if (!canvasH) return null;
+      const blurPx = (state.shadow.blur / 100) * canvasH;
+      if (isLightColor(hex)) {
+        const glowBlur = blurPx * 1.8 + canvasH * 0.008;
+        return `0px 0px ${glowBlur * 0.55}px ${hexToRgba(hex, 0.95)}, 0px 0px ${glowBlur}px ${hexToRgba(hex, 0.55)}`;
+      }
+      const offXPx = (state.shadow.offsetX / 100) * canvasH;
+      const offYPx = (state.shadow.offsetY / 100) * canvasH;
+      return `${offXPx}px ${offYPx}px ${blurPx}px ${hexToRgba(hex, 1)}`;
+    };
+    const shadowFor = (target) => (state.shadow.enabled && state.shadow.targets[target])
+      ? (buildShadowCss(state.shadow.color) || 'none') : 'none';
+    const badgeBoxShadow = (state.shadow.enabled && state.shadow.targets.badgeBorder)
+      ? (buildShadowCss(state.shadow.spreadColor) || 'none') : 'none';
+    const lineShadowCss = (state.shadow.enabled && state.shadow.targets.line)
+      ? buildShadowCss(state.shadow.spreadColor) : null;
+    const lineDropShadow = lineShadowCss
+      ? lineShadowCss.split(', ').map(part => `drop-shadow(${part})`).join(' ') : 'none';
+    fcArabic.style.textShadow = shadowFor('arabic');
+    fcHeader.style.textShadow = shadowFor('header');
+    fcTranslation.style.textShadow = shadowFor('translation');
+    fcBadgeNum.style.textShadow = shadowFor('badgeNumber');
+    fcBadge.style.boxShadow = badgeBoxShadow;
+    fcBadge.querySelectorAll('.fc-badge-line').forEach(l => { l.style.filter = lineDropShadow; });
 
     const ts = state.textStyle;
 
@@ -1349,6 +1694,7 @@
 
     fcArabic.style.fontSize = ts.arabic.size + 'cqw';
     fcArabic.style.color = ts.arabic.color;
+    fcArabic.style.lineHeight = ts.arabic.lineHeight;
 
     const arabicFull = state.text.arabic || '';
     const word = state.text.highlightWord || '';
@@ -1378,6 +1724,7 @@
     } else {
       fcWord.style.opacity = 1;
     }
+    updatePointerIndicator(el('fcPointer'), fcWord, fcContentEl);
 
     const previewLabel = state.headerScript === 'arabic' ? (state.text.headerArabic || state.text.header) : state.text.header;
     el('previewMetaSub').textContent = `${previewLabel || 'Untitled'} · ${state.orientation}`;
@@ -1394,7 +1741,94 @@
       fcBadgeRow.style.bottom = '';
     }
 
+    updateMiniPreviews();
     scheduleRealPreview();
+  }
+
+  // ---------- per-panel mini previews ----------
+  // Independent of the main preview's layout math (badge position, textblock
+  // transform, etc.) -- these are standalone style swatches so an element's
+  // look stays visible while it's being edited even when "Elements" has it
+  // switched off in the real frame, or when it's simply off-screen behind
+  // the sheet. Reuses the exact same CSS classes as the main preview (so a
+  // style edit always looks identical here and there), just applied to a
+  // second, isolated DOM node per element instead of threading through the
+  // main preview's position logic.
+  function updateMiniPreviews(){
+    const ts = state.textStyle;
+    const arabicFontStack = `'${state.fonts.arabic}', serif`;
+    const textFontStack = `'${state.fonts.text}', sans-serif`;
+
+    const miniHeader = el('miniHeader');
+    miniHeader.style.fontSize = ts.header.size + 'cqw';
+    miniHeader.style.color = ts.header.color;
+    miniHeader.style.textShadow = fcHeader.style.textShadow;
+    if (state.headerScript === 'text'){
+      miniHeader.textContent = state.text.header;
+      miniHeader.style.fontFamily = textFontStack;
+      miniHeader.dir = 'ltr';
+    } else {
+      miniHeader.textContent = state.text.headerArabic;
+      miniHeader.style.fontFamily = arabicFontStack;
+      miniHeader.dir = 'rtl';
+    }
+
+    const miniBadge = el('miniBadge'), miniBadgeNum = el('miniBadgeNum');
+    miniBadge.className = 'fc-badge style-' + state.badgeStyle +
+      (ts.badge.lineEnabled ? ' has-line-accent line-cap-' + ts.badge.lineCapStyle : '');
+    miniBadgeNum.style.fontSize = ts.badge.size + 'cqw';
+    miniBadgeNum.style.color = ts.badge.color;
+    miniBadgeNum.style.fontFamily = state.badgeNumeralStyle === 'roman' ? textFontStack : arabicFontStack;
+    miniBadgeNum.style.textShadow = fcBadgeNum.style.textShadow;
+    miniBadgeNum.textContent = formatBadgeNumber(parseInt(state.text.badge, 10) || 1, state.badgeNumeralStyle);
+    miniBadge.style.setProperty('--badge-border-c', ts.badge.borderColor);
+    miniBadge.style.setProperty('--badge-border-w', ts.badge.borderWidth + 'cqw');
+    miniBadge.style.setProperty('--badge-fill', ts.badge.fillEnabled ? hexToRgba(ts.badge.fillColor, ts.badge.fillOpacity) : 'transparent');
+    miniBadge.style.setProperty('--badge-line-w', ts.badge.lineWidth + 'cqw');
+    miniBadge.style.setProperty('--badge-line-len', (ts.badge.lineLength / 2) + 'cqw');
+    miniBadge.style.setProperty('--badge-line-cap', ts.badge.lineCapSize + 'cqw');
+    miniBadge.style.boxShadow = fcBadge.style.boxShadow;
+    miniBadge.querySelectorAll('.fc-badge-line').forEach(l => { l.style.filter = fcBadge.querySelector('.fc-badge-line') ? fcBadge.querySelector('.fc-badge-line').style.filter : 'none'; });
+
+    const miniArabic = el('miniArabic');
+    miniArabic.style.fontFamily = arabicFontStack;
+    miniArabic.style.fontSize = ts.arabic.size + 'cqw';
+    miniArabic.style.color = ts.arabic.color;
+    miniArabic.style.lineHeight = ts.arabic.lineHeight;
+    miniArabic.style.textShadow = fcArabic.style.textShadow;
+    miniArabic.textContent = state.text.arabic || '';
+
+    const miniTranslation = el('miniTranslation');
+    miniTranslation.style.fontFamily = textFontStack;
+    miniTranslation.style.fontSize = ts.translation.size + 'cqw';
+    miniTranslation.style.color = ts.translation.color;
+    miniTranslation.style.opacity = ts.translation.opacity;
+    miniTranslation.style.textShadow = fcTranslation.style.textShadow;
+    miniTranslation.textContent = state.text.translation || '';
+
+    const miniHighlight = el('miniHighlight');
+    const miniHighlightWord = el('miniHighlightWord');
+    miniHighlight.style.fontFamily = arabicFontStack;
+    miniHighlight.style.color = ts.arabic.color;
+    miniHighlight.style.textShadow = 'none';
+    miniHighlightWord.className = 'fc-word';
+    miniHighlightWord.style.removeProperty('--hl-color');
+    if (state.highlight.enabled){
+      miniHighlightWord.classList.add('hl-' + state.highlight.style);
+      miniHighlightWord.style.setProperty('--hl-color', state.highlight.color);
+      miniHighlightWord.style.opacity = state.highlight.style === 'pill' ? state.highlight.opacity : 1;
+    } else {
+      miniHighlightWord.style.opacity = 1;
+    }
+    updatePointerIndicator(el('miniPointer'), miniHighlightWord, el('miniHighlight').closest('.mini-preview-inner'));
+
+    // ---- background: mirror the real theme background onto every mini
+    // preview swatch, so shadow/contrast reads correctly against whatever
+    // the export will actually use behind the text ----
+    document.querySelectorAll('.mini-preview-inner').forEach(node => {
+      node.style.background = frameCanvas.style.background;
+      node.style.backgroundImage = frameCanvas.style.backgroundImage;
+    });
   }
 
   // ---------- real server-rendered preview ----------
@@ -1479,6 +1913,7 @@
     layout:{ title:'Layout', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
     elements:{ title:'Elements', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h16M4 18h7"/><circle cx="19" cy="6" r="2"/><circle cx="7" cy="18" r="2"/></svg>' },
     highlight:{ title:'Highlight', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L18 6l3 3-8.5 8.5-3.5.5.5-3.5z"/><path d="M4 20l3.5-1.5L4 15z"/></svg>' },
+    shadow:{ title:'Text shadow', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M16.5 16.5a7 7 0 10-9-9" stroke-dasharray="1.5 3"/></svg>' },
     motion:{ title:'Motion', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>' }
   };
 
@@ -1518,6 +1953,7 @@
     });
   }
   wireSegmented('orientationSeg', v => state.orientation = v);
+  wireSegmented('bgGradientStyleSeg', v => state.bgGradientStyle = v);
   wireSegmented('alignSeg', v => state.align = v);
   wireSegmented('transPosSeg', v => state.transPos = v);
   wireSegmented('highlightStyleSeg', v => {
@@ -1539,13 +1975,165 @@
   });
 
   // ---------- colors ----------
+  // Saved colors are ONE shared/global list (not per field) -- save a color
+  // while editing the Arabic verse and it shows up in the dialog for every
+  // other field too, so matching a shade across elements is a single tap.
+  const SAVED_COLORS_KEY = 'afs_saved_colors';
+  const MAX_SAVED_COLORS = 12;
+  function loadSavedColors(){
+    try {
+      const v = JSON.parse(localStorage.getItem(SAVED_COLORS_KEY));
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  function writeSavedColors(list){
+    try { localStorage.setItem(SAVED_COLORS_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable/full -- ignore, not critical */ }
+  }
+  function saveColorToPalette(hex){
+    const list = loadSavedColors().filter(h => h !== hex);
+    list.unshift(hex);
+    writeSavedColors(list.slice(0, MAX_SAVED_COLORS));
+  }
+
+  // ---- HSV <-> RGB, for the custom picker's saturation/value square + hue slider ----
+  function rgbToHsv(r, g, b){
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d !== 0){
+      if (max === r) h = 60 * (((g - b) / d) % 6);
+      else if (max === g) h = 60 * ((b - r) / d + 2);
+      else h = 60 * ((r - g) / d + 4);
+    }
+    if (h < 0) h += 360;
+    return { h, s: max === 0 ? 0 : d / max, v: max };
+  }
+  function hsvToRgb(h, s, v){
+    const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+    let r, g, b;
+    if (h < 60) [r, g, b] = [c, x, 0];
+    else if (h < 120) [r, g, b] = [x, c, 0];
+    else if (h < 180) [r, g, b] = [0, c, x];
+    else if (h < 240) [r, g, b] = [0, x, c];
+    else if (h < 300) [r, g, b] = [x, 0, c];
+    else [r, g, b] = [c, 0, x];
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+  }
+
+  // ---- the dialog itself ----
+  const colorDialogBackdrop = el('colorDialogBackdrop');
+  const colorDialog = el('colorDialog');
+  const svSquare = el('svSquare'), svThumb = el('svThumb');
+  const hueSlider = el('hueSlider'), hueThumb = el('hueThumb');
+  const colorDialogPreview = el('colorDialogPreview');
+  const colorDialogHex = el('colorDialogHex');
+  const colorDialogSaved = el('colorDialogSaved');
+
+  let dialogOnChange = null; // (hex) => void, set per-open
+  let dialogHsv = { h: 0, s: 0, v: 1 };
+
+  function dialogCurrentHex(){
+    const [r, g, b] = hsvToRgb(dialogHsv.h, dialogHsv.s, dialogHsv.v);
+    return rgbToHex([r, g, b]);
+  }
+  function paintDialog(){
+    const hueRgb = hsvToRgb(dialogHsv.h, 1, 1);
+    svSquare.style.background = `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${rgbToHex(hueRgb)})`;
+    svThumb.style.left = (dialogHsv.s * 100) + '%';
+    svThumb.style.top = ((1 - dialogHsv.v) * 100) + '%';
+    hueThumb.style.left = (dialogHsv.h / 360 * 100) + '%';
+    const hex = dialogCurrentHex();
+    colorDialogPreview.style.background = hex;
+    colorDialogHex.value = hex;
+  }
+  function dialogSetHex(hex){
+    const [r, g, b] = hexToRgb(hex);
+    dialogHsv = rgbToHsv(r, g, b);
+    paintDialog();
+    if (dialogOnChange) dialogOnChange(hex);
+  }
+  function renderSavedColorsPalette(){
+    const list = loadSavedColors();
+    colorDialogSaved.innerHTML = list.map(hex => `<button type="button" class="saved-color-swatch" data-hex="${hex}" style="background:${hex};" aria-label="${hex}"></button>`).join('')
+      + `<button type="button" class="saved-color-add" data-action="add" aria-label="Save current color">+</button>`;
+    colorDialogSaved.querySelectorAll('.saved-color-swatch').forEach(btn => {
+      btn.addEventListener('click', () => dialogSetHex(btn.dataset.hex));
+    });
+    colorDialogSaved.querySelector('.saved-color-add').addEventListener('click', () => {
+      saveColorToPalette(dialogCurrentHex());
+      renderSavedColorsPalette();
+    });
+  }
+
+  function openColorDialog(initialHex, onChange){
+    dialogOnChange = onChange;
+    const [r, g, b] = hexToRgb(initialHex);
+    dialogHsv = rgbToHsv(r, g, b);
+    paintDialog();
+    renderSavedColorsPalette();
+    colorDialogBackdrop.classList.add('open');
+    colorDialog.classList.add('open');
+  }
+  function closeColorDialog(){
+    colorDialogBackdrop.classList.remove('open');
+    colorDialog.classList.remove('open');
+    dialogOnChange = null;
+  }
+  colorDialogBackdrop.addEventListener('click', closeColorDialog);
+  el('colorDialogClose').addEventListener('click', closeColorDialog);
+  el('colorDialogDone').addEventListener('click', closeColorDialog);
+  colorDialogHex.addEventListener('input', () => {
+    let v = colorDialogHex.value.trim();
+    if (!v.startsWith('#')) v = '#' + v;
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) dialogSetHex(v);
+  });
+
+  // Shared drag handler for the SV square and the hue slider: both are
+  // simple "position within a rect -> value" controls, just with different
+  // axes, so one pointer-tracking helper covers both.
+  function wireDragArea(el2, onMove){
+    function handle(clientX, clientY){
+      const rect = el2.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      onMove(x, y);
+    }
+    let dragging = false;
+    el2.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      el2.setPointerCapture(e.pointerId);
+      handle(e.clientX, e.clientY);
+    });
+    el2.addEventListener('pointermove', (e) => { if (dragging) handle(e.clientX, e.clientY); });
+    el2.addEventListener('pointerup', () => { dragging = false; });
+    el2.addEventListener('pointercancel', () => { dragging = false; });
+  }
+  wireDragArea(svSquare, (x, y) => {
+    dialogHsv.s = x;
+    dialogHsv.v = 1 - y;
+    paintDialog();
+    if (dialogOnChange) dialogOnChange(dialogCurrentHex());
+  });
+  wireDragArea(hueSlider, (x) => {
+    dialogHsv.h = x * 360;
+    paintDialog();
+    if (dialogOnChange) dialogOnChange(dialogCurrentHex());
+  });
+
   function wireColor(pickId, hexId, apply){
-    const pick = el(pickId), hex = el(hexId);
-    pick.addEventListener('input', () => { hex.value = pick.value.toUpperCase(); apply(pick.value); render(); });
+    const swatch = el(pickId), hex = el(hexId);
+    swatch.addEventListener('click', () => {
+      openColorDialog(hex.value, (v) => {
+        swatch.style.background = v;
+        hex.value = v.toUpperCase();
+        apply(v);
+        render();
+      });
+    });
     hex.addEventListener('input', () => {
       let v = hex.value.trim();
       if (!v.startsWith('#')) v = '#' + v;
-      if (/^#[0-9A-Fa-f]{6}$/.test(v)){ pick.value = v; apply(v); render(); }
+      if (/^#[0-9A-Fa-f]{6}$/.test(v)){ swatch.style.background = v; apply(v); render(); }
     });
   }
   wireColor('bgTop', 'bgTopHex', v => state.bgTop = v);
@@ -1558,6 +2146,8 @@
   wireColor('badgeFillColor', 'badgeFillColorHex', v => state.textStyle.badge.fillColor = v);
   wireColor('arabicColor', 'arabicColorHex', v => state.textStyle.arabic.color = v);
   wireColor('translationColor', 'translationColorHex', v => state.textStyle.translation.color = v);
+  wireColor('shadowColor', 'shadowColorHex', v => state.shadow.color = v);
+  wireColor('spreadShadowColor', 'spreadShadowColorHex', v => state.shadow.spreadColor = v);
 
   // ---------- sliders ----------
   // Native <input type="range"> jumps its value the instant a touch lands
@@ -1605,6 +2195,7 @@
   wireSlider('badgeLineCapSize', 'badgeLineCapSizeVal', v => state.textStyle.badge.lineCapSize = v, v => v.toFixed(2));
   wireSlider('arabicSize', 'arabicSizeVal', v => state.textStyle.arabic.size = v, v => v.toFixed(1));
   wireSlider('arabicY', 'arabicYVal', v => state.textStyle.arabic.y = v, v => v.toFixed(2));
+  wireSlider('arabicLineHeight', 'arabicLineHeightVal', v => state.textStyle.arabic.lineHeight = v, v => v.toFixed(2));
   wireSlider('translationSize', 'translationSizeVal', v => state.textStyle.translation.size = v, v => v.toFixed(1));
   wireSlider('translationGap', 'translationGapVal', v => state.textStyle.translation.gap = v, v => v.toFixed(3));
   wireSlider('translationOpacity', 'translationOpacityVal', v => state.textStyle.translation.opacity = v, v => v.toFixed(2));
@@ -1612,6 +2203,10 @@
   wireSlider('highlightOpacity', 'highlightOpacityVal', v => state.highlight.opacity = v);
   wireSlider('highlightPace', 'highlightPaceVal', v => state.highlight.pace = v, v => v.toFixed(1));
   wireSlider('highlightPointerGap', 'highlightPointerGapVal', v => state.highlight.pointerGap = v);
+  wireSlider('highlightPointerSize', 'highlightPointerSizeVal', v => state.highlight.pointerSize = v);
+  wireSlider('shadowBlur', 'shadowBlurVal', v => state.shadow.blur = v);
+  wireSlider('shadowOffsetX', 'shadowOffsetXVal', v => state.shadow.offsetX = v);
+  wireSlider('shadowOffsetY', 'shadowOffsetYVal', v => state.shadow.offsetY = v);
   wireSlider('fadeDuration', 'fadeDurationVal', v => state.fadeDuration = v, v => v.toFixed(2) + 's');
   wireSlider('outroDuration', 'outroDurationVal', v => state.outroDuration = v, v => v.toFixed(1) + 's');
 
@@ -1630,12 +2225,28 @@
     render();
   });
   el('kenBurns').addEventListener('change', e => { state.kenBurns = e.target.checked; });
+  el('shadowEnabled').addEventListener('change', e => {
+    state.shadow.enabled = e.target.checked;
+    el('shadowFields').style.display = e.target.checked ? 'block' : 'none';
+    el('shadowTargetsCard').style.display = e.target.checked ? 'block' : 'none';
+    el('spreadShadowCard').style.display = e.target.checked ? 'block' : 'none';
+    render();
+  });
+  const SHADOW_TARGET_CHECKBOXES = [
+    ['shadowTargetArabic', 'arabic'], ['shadowTargetTranslation', 'translation'],
+    ['shadowTargetHeader', 'header'], ['shadowTargetBadgeNumber', 'badgeNumber'],
+    ['shadowTargetBadgeBorder', 'badgeBorder'], ['shadowTargetLine', 'line'],
+  ];
+  SHADOW_TARGET_CHECKBOXES.forEach(([id, key]) => {
+    el(id).addEventListener('change', e => { state.shadow.targets[key] = e.target.checked; render(); });
+  });
   el('highlightEnabled').addEventListener('change', e => { state.highlight.enabled = e.target.checked; render(); });
   el('highlightPointerEnabled').addEventListener('change', e => {
     state.highlight.pointer = e.target.checked;
     el('highlightPointerStyleField').style.display = e.target.checked ? 'block' : 'none';
     el('highlightPointerPositionField').style.display = e.target.checked ? 'block' : 'none';
     el('highlightPointerGapRow').style.display = e.target.checked ? 'block' : 'none';
+    el('highlightPointerSizeRow').style.display = e.target.checked ? 'block' : 'none';
     render();
   });
   el('outroEnabled').addEventListener('change', e => {
@@ -1673,7 +2284,7 @@
     fcContent.style.transitionDuration = halfFadeMs + 'ms';
     fcContent.style.opacity = '0';
     setTimeout(() => {
-      sampleKey = sampleKey === 'long' ? 'short' : 'long';
+      sampleKey = sampleOrder[(sampleOrder.indexOf(sampleKey) + 1) % sampleOrder.length];
       Object.assign(state.text, samples[sampleKey]);
       render();
       fcContent.style.opacity = '1';
@@ -1725,9 +2336,10 @@
     el('bgSolidFields').style.display = state.bgStyle === 'solid' ? 'block' : 'none';
     el('bgImageFields').style.display = state.bgStyle === 'image' ? 'block' : 'none';
     el('bgVideoFields').style.display = state.bgStyle === 'video' ? 'block' : 'none';
-    el('bgTop').value = state.bgTop; el('bgTopHex').value = state.bgTop;
-    el('bgBottom').value = state.bgBottom; el('bgBottomHex').value = state.bgBottom;
-    el('bgSolid').value = state.bgSolid; el('bgSolidHex').value = state.bgSolid;
+    el('bgGradientStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.bgGradientStyle));
+    el('bgTop').style.background = state.bgTop; el('bgTopHex').value = state.bgTop;
+    el('bgBottom').style.background = state.bgBottom; el('bgBottomHex').value = state.bgBottom;
+    el('bgSolid').style.background = state.bgSolid; el('bgSolidHex').value = state.bgSolid;
     el('overlayOpacity').value = state.overlayOpacity; el('overlayOpacityVal').textContent = state.overlayOpacity.toFixed(2);
     if (state.bgImageName) el('bgImageName').textContent = state.bgImageName;
 
@@ -1742,20 +2354,20 @@
     el('showTranslation').checked = state.showTranslation;
 
     const ts = state.textStyle;
-    el('headerColor').value = ts.header.color; el('headerColorHex').value = ts.header.color;
+    el('headerColor').style.background = ts.header.color; el('headerColorHex').value = ts.header.color;
     el('headerSize').value = ts.header.size; el('headerSizeVal').textContent = ts.header.size.toFixed(1);
     el('headerY').value = ts.header.y; el('headerYVal').textContent = ts.header.y.toFixed(3);
 
-    el('badgeColor').value = ts.badge.color; el('badgeColorHex').value = ts.badge.color;
+    el('badgeColor').style.background = ts.badge.color; el('badgeColorHex').value = ts.badge.color;
     el('badgeSize').value = ts.badge.size; el('badgeSizeVal').textContent = ts.badge.size.toFixed(1);
     el('badgeGap').value = ts.badge.gap; el('badgeGapVal').textContent = ts.badge.gap.toFixed(3);
     el('badgeNumeralSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.badgeNumeralStyle));
     el('badgePositionSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.badgePosition));
-    el('badgeBorderColor').value = ts.badge.borderColor; el('badgeBorderColorHex').value = ts.badge.borderColor;
+    el('badgeBorderColor').style.background = ts.badge.borderColor; el('badgeBorderColorHex').value = ts.badge.borderColor;
     el('badgeBorderWidth').value = ts.badge.borderWidth; el('badgeBorderWidthVal').textContent = ts.badge.borderWidth.toFixed(2);
     el('badgeFillEnabled').checked = ts.badge.fillEnabled;
     el('badgeFillFields').style.display = ts.badge.fillEnabled ? 'block' : 'none';
-    el('badgeFillColor').value = ts.badge.fillColor; el('badgeFillColorHex').value = ts.badge.fillColor;
+    el('badgeFillColor').style.background = ts.badge.fillColor; el('badgeFillColorHex').value = ts.badge.fillColor;
     el('badgeFillOpacity').value = ts.badge.fillOpacity; el('badgeFillOpacityVal').textContent = ts.badge.fillOpacity.toFixed(2);
     el('badgeLineEnabled').checked = ts.badge.lineEnabled;
     el('badgeLineFields').style.display = ts.badge.lineEnabled ? 'block' : 'none';
@@ -1764,11 +2376,12 @@
     el('badgeLineLength').value = ts.badge.lineLength; el('badgeLineLengthVal').textContent = Math.round(ts.badge.lineLength) + '%';
     el('badgeLineCapSize').value = ts.badge.lineCapSize; el('badgeLineCapSizeVal').textContent = ts.badge.lineCapSize.toFixed(2);
 
-    el('arabicColor').value = ts.arabic.color; el('arabicColorHex').value = ts.arabic.color;
+    el('arabicColor').style.background = ts.arabic.color; el('arabicColorHex').value = ts.arabic.color;
     el('arabicSize').value = ts.arabic.size; el('arabicSizeVal').textContent = ts.arabic.size.toFixed(1);
     el('arabicY').value = ts.arabic.y; el('arabicYVal').textContent = ts.arabic.y.toFixed(2);
+    el('arabicLineHeight').value = ts.arabic.lineHeight; el('arabicLineHeightVal').textContent = ts.arabic.lineHeight.toFixed(2);
 
-    el('translationColor').value = ts.translation.color; el('translationColorHex').value = ts.translation.color;
+    el('translationColor').style.background = ts.translation.color; el('translationColorHex').value = ts.translation.color;
     el('translationOpacity').value = ts.translation.opacity; el('translationOpacityVal').textContent = ts.translation.opacity.toFixed(2);
     el('translationSize').value = ts.translation.size; el('translationSizeVal').textContent = ts.translation.size.toFixed(1);
     el('translationGap').value = ts.translation.gap; el('translationGapVal').textContent = ts.translation.gap.toFixed(3);
@@ -1776,7 +2389,7 @@
     el('highlightEnabled').checked = state.highlight.enabled;
     el('highlightStyleSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.style));
     el('highlightOpacityRow').style.display = state.highlight.style === 'pill' ? 'block' : 'none';
-    el('highlightColor').value = state.highlight.color; el('highlightColorHex').value = state.highlight.color;
+    el('highlightColor').style.background = state.highlight.color; el('highlightColorHex').value = state.highlight.color;
     el('highlightOpacity').value = state.highlight.opacity; el('highlightOpacityVal').textContent = state.highlight.opacity.toFixed(2);
     el('highlightPace').value = state.highlight.pace; el('highlightPaceVal').textContent = state.highlight.pace.toFixed(1);
     el('highlightPointerEnabled').checked = state.highlight.pointer;
@@ -1786,6 +2399,24 @@
     el('highlightPointerPositionField').style.display = state.highlight.pointer ? 'block' : 'none';
     el('highlightPointerPositionSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === state.highlight.pointerPosition));
     el('highlightPointerGap').value = state.highlight.pointerGap; el('highlightPointerGapVal').textContent = state.highlight.pointerGap.toFixed(2);
+    el('highlightPointerSizeRow').style.display = state.highlight.pointer ? 'block' : 'none';
+    el('highlightPointerSize').value = state.highlight.pointerSize; el('highlightPointerSizeVal').textContent = state.highlight.pointerSize.toFixed(2);
+
+    el('shadowEnabled').checked = state.shadow.enabled;
+    el('shadowFields').style.display = state.shadow.enabled ? 'block' : 'none';
+    el('shadowTargetsCard').style.display = state.shadow.enabled ? 'block' : 'none';
+    el('spreadShadowCard').style.display = state.shadow.enabled ? 'block' : 'none';
+    el('shadowColor').style.background = state.shadow.color; el('shadowColorHex').value = state.shadow.color;
+    el('spreadShadowColor').style.background = state.shadow.spreadColor; el('spreadShadowColorHex').value = state.shadow.spreadColor;
+    el('shadowBlur').value = state.shadow.blur; el('shadowBlurVal').textContent = state.shadow.blur.toFixed(2);
+    el('shadowOffsetX').value = state.shadow.offsetX; el('shadowOffsetXVal').textContent = state.shadow.offsetX.toFixed(2);
+    el('shadowOffsetY').value = state.shadow.offsetY; el('shadowOffsetYVal').textContent = state.shadow.offsetY.toFixed(2);
+    el('shadowTargetArabic').checked = state.shadow.targets.arabic;
+    el('shadowTargetTranslation').checked = state.shadow.targets.translation;
+    el('shadowTargetHeader').checked = state.shadow.targets.header;
+    el('shadowTargetBadgeNumber').checked = state.shadow.targets.badgeNumber;
+    el('shadowTargetBadgeBorder').checked = state.shadow.targets.badgeBorder;
+    el('shadowTargetLine').checked = state.shadow.targets.line;
 
     el('fadeDuration').value = state.fadeDuration; el('fadeDurationVal').textContent = state.fadeDuration.toFixed(2) + 's';
     el('kenBurns').checked = state.kenBurns;

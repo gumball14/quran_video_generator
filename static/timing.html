@@ -83,38 +83,6 @@
     display:flex; flex-direction:column;
   }
 
-  .section-head{ display:flex; align-items:baseline; justify-content:flex-end; margin:14px 2px 8px; flex-shrink:0; }
-  .section-head:first-child{ margin-top:6px; }
-  .section-head-actions{ display:flex; align-items:center; gap:14px; width:100%; justify-content:space-between; }
-  .markers-link{
-    border:none; background:none; cursor:pointer; padding:2px 0;
-    font-size:10.5px; font-weight:800; letter-spacing:.3px; color:var(--ink-mute);
-    display:flex; align-items:center; gap:4px; transition:opacity .12s ease, color .12s ease;
-  }
-  .markers-link svg{ width:11px; height:11px; transition:transform .15s ease; }
-  .markers-link.open{ color:var(--gold); }
-  .markers-link.open svg{ transform:rotate(180deg); }
-  .markers-link:disabled{ opacity:.35; pointer-events:none; }
-  .markers-link:active{ transform:scale(.96); }
-  .clear-link{
-    border:none; background:none; cursor:pointer; padding:2px 0;
-    font-size:10.5px; font-weight:800; letter-spacing:.3px; color:var(--danger);
-    display:flex; align-items:center; gap:4px; opacity:1; transition:opacity .12s ease;
-  }
-  .clear-link svg{ width:11px; height:11px; }
-  .clear-link:disabled{ opacity:.35; pointer-events:none; }
-  .clear-link:active{ transform:scale(.96); }
-  .section-head-left{ display:flex; align-items:center; gap:14px; }
-  .undo-redo-group{ display:flex; align-items:center; gap:6px; }
-  .undoredo-btn{
-    width:26px; height:26px; border-radius:8px; border:none; flex-shrink:0;
-    background:var(--surface-2); color:var(--ink-mute); cursor:pointer;
-    display:flex; align-items:center; justify-content:center; transition:background .12s ease, transform .1s ease;
-  }
-  .undoredo-btn svg{ width:13px; height:13px; }
-  .undoredo-btn:disabled{ opacity:.35; pointer-events:none; }
-  .undoredo-btn:active{ transform:scale(.9); background:var(--line); }
-
   /* ---------- audio source (Phase 3: custom upload + crop) ---------- */
   .audio-source-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -145,10 +113,21 @@
     box-shadow:0 2px 6px rgba(20,24,58,.05);
     flex-shrink:0;
   }
-  .wave-track{
-    position:relative; height:44px; border-radius:9px; overflow:hidden;
-    background:var(--surface-2); cursor:pointer;
+  /* ---------- waveform zoom row (matches custom_audio.html's track-wrap zoom controls) ---------- */
+  .zoom-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; margin-bottom:6px; }
+  .zoom-btn{
+    width:22px; height:22px; border-radius:7px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink); font-weight:800; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
   }
+  .zoom-btn:active{ transform:scale(.9); }
+  .zoom-btn:disabled{ opacity:.35; pointer-events:none; }
+  .zoom-label{ font-size:10px; font-weight:800; color:var(--ink-mute); min-width:26px; text-align:center; }
+  .wave-track{
+    position:relative; height:44px; border-radius:9px; overflow-x:auto; overflow-y:hidden;
+    background:var(--surface-2); cursor:pointer; touch-action:pan-x; -webkit-overflow-scrolling:touch;
+  }
+  .wave-inner{ position:relative; height:100%; min-width:100%; }
   .wave-bars{
     position:absolute; inset:0; display:flex; align-items:center; gap:2px; padding:0 4px;
   }
@@ -167,6 +146,11 @@
     opacity:.75; pointer-events:none;
   }
   .wave-marker.sel{ background:var(--gold); opacity:1; width:2.5px; }
+  .frame-divider{
+    position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px;
+    background:repeating-linear-gradient(180deg, var(--ink) 0 3px, transparent 3px 6px);
+    opacity:.6; pointer-events:none;
+  }
   .wave-time{
     display:flex; justify-content:space-between; margin-top:5px;
     font-size:10px; color:var(--ink-mute); font-weight:700; font-variant-numeric:tabular-nums;
@@ -176,6 +160,7 @@
   .transport{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
   /* when the mark panel is open, hide the transport controls to give word-card more room */
   body.mark-panel-open .transport{ display:none; }
+  body.mark-panel-open .speed-row{ display:none; }
   body.mark-panel-open .wave-card{ padding-bottom:8px; }
   .t-btn{
     width:34px; height:34px; border-radius:50%; flex-shrink:0;
@@ -192,45 +177,70 @@
   .t-play svg{ width:17px; height:17px; }
   .t-play:active{ background:#0c0f28; }
   .t-btn:disabled{ opacity:.4; pointer-events:none; }
+  .t-btn.lock-btn.active{ background:var(--gold); color:#2B2004; }
 
-  /* ---------- speed control (merged into the transport row) ---------- */
-  .t-speed{
-    width:auto; border-radius:17px; padding:0 12px;
-    font-size:11px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
+  /* ---------- speed control (row of preset pills, matches custom_audio.html) ---------- */
+  .speed-row{ display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px; }
+  .speed-btn{
+    padding:5px 11px; border-radius:20px; border:none; cursor:pointer;
+    background:var(--surface-2); color:var(--ink-mute); font-weight:800; font-size:11px;
+    font-variant-numeric:tabular-nums;
   }
+  .speed-btn.active{ background:var(--ink); color:#FFFDF6; }
+  .speed-btn:active{ transform:scale(.94); }
 
   /* ---------- ayah word chips ---------- */
   .word-card{
-    padding:18px 16px; border-radius:18px;
+    margin-top:14px;
+    padding:15px 16px 0; border-radius:18px;
     background:var(--surface); border:1px solid var(--line);
     box-shadow:0 2px 6px rgba(20,24,58,.05);
     flex:1; min-height:0;
     display:flex; flex-direction:column;
+    overflow:hidden;
   }
   .word-card-head{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:14px; gap:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:flex-end;
+    margin-bottom:0px; padding-bottom:10px; gap:10px; flex-shrink:0;
+    border-bottom:1px solid var(--line-soft);
+    overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:none;
   }
+  .word-card-head::-webkit-scrollbar{ display:none; }
   .word-card-label{
     font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--ink-mute);
+    color:var(--ink-mute); flex-shrink:0;
   }
-  .preview-btn{
-    display:flex; align-items:center; gap:6px; border:none; cursor:pointer;
-    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:11.5px;
-    padding:8px 14px; border-radius:100px; flex-shrink:0;
+  .wc-btn-group{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .wc-icon-btn{
+    position:relative;
+    display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    background:var(--ink); color:#F6F1E4;
     box-shadow:0 8px 16px -10px rgba(20,24,58,.5);
     transition:transform .12s ease, background .15s ease, opacity .12s ease;
   }
-  .preview-btn svg{ width:11px; height:11px; }
-  .preview-btn:active{ transform:scale(.95); }
-  .preview-btn:disabled{ opacity:.4; pointer-events:none; box-shadow:none; }
-  .preview-btn.on{ background:var(--gold); color:#2B2004; }
+  .wc-icon-btn svg{ width:13px; height:13px; }
+  .wc-icon-btn:active{ transform:scale(.9); }
+  .wc-icon-btn:disabled{ opacity:.4; pointer-events:none; box-shadow:none; }
+  .wc-icon-btn.on{ background:var(--gold); color:#2B2004; }
+  .wc-icon-btn.danger{ background:var(--danger); color:#FFFDF6; }
+  .wc-icon-btn.busy{ opacity:.6; pointer-events:none; }
+  .wc-icon-btn.busy svg{ animation:wc-spin 1s linear infinite; }
+  .wc-icon-btn[data-badge]::after{
+    content: attr(data-badge);
+    position:absolute; top:-4px; right:-4px;
+    min-width:16px; height:16px; padding:0 3px; border-radius:100px; background:var(--success);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Manrope', sans-serif; font-size:9px; font-weight:800; color:#FFFDF6;
+    box-shadow:0 0 0 2px var(--surface);
+  }
+  @keyframes wc-spin{ to{ transform:rotate(360deg); } }
   .word-chips{
     display:flex; flex-wrap:wrap; gap:8px; direction:rtl; justify-content:center;
     align-content:center;
     flex:1; min-height:0; overflow-y:auto;
-    padding:4px;
+    padding:14px 4px 18px;
   }
   /* content taller than the card: top-align instead of centering, otherwise
      centering pushes the overflow above scrollTop:0 where it can never be
@@ -254,6 +264,38 @@
     box-shadow:0 0 0 2px var(--surface);
   }
   .word-chip:active{ transform:scale(.95); }
+
+  /* ---------- boundary handles: sit between two chips, toggling whether
+     the words on either side are merged into one beat, split into a new
+     frame, or (default) just two separate words in the same frame ---------- */
+  .word-boundary{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; align-self:stretch; flex-shrink:0;
+    border:none; background:none; cursor:pointer; padding:0;
+    position:relative; color:var(--ink-mute); opacity:.55;
+    transition:opacity .12s ease, color .12s ease;
+  }
+  .word-boundary::before{
+    content:""; width:8px; height:8px; border-radius:50%; background:currentColor;
+  }
+  .word-boundary:active{ transform:scale(.85); }
+  .word-boundary.merge{
+    opacity:1; color:var(--gold); font-size:22px; font-weight:800; line-height:1;
+  }
+  .word-boundary.merge::before{ content:"⊕"; width:auto; height:auto; border-radius:0; background:none; }
+  .word-boundary.break{ opacity:1; color:var(--danger); }
+  .word-boundary.break::before, .word-boundary.break::after{
+    content:""; position:absolute; left:50%; width:2.5px; height:12px;
+    background:currentColor; border-radius:1px;
+  }
+  .word-boundary.break::before{ top:-7px; }
+  .word-boundary.break::after{ bottom:-7px; }
+  /* a 'merge' handle nested inside a chip (joining two of ITS OWN words)
+     needs to sit inline with the chip's text, not stretch to its own
+     flex-item height like the between-chip handles do */
+  .word-chip .word-boundary{ width:16px; height:auto; align-self:auto; vertical-align:-2px; opacity:1; }
+  .word-chip .word-boundary.merge{ font-size:16px; }
+  .word-chip-word{ display:inline; }
 
   .word-chips.previewing .word-chip{ cursor:default; opacity:.55; transition:none; }
   .word-chip.preview-current{
@@ -319,15 +361,21 @@
   .mp-playfrom svg{ width:15px; height:15px; }
   .mp-playfrom:active{ transform:scale(.94); }
 
-  /* ---------- sticky footer (ayah-dots merged in to save room for word-card) ---------- */
+  /* ---------- sticky footer (ayah label + dots share one row here, below
+     the word-card, instead of each claiming their own strip) ---------- */
   .footbar{
     flex-shrink:0;
-    padding:8px 20px calc(env(safe-area-inset-bottom,0px) + 14px);
+    padding:0 20px calc(env(safe-area-inset-bottom,0px) + 14px);
     background:linear-gradient(180deg, rgba(246,241,228,0), var(--bg) 30%);
-    border-top:1px solid var(--line-soft);
     display:flex; flex-direction:column; gap:4px;
   }
-  .footbar .ayah-dots{ padding:0 0 2px; }
+  .ayah-progress-row{ display:flex; align-items:center; gap:10px; padding:0 4px 6px; }
+  .ayah-progress-row .word-card-label{ flex-shrink:0; }
+  .ayah-progress-row .ayah-dots{
+    flex:1; min-width:0; justify-content:flex-end; gap:0; padding:0;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .ayah-progress-row .ayah-dots::-webkit-scrollbar{ display:none; }
   .footbar-row{ display:flex; align-items:center; gap:10px; }
   .foot-icon-btn{
     flex-shrink:0; width:54px; height:54px; border-radius:16px;
@@ -348,29 +396,6 @@
   .continue-btn:active{ transform:scale(.97); }
   .continue-btn:disabled{ opacity:.4; box-shadow:none; }
   .continue-btn svg{ width:14px; height:14px; }
-
-  /* ---------- generating overlay ---------- */
-  .gen-overlay{
-    position:fixed; inset:0; background:var(--bg); z-index:60;
-    display:none; flex-direction:column; align-items:center; justify-content:center;
-    padding:32px; text-align:center; max-width:480px; margin:0 auto;
-  }
-  .gen-overlay.open{ display:flex; }
-  .gen-title{ font-family:'Fraunces', serif; font-weight:600; font-size:18px; margin-bottom:16px; }
-  .gen-track{ width:100%; max-width:280px; height:8px; border-radius:100px; background:var(--surface-2); overflow:hidden; }
-  .gen-fill{ height:100%; width:1%; background:var(--gold); transition:width .3s ease; }
-  .gen-label{ margin-top:12px; font-size:12px; color:var(--ink-mute); font-weight:700; }
-  .gen-log{
-    margin-top:16px; width:100%; max-width:340px; max-height:140px; overflow-y:auto;
-    background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
-    font-family:ui-monospace, monospace; font-size:10px; color:var(--ink-mute); text-align:left; white-space:pre-wrap;
-  }
-  .gen-error{ color:var(--danger); font-weight:700; font-size:13px; margin-top:14px; max-width:340px; }
-  .gen-btn{
-    margin-top:20px; height:48px; padding:0 22px; border-radius:14px; border:none; cursor:pointer;
-    background:var(--ink); color:#F6F1E4; font-weight:800; font-size:13px; display:none;
-  }
-  .gen-btn.show{ display:inline-flex; align-items:center; }
 
   /* ---------- crop modal (Phase 3) ---------- */
   .crop-overlay{
@@ -401,6 +426,12 @@
     background:var(--gold); box-shadow:0 0 0 3px var(--bg);
   }
   .crop-times{ display:flex; justify-content:space-between; margin-top:8px; font-size:11px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .crop-snap-row{ display:flex; gap:8px; margin-top:10px; }
+  .crop-snap-btn{
+    flex:1; height:34px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); font-weight:700; font-size:11px; cursor:pointer;
+  }
+  .crop-snap-btn:active{ transform:scale(.97); }
   .crop-actions{ display:flex; gap:10px; margin-top:16px; }
   .crop-cancel-btn, .crop-apply-btn{
     flex:1; height:48px; border-radius:14px; border:none; cursor:pointer;
@@ -444,10 +475,18 @@
       </div>
       <div class="as-status" id="audioSourceStatus" style="display:none;"></div>
 
+      <div class="zoom-row">
+        <span class="zoom-label" id="waveZoomLabel">1×</span>
+        <button class="zoom-btn" id="waveZoomOut" aria-label="Zoom out">−</button>
+        <button class="zoom-btn" id="waveZoomIn" aria-label="Zoom in">+</button>
+      </div>
       <div class="wave-track" id="waveTrack">
-        <div class="wave-bars" id="waveBars"></div>
-        <div id="waveMarkers"></div>
-        <div class="wave-playhead" id="wavePlayhead"></div>
+        <div class="wave-inner" id="waveInner">
+          <div class="wave-bars" id="waveBars"></div>
+          <div id="waveMarkers"></div>
+          <div id="frameDividers"></div>
+          <div class="wave-playhead" id="wavePlayhead"></div>
+        </div>
       </div>
       <div class="wave-time">
         <span id="curTime">0.0s</span>
@@ -467,40 +506,50 @@
         <button class="t-btn" id="fwdBtn" aria-label="Forward quarter second">
           <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
-        <button class="t-btn t-speed" id="speedBtn" aria-label="Playback speed">1.0×</button>
-      </div>
-    </div>
-
-    <div class="section-head">
-      <div class="section-head-actions">
-        <div class="section-head-left">
-          <button class="markers-link" id="markersToggleBtn" disabled>
-            <span id="markersToggleLabel">Markers</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="undo-redo-group">
-            <button class="undoredo-btn" id="undoBtn" disabled aria-label="Undo last marker change">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12H9"/></svg>
-            </button>
-            <button class="undoredo-btn" id="redoBtn" disabled aria-label="Redo marker change">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h5"/></svg>
-            </button>
-          </div>
-        </div>
-        <button class="clear-link" id="clearAllBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
-          Clear all
+        <button class="t-btn lock-btn" id="waveLockBtn" aria-label="Lock waveform to follow playback">
+          <svg id="waveLockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
         </button>
+      </div>
+      <div class="speed-row" id="speedRow">
+        <button class="speed-btn" data-speed="0.5">0.5×</button>
+        <button class="speed-btn" data-speed="0.75">0.75×</button>
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="1.25">1.25×</button>
+        <button class="speed-btn" data-speed="1.5">1.5×</button>
       </div>
     </div>
 
     <div class="word-card">
       <div class="word-card-head">
-        <div class="word-card-label" id="wordCardLabel">Word by word</div>
-        <button class="preview-btn" id="previewBtn" disabled>
-          <svg id="previewBtnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          <span id="previewBtnLabel">Preview</span>
-        </button>
+        <div class="wc-btn-group">
+          <button class="wc-icon-btn" id="trimEdgeWordsBtn" disabled aria-label="Delete unmarked words at the start/end" title="Delete unmarked words at the start/end (partial ayah)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v16M15 4v16M4 8l4 4-4 4M20 8l-4 4 4 4"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="markersToggleBtn" disabled aria-label="Show markers" title="Markers">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="undoBtn" disabled aria-label="Undo last marker change" title="Undo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12H9"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="redoBtn" disabled aria-label="Redo marker change" title="Redo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h5"/></svg>
+          </button>
+          <button class="wc-icon-btn danger" id="clearAllBtn" aria-label="Clear all marks" title="Clear all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="autoAlignBtn" aria-label="Auto-detect word timing and merges" title="Auto-detect word timing and merges">
+            <svg id="autoAlignBtnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="playFromStartBtn" aria-label="Play ayah from the start" title="Play from start">
+            <svg id="playFromStartBtnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          </button>
+          <button class="wc-icon-btn" id="previewBtn" disabled aria-label="Preview marked timing" title="Preview from selection">
+            <svg id="previewBtnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="wc-icon-btn danger" id="clearFrameSeparatorsBtn" disabled aria-label="Clear all frame separators" title="Clear all frame separators">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h5M4 12h5M4 18h5M15 6h5M15 18h5M9 3v6M9 15v6M15 3v6M15 15v6"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="2.4"/></svg>
+          </button>
+        </div>
       </div>
       <div class="word-chips" id="wordChips"></div>
     </div>
@@ -510,7 +559,10 @@
   </div>
 
   <div class="footbar">
-    <div class="ayah-dots" id="ayahDots"></div>
+    <div class="ayah-progress-row">
+      <div class="word-card-label" id="wordCardLabel">Ayah</div>
+      <div class="ayah-dots" id="ayahDots"></div>
+    </div>
     <div class="footbar-row">
       <button class="foot-icon-btn" id="prevBtn" aria-label="Previous ayah" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="#14183A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -525,15 +577,6 @@
     </div>
   </div>
 
-</div>
-
-<div class="gen-overlay" id="genOverlay">
-  <div class="gen-title" id="genTitle">Generating your video…</div>
-  <div class="gen-track"><div class="gen-fill" id="genFill"></div></div>
-  <div class="gen-label" id="genLabel">Starting…</div>
-  <pre class="gen-log" id="genLog"></pre>
-  <div class="gen-error" id="genError" style="display:none;"></div>
-  <button class="gen-btn" id="genBackBtn">Back to timing</button>
 </div>
 
 <div class="crop-overlay" id="cropOverlay">
@@ -562,6 +605,9 @@
   // this flag only changes what the EDITOR shows/allows, the backend is
   // the actual enforcement.
   const editOnlyMode = new URLSearchParams(location.search).get('editTiming') === '1';
+  // Wired for real once init() knows session.entry (custom vs reciter flow)
+  // -- see below. Defaulted here only so the button isn't briefly dead
+  // before that fetch resolves.
   document.getElementById('backBtnTop').setAttribute('onclick',
     editOnlyMode ? "location.href='/'" : `location.href='/new_video.html?sessionId=${encodeURIComponent(sessionId)}'`);
 
@@ -574,6 +620,15 @@
   let ayahIndex = 0;
   let markerList = [];
   let markIdCounter = 0;
+  // boundaryModes[i] describes the gap between raw word i and i+1:
+  // null (default: separate chips, same frame) | 'merge' (one highlighted
+  // beat, e.g. two words recited too fast to tell apart) | 'break' (starts
+  // a new displayed frame -- for a long ayah recited in parts). Derived,
+  // never-stored views of this: computeChipGroups() (which raw words share
+  // one markable/highlightable chip) and computeFrameGroups() (which raw
+  // words make up one frame) -- see buildManifest() for how both turn into
+  // the timing manifest's frames/highlight_words.
+  let boundaryModes = [];
   let selectedMarkerId = null;
   let panelOpen = false;
   let speed = 1;
@@ -607,26 +662,73 @@
   const waveMarkersEl = document.getElementById('waveMarkers');
   const wavePlayheadEl = document.getElementById('wavePlayhead');
   const waveTrackEl = document.getElementById('waveTrack');
+  const waveInnerEl = document.getElementById('waveInner');
   const markPanelEl = document.getElementById('markPanel');
   const nextBtn = document.getElementById('nextBtn');
   const prevBtn = document.getElementById('prevBtn');
   const progressPill = document.getElementById('progressPill');
+  const wordCardLabel = document.getElementById('wordCardLabel');
   const ayahDotsEl = document.getElementById('ayahDots');
   const curTimeEl = document.getElementById('curTime');
   const totalTimeEl = document.getElementById('totalTime');
   const playIcon = document.getElementById('playIcon');
   const clearAllBtn = document.getElementById('clearAllBtn');
+  const clearFrameSeparatorsBtn = document.getElementById('clearFrameSeparatorsBtn');
+  const trimEdgeWordsBtn = document.getElementById('trimEdgeWordsBtn');
   const markersToggleBtn = document.getElementById('markersToggleBtn');
   const undoBtn = document.getElementById('undoBtn');
   const redoBtn = document.getElementById('redoBtn');
   let undoStack = [];
   let redoStack = [];
 
+  // Partitions entry.words into chips (maximal runs joined by 'merge'
+  // boundaries) -- each chip is the unit a marker/highlight addresses. A
+  // chip is identified by the raw index of its FIRST word (its "lead"),
+  // which is what markerList[].wordIndex actually stores.
+  function computeChipGroups(entry, modes){
+    return computeChipGroupsForWordCount(entry.words.length, modes);
+  }
+
+  // Same partitioning, but off a raw word COUNT instead of a loaded entry --
+  // needed by hydrateAyahStatesFromManifest(), which reconstructs chip
+  // coverage from a saved manifest's frame texts before entry.words exists
+  // (see ensureLoaded()).
+  function computeChipGroupsForWordCount(wordCount, modes){
+    const groups = [];
+    let current = [0];
+    for (let i = 0; i < wordCount - 1; i++){
+      if (modes[i] === 'merge') current.push(i + 1);
+      else { groups.push(current); current = [i + 1]; }
+    }
+    groups.push(current);
+    return groups;
+  }
+
+  // Partitions entry.words into frames (maximal runs with no 'break'
+  // boundary inside them) -- each becomes one manifest frame. A 'break'
+  // can only ever fall between two chips (never inside a merged one, since
+  // one boundary index can't be both 'merge' and 'break' at once), so this
+  // never splits a chip computeChipGroups() would keep together.
+  function computeFrameGroups(entry, modes){
+    const frames = [];
+    let start = 0;
+    for (let i = 0; i < entry.words.length - 1; i++){
+      if (modes[i] === 'break'){ frames.push({ start, end: i + 1 }); start = i + 1; }
+    }
+    frames.push({ start, end: entry.words.length });
+    return frames;
+  }
+
+  function chipGroupForLead(entry, modes, lead){
+    return computeChipGroups(entry, modes).find(g => g[0] === lead) || [lead];
+  }
+
   function snapshotMarkerState(){
     return {
       markerList: markerList.map(m => ({ ...m })),
       markIdCounter,
-      selectedMarkerId
+      selectedMarkerId,
+      boundaryModes: boundaryModes.slice(),
     };
   }
 
@@ -634,6 +736,7 @@
     markerList = snap.markerList.map(m => ({ ...m }));
     markIdCounter = snap.markIdCounter;
     selectedMarkerId = snap.selectedMarkerId;
+    boundaryModes = (snap.boundaryModes || []).slice();
     updateNextButtonState();
     updatePreviewAvailability();
     renderChips();
@@ -668,12 +771,30 @@
     restoreMarkerState(snap);
     updateUndoRedoButtons();
   }
-  const markersToggleLabel = document.getElementById('markersToggleLabel');
-  const speedBtn = document.getElementById('speedBtn');
   const previewBtn = document.getElementById('previewBtn');
   const previewBtnIcon = document.getElementById('previewBtnIcon');
-  const previewBtnLabel = document.getElementById('previewBtnLabel');
-  const wordCardLabel = document.getElementById('wordCardLabel');
+  const playFromStartBtn = document.getElementById('playFromStartBtn');
+  const playFromStartBtnIcon = document.getElementById('playFromStartBtnIcon');
+  const autoAlignBtn = document.getElementById('autoAlignBtn');
+
+  const PLAY_ICON_PATH = '<path d="M8 5v14l11-7z"/>';
+  const STOP_ICON_PATH = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+  // playFromStartBtnIcon's <svg> has fill="none"/stroke="currentColor" (for
+  // its stroked "restart" glyph) -- the stop swap needs its own fill set
+  // explicitly, or it would render as hollow outlined bars instead of solid ones.
+  const STOP_ICON_PATH_STROKED_SVG = '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/>';
+  const RESTART_ICON_PATH = '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>';
+
+  // Both the "preview from selection" and "play from start" buttons drive
+  // the same previewMode -- clicking either one while it's already running
+  // stops it, so both need to reflect the running state, not just the one
+  // that started it.
+  function setPreviewButtonsRunning(running){
+    previewBtn.classList.toggle('on', running);
+    playFromStartBtn.classList.toggle('on', running);
+    previewBtnIcon.innerHTML = running ? STOP_ICON_PATH : PLAY_ICON_PATH;
+    playFromStartBtnIcon.innerHTML = running ? STOP_ICON_PATH_STROKED_SVG : RESTART_ICON_PATH;
+  }
 
   function currentAyah(){ return ayahs[ayahIndex]; }
 
@@ -833,9 +954,74 @@
     targetEl.innerHTML = bars;
   }
 
+  // ============ WAVEFORM ZOOM (mirrors custom_audio.html's main-track zoom) ============
+  const WAVE_ZOOM_LEVELS = [1, 2, 4, 8, 16, 32];
+  let waveZoomIdx = 0;
+  const waveZoomLabelEl = document.getElementById('waveZoomLabel');
+  const waveZoomOutBtn = document.getElementById('waveZoomOut');
+  const waveZoomInBtn = document.getElementById('waveZoomIn');
+
+  function renderMainWaveBars(){
+    const entry = currentAyah();
+    if (!entry || !entry.audioBuffer) return;
+    const zoom = WAVE_ZOOM_LEVELS[waveZoomIdx];
+    const baseN = entry.words && entry.words.length > 12 ? 72 : 46;
+    const n = Math.min(1200, Math.round(baseN * zoom));
+    buildBarsFromBuffer(entry.audioBuffer, n, entry.rangeStart || 0, entry.rangeEnd);
+  }
+
+  // Scrolls the main wave track so `t` (seconds, relative to this frame's own
+  // window) sits centered in the viewport -- used after a zoom change to keep
+  // the same part of the recitation in view, and (when the lock is on)
+  // continuously during playback.
+  function scrollWaveTrackToTime(t){
+    const entry = currentAyah();
+    if (!entry || !entry.duration) return;
+    const pct = Math.max(0, Math.min(1, t / entry.duration));
+    const targetLeft = pct * waveInnerEl.clientWidth - waveTrackEl.clientWidth / 2;
+    waveTrackEl.scrollLeft = Math.max(0, targetLeft);
+  }
+
+  function applyWaveZoom(idx){
+    waveZoomIdx = Math.max(0, Math.min(idx, WAVE_ZOOM_LEVELS.length - 1));
+    const zoom = WAVE_ZOOM_LEVELS[waveZoomIdx];
+    waveInnerEl.style.width = (zoom * 100) + '%';
+    waveZoomLabelEl.textContent = zoom + '×';
+    waveZoomOutBtn.disabled = waveZoomIdx === 0;
+    waveZoomInBtn.disabled = waveZoomIdx === WAVE_ZOOM_LEVELS.length - 1;
+    renderMainWaveBars();
+    scrollWaveTrackToTime(elapsed);
+  }
+  waveZoomOutBtn.addEventListener('click', () => applyWaveZoom(waveZoomIdx - 1));
+  waveZoomInBtn.addEventListener('click', () => applyWaveZoom(waveZoomIdx + 1));
+
+  // ============ WAVEFORM FOLLOW-LOCK (mirrors custom_audio.html's lockBtn) ============
+  // When on, the main track auto-scrolls to keep the playhead in view as
+  // audio plays (useful once zoomed in past the point where the whole
+  // frame fits on screen). Only turned back off by a genuine MANUAL scroll
+  // (drag/swipe/wheel on the track), never by the programmatic scrollLeft
+  // writes above (playback follow, zoom-change recentering).
+  let waveFollowPlayhead = false;
+  const waveLockBtn = document.getElementById('waveLockBtn');
+  const waveLockIcon = document.getElementById('waveLockIcon');
+
+  function setWaveFollowPlayhead(active){
+    waveFollowPlayhead = active;
+    waveLockBtn.classList.toggle('active', active);
+    waveLockIcon.innerHTML = active
+      ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'
+      : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/>';
+  }
+  waveLockBtn.addEventListener('click', () => {
+    setWaveFollowPlayhead(!waveFollowPlayhead);
+    if (waveFollowPlayhead) scrollWaveTrackToTime(elapsed);
+  });
+  waveTrackEl.addEventListener('wheel', () => { if (waveFollowPlayhead) setWaveFollowPlayhead(false); }, { passive: true });
+  waveTrackEl.addEventListener('touchmove', () => { if (waveFollowPlayhead) setWaveFollowPlayhead(false); }, { passive: true });
+
   // ============ LOADING AN AYAH ============
   function setControlsEnabled(enabled){
-    document.querySelectorAll('.transport .t-btn, #previewBtn').forEach(b => b.disabled = !enabled || b.disabled === 'force');
+    document.querySelectorAll('.transport .t-btn, #previewBtn, #playFromStartBtn, #autoAlignBtn, #waveZoomOut, #waveZoomIn').forEach(b => b.disabled = !enabled || b.disabled === 'force');
   }
 
   async function loadAyah(){
@@ -848,9 +1034,11 @@
     if (saved){
       markerList = saved.markerList.map(m => ({ ...m }));
       markIdCounter = saved.markIdCounter;
+      boundaryModes = (saved.boundaryModes || []).slice();
     } else {
       markerList = [];
       markIdCounter = 0;
+      boundaryModes = [];
     }
     selectedMarkerId = null;
     undoStack = [];
@@ -861,16 +1049,14 @@
     playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
     previewMode = false;
     lastPreviewIdx = undefined;
-    previewBtn.classList.remove('on');
-    previewBtnLabel.textContent = 'Preview';
-    previewBtnIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    setPreviewButtonsRunning(false);
 
     progressPill.textContent = `Ayah ${ayahIndex + 1}/${ayahs.length}`;
     prevBtn.disabled = ayahIndex === 0;
     renderDots();
     renderAudioSourceRow();
 
-    wordCardLabel.textContent = entry.ayahNumber === 0 ? 'Bismillah' : `Word by word — ayah ${entry.ayahNumber}`;
+    wordCardLabel.textContent = entry.ayahNumber === 0 ? 'Bismillah' : `Ayah ${entry.ayahNumber}`;
     wordChipsEl.innerHTML = '<div class="word-card-loading">Loading recitation…</div>';
     setControlsEnabled(false);
     nextBtn.disabled = true;
@@ -912,7 +1098,7 @@
     setControlsEnabled(true);
     totalTimeEl.textContent = `${entry.duration.toFixed(1)}s`;
     renderAudioSourceRow();  // re-render now that entry.duration is known (the earlier call above ran before it was set)
-    buildBarsFromBuffer(entry.audioBuffer, entry.words.length > 12 ? 72 : 46, entry.rangeStart || 0, entry.rangeEnd);
+    applyWaveZoom(0);  // fresh ayah: back to 1x, same as custom_audio.html on a new load
     updatePreviewAvailability();
 
     renderChips();
@@ -920,7 +1106,7 @@
     renderWaveMarkers();
     updateNextButtonState();
     nextBtn.innerHTML = (ayahIndex === ayahs.length - 1)
-      ? 'Generate video <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+      ? 'Done <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
       : 'Continue <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
     renderMarkPanel();
@@ -949,9 +1135,11 @@
         const cropped = custom.cropStart > 0 || custom.cropEnd != null;
         const shownDuration = entry.duration;
         audioSourceText.textContent = `Your recording${shownDuration != null ? ` — ${shownDuration.toFixed(1)}s` : ''}${cropped ? ' (cropped)' : ''}`;
-      } else {
+      } else if (draft.hasReciter){
         const reciterLabel = reciterNames[draft.reciterKey] || draft.reciterKey;
         audioSourceText.textContent = `Reciter — ${reciterLabel}`;
+      } else {
+        audioSourceText.textContent = 'No audio uploaded';
       }
       audioSourceActions.innerHTML = '';
       return;
@@ -975,9 +1163,12 @@
       `;
       document.getElementById('asCropBtn').addEventListener('click', () => openCropModal(entry.realAyah));
       document.getElementById('asRemoveBtn').addEventListener('click', () => removeCustomAudio(entry.realAyah));
-    } else {
+    } else if (draft.hasReciter){
       const reciterLabel = reciterNames[draft.reciterKey] || draft.reciterKey;
       audioSourceText.textContent = `Reciter — ${reciterLabel}`;
+      audioSourceActions.innerHTML = '';
+    } else {
+      audioSourceText.textContent = 'No audio uploaded';
       audioSourceActions.innerHTML = '';
     }
   }
@@ -1084,11 +1275,38 @@
           <span id="cropStartLabel">0.00s</span>
           <span id="cropEndLabel">0.00s</span>
         </div>
+        <div class="crop-snap-row" id="cropSnapRow" style="display:none;">
+          <button class="crop-snap-btn" id="cropSnapStartBtn" type="button">Snap start to mark</button>
+          <button class="crop-snap-btn" id="cropSnapEndBtn" type="button">Snap end to mark</button>
+        </div>
       `;
       buildBarsFromBuffer(rawBuffer, 60, 0, rawBuffer.duration, document.getElementById('cropBars'), 'crop-bar');
       attachCropDrag(document.getElementById('cropHandleStart'), 'start');
       attachCropDrag(document.getElementById('cropHandleEnd'), 'end');
       renderCropUI();
+
+      // Word marks (if this ayah has any) are timed against the CURRENTLY
+      // cropped audio, not this modal's raw file -- shift by the existing
+      // crop's start to land on the same real-world instant. Only offered
+      // when marking this ayah is what the crop applies to (always true
+      // today: openCropModal() is only ever called for the ayah on screen).
+      if (realAyah === currentAyah().realAyah && markerList.length){
+        const rawOffset = existing && existing.cropStart ? existing.cropStart : 0;
+        const markerRawTime = (m) => rawOffset + m.time;
+        document.getElementById('cropSnapRow').style.display = 'flex';
+        document.getElementById('cropSnapStartBtn').addEventListener('click', () => {
+          const sorted = [...markerList].sort((a, b) => a.time - b.time);
+          const m = sorted.find(mk => mk.id === selectedMarkerId) || sorted[0];
+          cropState.start = Math.max(0, Math.min(markerRawTime(m), cropState.end - CROP_MIN_WINDOW));
+          renderCropUI();
+        });
+        document.getElementById('cropSnapEndBtn').addEventListener('click', () => {
+          const sorted = [...markerList].sort((a, b) => a.time - b.time);
+          const m = sorted.find(mk => mk.id === selectedMarkerId) || sorted[sorted.length - 1];
+          cropState.end = Math.min(cropState.rawDuration, Math.max(markerRawTime(m), cropState.start + CROP_MIN_WINDOW));
+          renderCropUI();
+        });
+      }
     } catch (e) {
       cropBody.innerHTML = `<div class="crop-loading">${e.message}</div>`;
     }
@@ -1132,7 +1350,7 @@
   function updateNextButtonState(){
     const entry = currentAyah();
     const covered = new Set(markerList.map(m => m.wordIndex));
-    nextBtn.disabled = covered.size !== entry.words.length;
+    nextBtn.disabled = covered.size !== computeChipGroups(entry, boundaryModes).length;
   }
 
   function saveCurrentAyahState(){
@@ -1141,7 +1359,8 @@
     ayahStates[ayahIndex] = {
       markerList: markerList.map(m => ({ ...m })),
       markIdCounter,
-      complete: entry.words && covered.size === entry.words.length,
+      boundaryModes: boundaryModes.slice(),
+      complete: entry.words && covered.size === computeChipGroups(entry, boundaryModes).length,
     };
   }
 
@@ -1157,6 +1376,9 @@
     localStorage.setItem(SESSION_KEY, JSON.stringify({
       key: sessionKeyFor(draft), ayahIndex, ayahStates, customAudioByRealAyah, rangeAudioInfo,
     }));
+    const completeCount = ayahStates.filter(s => s && s.complete).length;
+    console.log(`[timing] local draft saved -- ayah ${ayahIndex + 1}/${ayahs.length}, ${completeCount}/${ayahStates.length} ayah(s) marked complete`);
+    scheduleServerAutosave();
   }
 
   function loadSavedSession(){
@@ -1168,6 +1390,43 @@
   }
 
   function clearSavedSession(){ localStorage.removeItem(SESSION_KEY); }
+
+  // ============ SERVER AUTOSAVE (don't rely on the browser-only local
+  // draft above to survive an exit -- push progress to the session on the
+  // server too, so closing the tab, hitting the browser/OS back button, or
+  // switching devices mid-marking doesn't leave the server's copy stale or
+  // empty until the very end). Skipped in editOnlyMode: that session is
+  // locked server-side, a plain PUT would 409 -- Done's own POST
+  // /api/generate is the only write path allowed there. ============
+  let serverAutosaveTimer = null;
+  function scheduleServerAutosave(){
+    if (editOnlyMode || !draft) return;
+    clearTimeout(serverAutosaveTimer);
+    serverAutosaveTimer = setTimeout(runServerAutosave, 800);
+  }
+  function runServerAutosave(){
+    if (editOnlyMode || !draft) return;
+    const manifest = buildManifest();
+    const customAudioManifest = buildCustomAudioManifest();
+    const timing = Object.keys(manifest.ayahs).length ? manifest : undefined;
+    const customAudio = Object.keys(customAudioManifest.ayahs).length ? customAudioManifest : undefined;
+    fetch(`/api/sessions/${encodeURIComponent(draft.id)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timing, customAudio }),
+      keepalive: true,  // lets this complete even if the tab is closing/navigating right now
+    }).then(res => {
+      console.log(`[timing] server autosave -- ${res.ok ? 'ok' : 'FAILED (' + res.status + ')'}, ${Object.keys(manifest.ayahs).length}/${ayahStates.length} ayah(s) sent`);
+    }).catch(e => console.warn('[timing] server autosave error:', e));
+  }
+  // Final best-effort flush the instant the page is actually leaving --
+  // 'pagehide' fires for both an in-app navigation (location.href=...) and
+  // closing the tab/browser, unlike 'beforeunload' which some browsers
+  // don't reliably fire for the former. keepalive on the fetch above is
+  // what lets this request still land after the page has already unloaded.
+  window.addEventListener('pagehide', () => {
+    clearTimeout(serverAutosaveTimer);
+    runServerAutosave();
+  });
 
   // When there are more words than fit, `align-content:center` (used to keep
   // short ayahs looking nice) centers the wrapped rows by pushing overflow
@@ -1185,16 +1444,29 @@
   window.addEventListener('orientationchange', updateWordChipsOverflow);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateWordChipsOverflow);
 
+  function renderBoundaryHandle(rawIndex, mode){
+    // No text content -- the dot/⊕/break-ticks are all drawn via CSS
+    // (::before/::after) so their size is controlled in one place (see the
+    // .word-boundary rules) instead of depending on font rendering of a
+    // tiny glyph like "·".
+    const cls = 'word-boundary' + (mode ? ` ${mode}` : '');
+    const aria = mode === 'break' ? 'A new frame starts here -- tap to merge these words instead'
+      : mode === 'merge' ? 'These words are merged as one beat -- tap to undo'
+      : 'Tap to start a new frame here, or merge these two words';
+    return `<button type="button" class="${cls}" data-boundary="${rawIndex}" aria-label="${aria}"></button>`;
+  }
+
   function renderChips(){
     const entry = currentAyah();
     wordChipsEl.classList.toggle('previewing', previewMode);
+    const groups = computeChipGroups(entry, boundaryModes);
 
     if (previewMode){
       const curIdx = getPreviewCurrentWordIndex(elapsed);
       lastPreviewIdx = curIdx;
-      wordChipsEl.innerHTML = entry.words.map((w, i) => {
-        const cls = 'word-chip' + (i === curIdx ? ' preview-current' : '');
-        return `<div class="${cls}" data-i="${i}">${w}</div>`;
+      wordChipsEl.innerHTML = groups.map(g => {
+        const cls = 'word-chip' + (g[0] === curIdx ? ' preview-current' : '');
+        return `<div class="${cls}" data-i="${g[0]}">${g.map(i => entry.words[i]).join(' ')}</div>`;
       }).join('');
       updateWordChipsOverflow();
       return;
@@ -1202,16 +1474,69 @@
 
     const selectedMarker = markerList.find(m => m.id === selectedMarkerId);
 
-    wordChipsEl.innerHTML = entry.words.map((w, i) => {
-      const wordMarkers = markerList.filter(m => m.wordIndex === i);
+    // Every raw gap gets exactly one boundary handle -- INSIDE a chip
+    // (always 'merge' there, since that's the only way two raw words share
+    // one chip) or BETWEEN two chips ('break' or default). Rendering the
+    // 'merge' ones inline, not just the ones between chips, is what keeps a
+    // merge always clickable again -- otherwise, once two words merged into
+    // one chip, there'd be no handle left in the DOM to un-merge them.
+    let html = '';
+    groups.forEach((g, gi) => {
+      const lead = g[0];
+      const wordMarkers = markerList.filter(m => m.wordIndex === lead);
       let cls = 'word-chip';
       if (wordMarkers.length) cls += ' marked';
-      if (selectedMarker && selectedMarker.wordIndex === i) cls += ' selected';
+      if (selectedMarker && selectedMarker.wordIndex === lead) cls += ' selected';
       const orderLabel = wordMarkers.map(m => markerList.indexOf(m) + 1).join(',');
       const orderAttr = wordMarkers.length ? ` data-order="${orderLabel}"` : '';
-      return `<div class="${cls}" data-i="${i}"${orderAttr}>${w}</div>`;
-    }).join('');
+
+      let inner = '';
+      g.forEach((wi, k) => {
+        if (k > 0) inner += renderBoundaryHandle(g[k - 1], 'merge');
+        inner += `<span class="word-chip-word">${entry.words[wi]}</span>`;
+      });
+
+      html += `<div class="${cls}" data-i="${lead}"${orderAttr}>${inner}</div>`;
+      if (gi < groups.length - 1){
+        const boundaryIdx = g[g.length - 1];  // gap right after this chip's last raw word
+        html += renderBoundaryHandle(boundaryIdx, boundaryModes[boundaryIdx] || null);
+      }
+    });
+    wordChipsEl.innerHTML = html;
     updateWordChipsOverflow();
+  }
+
+  // Cycles the boundary between raw words rawIndex/rawIndex+1: null -> break
+  // -> merge -> null. 'break' never changes which raw words share a chip
+  // (only frame grouping), so the common case -- tap once to drop a frame
+  // separator here -- never touches markerList. Only entering/leaving
+  // 'merge' can change chip grouping -- when that happens, any marker whose
+  // chip no longer exists in the new grouping is dropped (the user re-marks
+  // that chip fresh) rather than guessing which of the old markers' times
+  // should survive on the new, differently-shaped chip. Putting 'merge'
+  // second (not first) means a plain frame-separator tap never risks losing
+  // an already-placed mark on the way there.
+  function toggleBoundary(rawIndex){
+    const entry = currentAyah();
+    pushUndoSnapshot();
+    const cur = boundaryModes[rawIndex] || null;
+    boundaryModes[rawIndex] = cur === null ? 'break' : cur === 'break' ? 'merge' : null;
+    console.log(`[timing] toggleBoundary(${rawIndex}): ${cur || 'none'} -> ${boundaryModes[rawIndex] || 'none'}`);
+
+    const validLeads = new Set(computeChipGroups(entry, boundaryModes).map(g => g[0]));
+    const beforeCount = markerList.length;
+    markerList = markerList.filter(m => validLeads.has(m.wordIndex));
+    if (markerList.length !== beforeCount){
+      console.log(`[timing] toggleBoundary(${rawIndex}): dropped ${beforeCount - markerList.length} marker(s) whose chip no longer exists`);
+    }
+    if (selectedMarkerId && !markerList.some(m => m.id === selectedMarkerId)) selectedMarkerId = null;
+
+    updateNextButtonState();
+    updatePreviewAvailability();
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+    persistSession();
   }
 
   function getPreviewCurrentMarker(t){
@@ -1237,7 +1562,7 @@
     if (idx === lastPreviewIdx) return;
     lastPreviewIdx = idx;
     const chips = wordChipsEl.querySelectorAll('.word-chip');
-    chips.forEach((chip, i) => chip.classList.toggle('preview-current', i === idx));
+    chips.forEach(chip => chip.classList.toggle('preview-current', Number(chip.dataset.i) === idx));
   }
 
   function renderWaveMarkers(){
@@ -1246,6 +1571,27 @@
       const pct = (m.time / entry.duration) * 100;
       const sel = m.id === selectedMarkerId ? ' sel' : '';
       return `<div class="wave-marker${sel}" style="left:${pct}%"></div>`;
+    }).join('');
+    renderFrameDividers();
+  }
+
+  // A frame divider sits at the time of the earliest mark inside each frame
+  // after the first -- i.e. where playback actually crosses from one
+  // displayed frame into the next (see computeFrameGroups()). A frame with
+  // no marks yet (still being worked on) simply has no divider until it does.
+  function renderFrameDividers(){
+    const entry = currentAyah();
+    const frameRanges = computeFrameGroups(entry, boundaryModes);
+    const sortedMarks = [...markerList].sort((a, b) => a.time - b.time);
+    const dividerTimes = [];
+    for (let fi = 1; fi < frameRanges.length; fi++){
+      const range = frameRanges[fi];
+      const firstMark = sortedMarks.find(m => m.wordIndex >= range.start && m.wordIndex < range.end);
+      if (firstMark) dividerTimes.push(firstMark.time);
+    }
+    document.getElementById('frameDividers').innerHTML = dividerTimes.map(t => {
+      const pct = (t / entry.duration) * 100;
+      return `<div class="frame-divider" style="left:${pct}%"></div>`;
     }).join('');
   }
 
@@ -1277,9 +1623,13 @@
   function renderMarkPanel(){
     const entry = currentAyah();
     clearAllBtn.disabled = markerList.length === 0;
+    clearFrameSeparatorsBtn.disabled = !boundaryModes.some(m => m === 'break');
+    trimEdgeWordsBtn.disabled = !canTrimEdgeWords();
     markersToggleBtn.disabled = markerList.length === 0;
-    markersToggleBtn.classList.toggle('open', panelOpen);
-    markersToggleLabel.textContent = markerList.length ? `Markers · ${markerList.length}` : 'Markers';
+    markersToggleBtn.classList.toggle('on', panelOpen);
+    if (markerList.length) markersToggleBtn.dataset.badge = markerList.length;
+    else delete markersToggleBtn.dataset.badge;
+    markersToggleBtn.setAttribute('aria-label', markerList.length ? `Markers · ${markerList.length}` : 'Markers');
 
     updateMarkPanelBodyClass();
 
@@ -1310,7 +1660,7 @@
 
     if (hasSelection){
       const m = markerList[selectedPos];
-      const word = entry.words[m.wordIndex];
+      const word = chipGroupForLead(entry, boundaryModes, m.wordIndex).map(i => entry.words[i]).join(' ');
       html += `
         <div class="mp-adjust-head">
           <div class="mp-word">
@@ -1430,13 +1780,11 @@
     selectedMarkerId = null;
     lastPreviewIdx = undefined;
 
-    previewBtn.classList.add('on');
-    previewBtnLabel.textContent = 'Stop';
-    previewBtnIcon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+    setPreviewButtonsRunning(true);
 
     panelOpen = false;
     markPanelEl.innerHTML = '';
-    markersToggleBtn.classList.remove('open');
+    markersToggleBtn.classList.remove('on');
     updateMarkPanelBodyClass();
     renderChips();
     renderWaveMarkers();
@@ -1445,13 +1793,32 @@
     startPlayback();
   }
 
+  // Always plays from the very first word of the ayah, ignoring whatever
+  // word is currently selected (or whether anything is selected/marked at
+  // all) -- unlike enterPreview() above, this never needs a mark to exist.
+  function enterPreviewFromStart(){
+    previewMode = true;
+    selectedMarkerId = null;
+    lastPreviewIdx = undefined;
+
+    setPreviewButtonsRunning(true);
+
+    panelOpen = false;
+    markPanelEl.innerHTML = '';
+    markersToggleBtn.classList.remove('on');
+    updateMarkPanelBodyClass();
+    renderChips();
+    renderWaveMarkers();
+
+    seekTo(0);
+    startPlayback();
+  }
+
   function exitPreview(){
     previewMode = false;
     lastPreviewIdx = undefined;
 
-    previewBtn.classList.remove('on');
-    previewBtnLabel.textContent = 'Preview';
-    previewBtnIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    setPreviewButtonsRunning(false);
 
     stopPlayback();
     renderChips();
@@ -1460,6 +1827,76 @@
   }
 
   previewBtn.addEventListener('click', () => previewMode ? exitPreview() : enterPreview());
+  playFromStartBtn.addEventListener('click', () => previewMode ? exitPreview() : enterPreviewFromStart());
+
+  // Auto-detects a start time for every word via /api/timing/auto-align
+  // (faster-whisper word timestamps fuzzy-matched against this ayah's own
+  // text -- see quran_lib/recognize.py's align_words_to_audio()), then
+  // replaces the whole markerList with one mark per CHIP (a merged pair of
+  // words counts as one chip, so it gets exactly one mark, at its first
+  // word's detected time -- same rule a hand-placed mark follows). Also
+  // applies suggested merges (words recited too fast to tell apart from
+  // the next one -- never more than two words at a time) to
+  // boundaryModes, without touching boundaries the user already set.
+  async function runAutoAlign(){
+    if (autoAlignBtn.disabled) return;
+    const entry = currentAyah();
+    if (!entry || !entry.words || !entry.words.length) return;
+    if (previewMode) exitPreview();
+    if (playing) stopPlayback();
+
+    autoAlignBtn.disabled = true;
+    autoAlignBtn.classList.add('busy');
+    try {
+      const params = new URLSearchParams({
+        surah: String(draft.surah),
+        ayah: String(entry.realAyah),
+        reciter: draft.reciterKey,
+      });
+      const res = await fetch(`/api/timing/auto-align?${params.toString()}${audioSourceParams(entry.realAyah)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          words: entry.words,
+          rangeStart: entry.rangeStart || 0,
+          rangeEnd: entry.rangeEnd,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't auto-detect word timing.");
+
+      pushUndoSnapshot();
+
+      // Apply suggested merges first -- never overrides a boundary the
+      // user already set by hand.
+      (data.merges || []).forEach(i => {
+        if (!boundaryModes[i]) boundaryModes[i] = 'merge';
+      });
+
+      const chipGroups = computeChipGroups(entry, boundaryModes);
+      markIdCounter = 0;
+      markerList = chipGroups.map(g => {
+        const lead = g[0];
+        const t = Math.max(0, Math.min(data.times[lead] ?? 0, entry.duration));
+        return { id: ++markIdCounter, wordIndex: lead, time: t };
+      });
+      selectedMarkerId = null;
+
+      updateNextButtonState();
+      updatePreviewAvailability();
+      renderChips();
+      renderWaveMarkers();
+      renderMarkPanel();
+      persistSession();
+    } catch (e) {
+      alert(e.message || "Couldn't auto-detect word timing.");
+    } finally {
+      autoAlignBtn.disabled = false;
+      autoAlignBtn.classList.remove('busy');
+    }
+  }
+
+  autoAlignBtn.addEventListener('click', runAutoAlign);
 
   function clearAllMarks(){
     if (!markerList.length) return;
@@ -1477,6 +1914,80 @@
     renderMarkPanel();
     persistSession();
   }
+
+  // Drops every 'break' boundary in this ayah (frames collapse back to one),
+  // leaving 'merge' boundaries untouched. 'break' never affects chip
+  // grouping/markerList (see toggleBoundary()'s comment), so this is just a
+  // boundaryModes edit -- no marker cleanup needed.
+  function clearFrameSeparators(){
+    if (!boundaryModes.some(m => m === 'break')) return;
+    pushUndoSnapshot();
+    boundaryModes = boundaryModes.map(m => m === 'break' ? null : m);
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+    persistSession();
+  }
+
+  // Only makes sense on the FIRST or LAST ayah of the recitation -- those
+  // are the only ones a range recording can start/end mid-ayah on. An
+  // interior ayah is always recited in full, so trimming it would delete
+  // words that genuinely belong in the video.
+  function canTrimEdgeWords(){
+    return ayahs.length > 0 && (ayahIndex === 0 || ayahIndex === ayahs.length - 1) && markerList.length > 0;
+  }
+
+  // Drops the leading/trailing chips that never got a marker -- the part of
+  // this ayah's text the recording doesn't actually cover, for a range that
+  // starts or ends mid-ayah. Only the two edges are trimmed; an unmarked gap
+  // between two marked chips is left alone (nextBtn/complete-state already
+  // requires every remaining chip to be marked before the ayah counts as done).
+  function trimUnmarkedEdgeWords(){
+    if (!canTrimEdgeWords()) return;
+    const entry = currentAyah();
+    const groups = computeChipGroups(entry, boundaryModes);
+    const markedGroupIdx = groups
+      .map((g, gi) => (markerList.some(m => m.wordIndex === g[0]) ? gi : -1))
+      .filter(gi => gi >= 0);
+    if (!markedGroupIdx.length) return;
+
+    const firstGroup = groups[markedGroupIdx[0]];
+    const lastGroup = groups[markedGroupIdx[markedGroupIdx.length - 1]];
+    const keepStart = firstGroup[0];
+    const keepEnd = lastGroup[lastGroup.length - 1];  // inclusive
+    if (keepStart === 0 && keepEnd === entry.words.length - 1) return;  // nothing to trim
+
+    const droppedCount = entry.words.length - (keepEnd - keepStart + 1);
+    if (!confirm(`Delete the ${droppedCount} unmarked word(s) at the start/end of this ayah? They'll be removed from the text permanently.`)) return;
+
+    if (previewMode) exitPreview();
+
+    entry.words = entry.words.slice(keepStart, keepEnd + 1);
+    boundaryModes = boundaryModes.slice(keepStart, keepEnd);
+    markerList = markerList
+      .filter(m => m.wordIndex >= keepStart && m.wordIndex <= keepEnd)
+      .map(m => ({ ...m, wordIndex: m.wordIndex - keepStart }));
+    selectedMarkerId = null;
+
+    // entry.words itself isn't part of the marker undo/redo snapshots, so any
+    // stale entry from before this trim would reference word indices that no
+    // longer exist -- drop the whole stack rather than risk restoring into a
+    // now-mismatched word list.
+    undoStack = [];
+    redoStack = [];
+    updateUndoRedoButtons();
+
+    updateNextButtonState();
+    updatePreviewAvailability();
+    stopPlayback();
+    seekTo(0);
+    renderChips();
+    renderWaveMarkers();
+    renderMarkPanel();
+    persistSession();
+  }
+
+  trimEdgeWordsBtn.addEventListener('click', trimUnmarkedEdgeWords);
 
   // ============ REAL AUDIO PLAYBACK ============
   function startPlayback(){
@@ -1509,6 +2020,7 @@
       const barPct = (i / Math.max(1, bars.length - 1)) * 100;
       bar.classList.toggle('played', barPct <= pct);
     });
+    if (waveFollowPlayhead) scrollWaveTrackToTime(elapsed);
     updatePreviewHighlight();
   }
   function tick(){
@@ -1549,29 +2061,37 @@
   waveTrackEl.addEventListener('click', (e) => {
     const entry = currentAyah();
     if (!entry.duration) return;
-    const rect = waveTrackEl.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
+    // Use waveInner's rect, not waveTrack's -- once zoomed in, the track is
+    // just a scrolled viewport onto waveInner, which is the element that
+    // actually spans the ayah's full duration.
+    const rect = waveInnerEl.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     seekTo(pct * entry.duration);
   });
 
-  // ---------- speed (single button on the transport row, cycles presets) ----------
-  const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5];
+  // ---------- speed (row of preset pills) ----------
   function setSpeed(v){
     speed = v;
-    let label = speed.toFixed(2).replace(/0$/, '');
-    if (speed === 1) label = '1.0';
-    speedBtn.textContent = label + '×';
     audioEl.playbackRate = speed;
+    document.querySelectorAll('#speedRow .speed-btn').forEach(b => {
+      b.classList.toggle('active', parseFloat(b.dataset.speed) === speed);
+    });
   }
-  speedBtn.addEventListener('click', () => {
-    const idx = SPEED_PRESETS.indexOf(speed);
-    setSpeed(SPEED_PRESETS[(idx + 1) % SPEED_PRESETS.length]);
+  document.getElementById('speedRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.speed-btn');
+    if (!btn) return;
+    setSpeed(parseFloat(btn.dataset.speed));
   });
   setSpeed(speed);
 
   // ---------- word chip interaction ----------
   wordChipsEl.addEventListener('click', (e) => {
     if (previewMode) return;
+    const boundary = e.target.closest('.word-boundary');
+    if (boundary){
+      toggleBoundary(Number(boundary.dataset.boundary));
+      return;
+    }
     const chip = e.target.closest('.word-chip');
     if (!chip) return;
     addMarker(Number(chip.dataset.i), elapsed);
@@ -1593,7 +2113,7 @@
   document.addEventListener('click', (e) => {
     if (!selectedMarkerId) return;
     const path = e.composedPath();
-    if (path.some(el => el.classList && el.classList.contains('word-chip'))) return;
+    if (path.some(el => el.classList && (el.classList.contains('word-chip') || el.classList.contains('word-boundary')))) return;
     if (path.includes(markPanelEl)) return;
     if (path.includes(markersToggleBtn)) return;
     selectedMarkerId = null;
@@ -1603,6 +2123,7 @@
   });
 
   clearAllBtn.addEventListener('click', clearAllMarks);
+  clearFrameSeparatorsBtn.addEventListener('click', clearFrameSeparators);
   undoBtn.addEventListener('click', undo);
   redoBtn.addEventListener('click', redo);
   document.addEventListener('keydown', (e) => {
@@ -1621,7 +2142,23 @@
     renderMarkPanel();
   });
 
-  document.getElementById('skipBtn').addEventListener('click', goNext);
+  // Skip is meant for an ayah you deliberately want on automatic pacing
+  // (never marked at all) -- but nothing stopped it being used mid-marking
+  // too, which quietly drops whatever's already placed from the final
+  // manifest (buildManifest() only ever includes a fully-marked ayah) with
+  // no feedback at the time. Only warn when there's something to actually
+  // lose (some, but not all, chips marked); a truly untouched ayah skips
+  // silently same as before.
+  document.getElementById('skipBtn').addEventListener('click', () => {
+    const entry = currentAyah();
+    const covered = new Set(markerList.map(m => m.wordIndex));
+    const totalChips = computeChipGroups(entry, boundaryModes).length;
+    if (covered.size > 0 && covered.size < totalChips){
+      const goBack = confirm(`You've only marked ${covered.size} of ${totalChips} word(s) on ${entry.label} -- skipping now means it won't use your manual timing (automatic pacing instead), and these marks will be left out.\n\nOK = stay and finish marking. Cancel = skip anyway.`);
+      if (goBack) return;
+    }
+    goNext();
+  });
   nextBtn.addEventListener('click', goNext);
   prevBtn.addEventListener('click', goPrev);
   ayahDotsEl.addEventListener('click', (e) => {
@@ -1642,30 +2179,94 @@
       goToAyah(ayahIndex + 1);
     } else {
       persistSession();
-      generateVideo();
+      finishTiming();
     }
   }
   function goPrev(){ goToAyah(ayahIndex - 1); }
 
-  // Inverse of buildManifest(), for reopening a completed session's word
-  // timing (editOnlyMode): rebuilds each ayah's markerList from the
-  // manifest's absolute highlight_words times, shifted back to this
-  // frame's own phase-relative clock (rangeStart is 0 for every entry
-  // except the Bismillah/ayah-1 split pair). Only understands the single-
-  // frame-per-ayah shape this editor itself ever produces (see
-  // buildManifest()) -- a hand-authored manifest with combined/split frame
-  // text wouldn't round-trip through here, but this editor never created
-  // one of those to begin with, so that's not a regression.
+  // Inverse of buildManifest(), for reopening any session (complete/
+  // editOnlyMode or still in progress) whose server-saved timing has no
+  // matching local draft: rebuilds each ayah's markerList AND boundaryModes
+  // from the manifest's frames, shifted back to this frame's own phase-
+  // relative clock (rangeStart is 0 for every entry except the Bismillah/
+  // ayah-1 split pair). Walks every frame (not just the first), inferring
+  // where each ends by counting its own text's words -- a raw-word offset
+  // running across frames. A frame boundary past the first becomes a
+  // 'break'; a highlight_words entry whose index is a multi-element list
+  // becomes a 'merge' across the raw words it spans. This reliably round-
+  // trips a manifest THIS editor produced; a hand-authored manifest whose
+  // frame text doesn't slice entry.words in order won't necessarily line
+  // up, same caveat buildManifest()'s "combine or split however you like"
+  // always carried -- not a regression, just not something this editor can
+  // faithfully re-display.
   function hydrateAyahStatesFromManifest(manifest){
     const manifestAyahs = (manifest && manifest.ayahs) || {};
     ayahs.forEach((entry, i) => {
       const stored = manifestAyahs[String(entry.ayahNumber)];
-      const highlightWords = stored && Array.isArray(stored.frames) && stored.frames[0]
-        ? (stored.frames[0].highlight_words || []) : [];
-      if (!highlightWords.length) return;
+      const frames = stored && Array.isArray(stored.frames) ? stored.frames : [];
+      if (!frames.length) return;
+
+      // Sized from the manifest's OWN frame texts, not entry.words -- this
+      // runs during init(), before any ayah's real text/audio has been
+      // fetched (see ensureLoaded()), so entry.words doesn't exist yet.
       const rangeStart = entry.rangeStart || 0;
-      const markerList = highlightWords.map((hw, j) => ({ id: j + 1, wordIndex: hw.index, time: hw.start - rangeStart }));
-      ayahStates[i] = { markerList, markIdCounter: markerList.length, complete: true };
+
+      // A REPEATED frame (the reciter backtracking over an already-recited
+      // phrase -- see buildManifest()'s run-based grouping, which is what
+      // can now emit one) re-shows an earlier frame's exact word range
+      // rather than introducing new raw words. Detected here by an exact
+      // text match against a frame already seen in this ayah, so its
+      // markers reuse that earlier offset instead of being double-counted
+      // into the reconstructed word list -- counting them fresh would
+      // inflate totalWords and misplace every later frame's boundaries and
+      // marker positions.
+      const offsetByText = new Map();
+      let totalWords = 0;
+      frames.forEach(frame => {
+        if (offsetByText.has(frame.text)) return;
+        offsetByText.set(frame.text, totalWords);
+        totalWords += (frame.text || '').split(' ').filter(Boolean).length;
+      });
+
+      const boundaryModes = new Array(Math.max(0, totalWords - 1)).fill(null);
+      const markerList = [];
+      let any = false;
+
+      frames.forEach(frame => {
+        const frameOffset = offsetByText.get(frame.text);
+        // Restore the break that precedes this range -- a no-op (already
+        // 'break') on a repeat visit of the same range.
+        if (frameOffset > 0) boundaryModes[frameOffset - 1] = 'break';
+
+        (frame.highlight_words || []).forEach(hw => {
+          any = true;
+          const idxList = Array.isArray(hw.index) ? hw.index : [hw.index];
+          for (let k = 0; k < idxList.length - 1; k++){
+            const b = frameOffset + idxList[k];
+            if (b >= 0 && b < boundaryModes.length) boundaryModes[b] = 'merge';
+          }
+          markerList.push({ id: markerList.length + 1, wordIndex: frameOffset + idxList[0], time: hw.start - rangeStart });
+        });
+      });
+
+      if (!any) return;
+
+      // A manifest frame is allowed to carry no highlight_words at all
+      // (quran_lib/timing.py treats it as optional, and video_build.py
+      // renders it as a plain, nothing-highlighted frame) -- so a saved
+      // manifest can legitimately come back with some chip never marked.
+      // Recomputing completeness here (instead of the old hard-coded
+      // `true`) is what makes the editor correctly re-flag that ayah as
+      // needing more marking rather than silently trusting stale state --
+      // trusting it was letting buildManifest() (which only ever emits a
+      // frame instance for a chip range that actually has a marker) drop
+      // that chip's words and frame split entirely on the next Generate.
+      const chipGroups = computeChipGroupsForWordCount(totalWords, boundaryModes);
+      const covered = new Set(markerList.map(m => m.wordIndex));
+      ayahStates[i] = {
+        markerList, markIdCounter: markerList.length, boundaryModes,
+        complete: covered.size === chipGroups.length,
+      };
     });
   }
 
@@ -1673,8 +2274,13 @@
   function buildManifest(){
     const manifest = { ayahs: {} };
     ayahStates.forEach((state, i) => {
-      if (!state || !state.complete || !state.markerList.length) return;
+      if (!state || !state.complete || !state.markerList.length){
+        console.log(`[timing] buildManifest(): skipping ayah index ${i} (${ayahs[i] ? ayahs[i].label : '?'}) --`,
+          !state ? 'no state saved' : !state.complete ? 'not marked complete' : 'no markers');
+        return;
+      }
       const entry = ayahs[i];
+      const modes = state.boundaryModes || [];
       // Marker times are recorded phase-relative (0 at this frame's own
       // start, elapsed/seekTo handle the translation to/from the shared
       // audio element's absolute time -- see loadAyah()/seekTo()/tick()).
@@ -1685,15 +2291,62 @@
       // build_video() can play them from a single audio subclip instead of
       // a split file.
       const rangeStart = entry.rangeStart || 0;
+      const chipGroups = computeChipGroups(entry, modes);
+      const frameRanges = computeFrameGroups(entry, modes);
       const sortedMarks = [...state.markerList].sort((a, b) => a.time - b.time);
-      const highlightWords = sortedMarks.map((m, j) => ({
-        index: m.wordIndex,
-        start: rangeStart + m.time,
-        end: rangeStart + (j + 1 < sortedMarks.length ? sortedMarks[j + 1].time : entry.duration),
-      }));
-      manifest.ayahs[String(entry.ayahNumber)] = {
-        frames: [{ start: rangeStart, end: rangeStart + entry.duration, text: entry.words.join(' '), highlight_words: highlightWords }],
-      };
+
+      const frameIndexForWord = (wordIndex) => frameRanges.findIndex(r => wordIndex >= r.start && wordIndex < r.end);
+
+      // Walk every marker in chronological order and run-length-encode them
+      // into frame INSTANCES: a maximal run of consecutive-in-time markers
+      // that all land in the same configured frame range becomes one
+      // instance. With a normal forward tap-along, this produces exactly
+      // one instance per configured range, in order -- identical to before.
+      // But addMarker()/renderChips() already let a word be marked more
+      // than once (comma-separated order numbers on a "marked" chip), for
+      // exactly the case a reciter stops and repeats a phrase -- and once a
+      // later marker lands back on an earlier frame's word, bucketing
+      // markers by word-index range FIRST (the old approach) stretches
+      // that earlier frame's own end past the next frame's start, which is
+      // the TimingManifestError this replaces. Grouping by TIME first
+      // instead means a backtracked marker simply starts a NEW run/instance
+      // reusing that earlier frame's word range, so the video re-shows that
+      // frame and re-highlights the repeated word at the right, later time.
+      const runs = [];
+      sortedMarks.forEach(m => {
+        const fi = frameIndexForWord(m.wordIndex);
+        const lastRun = runs[runs.length - 1];
+        if (lastRun && lastRun.frameIdx === fi) lastRun.marks.push(m);
+        else runs.push({ frameIdx: fi, marks: [m] });
+      });
+
+      const frames = [];
+      runs.forEach((run, ri) => {
+        const range = frameRanges[run.frameIdx];
+        const frameStart = ri === 0 ? rangeStart : frames[ri - 1].end;
+        const frameEnd = ri < runs.length - 1
+          ? rangeStart + runs[ri + 1].marks[0].time
+          : rangeStart + entry.duration;
+
+        const highlightWords = run.marks.map((m, j) => {
+          const group = chipGroups.find(g => g[0] === m.wordIndex) || [m.wordIndex];
+          const localIdx = group.map(gi => gi - range.start);
+          return {
+            index: localIdx.length === 1 ? localIdx[0] : localIdx,
+            start: rangeStart + m.time,
+            end: j + 1 < run.marks.length ? rangeStart + run.marks[j + 1].time : frameEnd,
+          };
+        });
+
+        frames.push({
+          start: frameStart,
+          end: frameEnd,
+          text: entry.words.slice(range.start, range.end).join(' '),
+          highlight_words: highlightWords,
+        });
+      });
+
+      manifest.ayahs[String(entry.ayahNumber)] = { frames };
     });
     return manifest;
   }
@@ -1713,87 +2366,78 @@
     return manifest;
   }
 
-  const genOverlay = document.getElementById('genOverlay');
-  const genFill = document.getElementById('genFill');
-  const genLabel = document.getElementById('genLabel');
-  const genLog = document.getElementById('genLog');
-  const genError = document.getElementById('genError');
-  const genBackBtn = document.getElementById('genBackBtn');
-
-  async function generateVideo(){
+  // "Done" no longer generates inline -- it persists the timing (and, for a
+  // brand new session, hands off to select_style.html to pick a look before
+  // generating). Style-picking, progress, cancel, and the finished-video
+  // screen now live on their own pages (select_style.html/generating.html/
+  // video_ready.html) so generation can be cancelled and the result gets a
+  // dedicated screen instead of this page's old inline overlay.
+  async function finishTiming(){
     stopPlayback();
-    genOverlay.classList.add('open');
-    genError.style.display = 'none';
-    genBackBtn.classList.remove('show');
-    genFill.style.width = '1%';
-    genLabel.textContent = 'Starting…';
-    genLog.textContent = '';
 
     const manifest = buildManifest();
     const customAudioManifest = buildCustomAudioManifest();
-    const payload = {
-      sessionId: draft.id,
-      surah: draft.surah,
-      ayahStart: draft.from,
-      ayahEnd: draft.to,
-      reciter: draft.reciterKey,
-      translation: draft.translation,
-      orientation: draft.orientation || 'vertical',
-      theme: draft.theme || undefined,
-      themeName: draft.themeLabel || undefined,
-      timing: Object.keys(manifest.ayahs).length ? manifest : undefined,
-      customAudio: Object.keys(customAudioManifest.ayahs).length ? customAudioManifest : undefined,
-    };
+    const timing = Object.keys(manifest.ayahs).length ? manifest : undefined;
+    const customAudio = Object.keys(customAudioManifest.ayahs).length ? customAudioManifest : undefined;
+    console.log(`[timing] finishTiming(): ayahStates=${ayahStates.map(s => s ? (s.complete ? 'complete' : 'incomplete') : 'empty').join(',')}`);
+    console.log(`[timing] finishTiming(): built manifest for ${Object.keys(manifest.ayahs).length}/${ayahStates.length} ayah(s)`, timing);
 
-    let jobId;
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
-      jobId = json.jobId;
-    } catch (e) {
-      showGenError(e.message);
+    // Safety net: buildManifest() silently drops any ayah whose saved state
+    // isn't (still) exactly "complete" -- if that ends up excluding marks
+    // the user can see they placed (markerList non-empty), don't let this
+    // proceed to overwrite/clear anything without the user knowing. Without
+    // this check, a stale/mismatched ayahStates entry (e.g. this ayah's
+    // word count shifted between the marking session and now) would
+    // silently generate with automatic pacing AND wipe the local draft on
+    // the way out, losing the marks for good with zero warning.
+    const excludedButMarked = ayahStates
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => s && s.markerList && s.markerList.length && !s.complete);
+    if (excludedButMarked.length){
+      console.warn('[timing] finishTiming(): these ayahs have marks but are NOT complete, so they will be EXCLUDED from what gets saved/generated:',
+        excludedButMarked.map(({ s, i }) => `${ayahs[i] ? ayahs[i].label : `#${i}`} (${s.markerList.length} mark(s), ${s.complete})`));
+      const names = excludedButMarked.map(({ i }) => ayahs[i] ? ayahs[i].label : `ayah index ${i}`).join(', ');
+      const goBack = confirm(`${names} still ${excludedButMarked.length === 1 ? 'has' : 'have'} unfinished word marking -- ${excludedButMarked.length === 1 ? "it won't" : "they won't"} use your manual timing (automatic pacing instead), and continuing may lose those marks.\n\nOK = go back and finish marking. Cancel = continue anyway (marks for ${excludedButMarked.length === 1 ? 'it' : 'them'} will be dropped).`);
+      if (goBack) return;
+    }
+
+    if (editOnlyMode){
+      // Already a complete/locked session with its own theme -- this is
+      // just a word-timing correction, so re-run the generator directly
+      // instead of going through the style picker again.
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: draft.id, timing }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Couldn't start the job.");
+        console.log('[timing] editOnlyMode generate request accepted, jobId=', json.jobId);
+        clearSavedSession();
+        location.href = `/generating.html?jobId=${encodeURIComponent(json.jobId)}&sessionId=${encodeURIComponent(draft.id)}`;
+      } catch (e) {
+        console.error('[timing] editOnlyMode generate FAILED:', e);
+        alert(e.message);
+      }
       return;
     }
 
-    let since = 0;
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/status/${jobId}?since=${since}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Lost track of the job.');
-
-        if (json.log && json.log.length){
-          genLog.textContent += (genLog.textContent ? '\n' : '') + json.log.join('\n');
-          genLog.scrollTop = genLog.scrollHeight;
-          since = json.logLength;
-          genLabel.textContent = json.log[json.log.length - 1].trim().slice(0, 70);
-        }
-        genFill.style.width = json.percent + '%';
-
-        if (json.status === 'done'){
-          clearInterval(poll);
-          clearSavedSession();
-          location.href = '/';
-        } else if (json.status === 'error'){
-          clearInterval(poll);
-          showGenError(json.error || 'The generator hit an error.');
-        }
-      } catch (e) {
-        clearInterval(poll);
-        showGenError(e.message);
-      }
-    }, 1200);
+    try {
+      const res = await fetch(`/api/sessions/${encodeURIComponent(draft.id)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timing, customAudio }),
+      });
+      if (!res.ok) throw new Error('Failed to save your timing.');
+      console.log('[timing] session PUT ok -- server session now:', await res.clone().json());
+    } catch (e) {
+      console.error('[timing] session PUT FAILED:', e);
+      alert("Couldn't save your timing. Please try again.");
+      return;
+    }
+    console.log('[timing] clearing local draft, handing off to select_style.html');
+    clearSavedSession();
+    location.href = `/select_style.html?sessionId=${encodeURIComponent(draft.id)}`;
   }
-
-  function showGenError(message){
-    genError.style.display = 'block';
-    genError.textContent = message;
-    genBackBtn.classList.add('show');
-  }
-  genBackBtn.addEventListener('click', () => genOverlay.classList.remove('open'));
 
   // ============ INIT ============
   (async function init(){
@@ -1813,17 +2457,30 @@
       surah: session.surah,
       from: session.ayahStart,
       to: session.ayahEnd,
-      reciterKey: session.reciter,
+      // A custom-audio session (session.entry === 'custom') never has a
+      // reciter picked -- reciterKey below is only ever used as the fallback
+      // source for an ayah in range that has no custom mark, same default
+      // app.py's /api/generate and /api/timing/audio already fall back to.
+      // hasReciter tracks whether that's a REAL user choice or just this
+      // silent fallback, so the UI (renderAudioSourceRow()) can avoid
+      // implying a reciter was picked when one wasn't.
+      hasReciter: !!session.reciter,
+      reciterKey: session.reciter || 'yasser_al_dossary',
       translation: session.translation || 'en.sahih',
-      orientation: session.orientation === 'horizontal' ? 'horizontal' : 'vertical',
       theme: session.theme,
       themeLabel: session.themeName,
     };
-    if (!draft.surah || !draft.from || !draft.to || !draft.reciterKey){
-      // Incomplete draft (skipped straight here without finishing new_video.html) -- go finish it there.
-      location.href = `/new_video.html?sessionId=${encodeURIComponent(sessionId)}`;
+    if (!draft.surah || !draft.from || !draft.to){
+      // Incomplete draft (skipped straight here without finishing
+      // new_video.html/custom_audio.html) -- go finish it on whichever
+      // entry screen this session started from.
+      const backTo = session.entry === 'custom' ? 'custom_audio.html' : 'new_video.html';
+      location.href = `/${backTo}?sessionId=${encodeURIComponent(sessionId)}`;
       return;
     }
+    document.getElementById('backBtnTop').setAttribute('onclick',
+      editOnlyMode ? "location.href='/'"
+        : `location.href='/${session.entry === 'custom' ? 'custom_audio.html' : 'new_video.html'}?sessionId=${encodeURIComponent(sessionId)}'`);
 
     try {
       const res = await fetch('/api/reciters');
@@ -1838,11 +2495,12 @@
     if (preSkeletonSaved){
       customAudioByRealAyah = preSkeletonSaved.customAudioByRealAyah || {};
       rangeAudioInfo = preSkeletonSaved.rangeAudioInfo || null;
-    } else if (editOnlyMode && session.customAudio && session.customAudio.ayahs){
-      // Reopening a completed session's own audio choices (read-only in
-      // this mode -- see renderAudioSourceRow()) so the
-      // editor plays back the SAME audio the finished video used, not the
-      // plain reciter download.
+    } else if (session.customAudio && session.customAudio.ayahs){
+      // Reopening a session that already has saved custom audio but no local
+      // draft (e.g. a different browser/device, or the global localStorage
+      // key got clobbered by working on a different timing session) -- not
+      // just editOnlyMode: without this, every ayah silently falls back to
+      // the plain reciter download instead of the audio the user uploaded.
       Object.entries(session.customAudio.ayahs).forEach(([realAyah, custom]) => {
         customAudioByRealAyah[realAyah] = {
           filename: custom.filename, cropStart: custom.crop_start || 0, cropEnd: custom.crop_end != null ? custom.crop_end : null,
@@ -1859,11 +2517,25 @@
     ayahStates = ayahs.map(() => null);
 
     const saved = loadSavedSession();
+    console.log('[timing] init(): server session.timing =', session.timing, '| local draft =', saved);
+    if (saved && Array.isArray(saved.ayahStates) && saved.ayahStates.length !== ayahs.length){
+      console.warn(`[timing] init(): local draft has ${saved.ayahStates.length} ayah state(s) but this load built ${ayahs.length} -- draft REJECTED (length mismatch), falling through to server timing / blank`);
+    }
     if (saved && Array.isArray(saved.ayahStates) && saved.ayahStates.length === ayahs.length){
       ayahStates = saved.ayahStates;
       ayahIndex = Math.max(0, Math.min(saved.ayahIndex || 0, ayahs.length - 1));
-    } else if (editOnlyMode && session.timing){
+      console.log('[timing] init(): restored from local draft (in-browser autosave)');
+    } else if (session.timing){
+      // Reopening a session that already has saved word timing but no local
+      // draft (e.g. finishTiming() cleared it, or a different browser/device)
+      // -- not just editOnlyMode: without this, every ayah's marks come back
+      // blank and the next Done silently drops whatever isn't re-marked,
+      // overwriting the server's good manifest with an incomplete one.
       hydrateAyahStatesFromManifest(session.timing);
+      console.log('[timing] init(): rehydrated from server-saved timing --',
+        ayahStates.filter(s => s && s.complete).length, '/', ayahStates.length, 'ayah(s) restored complete');
+    } else {
+      console.log('[timing] init(): no local draft and no server timing -- starting blank');
     }
 
     await loadAyah();

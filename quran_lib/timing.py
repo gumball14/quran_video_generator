@@ -19,9 +19,15 @@ SCHEMA
           "translation": "...",      // optional; falls back to the ayah's
                                       // own translation if omitted
           "highlight_words": [       // optional; word indices are into
-            {"index": 0, "start": 0.0, "end": 0.9},   // *this frame's* text,
-            {"index": 1, "start": 0.9, "end": 2.1}    // not the whole ayah
-          ]
+            {"index": 0, "start": 0.0, "end": 0.9},        // *this frame's*
+            {"index": [1, 2], "start": 0.9, "end": 2.1}    // text, not the
+          ]                                                 // whole ayah --
+                                      // "index" can also be a list of indices
+                                      // (e.g. [1, 2] above) when two or more
+                                      // words were recited fast enough to
+                                      // treat as one highlighted beat; they
+                                      // light up together instead of the
+                                      // pointer animating from one to the next
         }
       ]
     }
@@ -107,8 +113,7 @@ def _validate_ayah_entry(ayah_key, entry):
             for key in ("index", "start", "end"):
                 if key not in wt:
                     raise TimingManifestError(f'{wwhere}: missing required field "{key}".')
-            if not isinstance(wt["index"], int) or wt["index"] < 0:
-                raise TimingManifestError(f'{wwhere}: "index" must be a non-negative integer.')
+            _validate_highlight_index(wt["index"], wwhere)
             if wt["end"] <= wt["start"]:
                 raise TimingManifestError(f'{wwhere}: "end" must be greater than "start".')
             if wt["start"] < start or wt["end"] > end:
@@ -116,6 +121,24 @@ def _validate_ayah_entry(ayah_key, entry):
                     f'{wwhere}: word timing [{wt["start"]}, {wt["end"]}]s falls outside '
                     f'its frame\'s range [{start}, {end}]s.'
                 )
+
+
+def _validate_highlight_index(index, where):
+    """A highlight word's "index" is either a single non-negative int, or a
+    non-empty list of them -- the list form marks two or more words (recited
+    fast enough to treat as one beat) that should highlight together instead
+    of the pointer animating from one to the next; see video_build.py's
+    _add_manual_frame_scene() and text_render.py's draw_dynamic_layer()."""
+    def is_valid_int(v):
+        return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+    if is_valid_int(index):
+        return
+    if isinstance(index, list) and index and all(is_valid_int(v) for v in index):
+        return
+    raise TimingManifestError(
+        f'{where}: "index" must be a non-negative integer, or a non-empty list of them.'
+    )
 
 
 def get_ayah_frames(manifest, ayah_number: int):
